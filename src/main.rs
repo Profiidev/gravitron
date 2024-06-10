@@ -1,4 +1,4 @@
-use std::{mem::ManuallyDrop, time::Instant};
+use std::mem::ManuallyDrop;
 
 use ash::{ext, khr, vk};
 use vk_mem::Alloc;
@@ -13,8 +13,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   event_loop
     .run_app(&mut App {
       aetna: None,
-      frame: 0,
-      last_frame: Instant::now(),
     })
     .unwrap();
 
@@ -23,8 +21,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 struct App {
   aetna: Option<Aetna>,
-  frame: u64,
-  last_frame: std::time::Instant,
 }
 
 impl ApplicationHandler for App {
@@ -46,7 +42,7 @@ impl ApplicationHandler for App {
     match event {
       winit::event::WindowEvent::CloseRequested => {
         std::mem::drop(self.aetna.take());
-      }
+      },
       winit::event::WindowEvent::RedrawRequested => {
         println!("Redraw requested");
         if let Some(aetna) = self.aetna.as_mut() {
@@ -62,12 +58,12 @@ impl ApplicationHandler for App {
               )
               .expect("Unable to acquire next image")
           };
-          println!("Acquired image");
+
           unsafe {
             aetna
               .device
               .wait_for_fences(
-                &[aetna.swapchain.may_begin_drawing[aetna.swapchain.current_image]],
+                &[aetna.swapchain.may_begin_drawing[image_index as usize]],
                 true,
                 std::u64::MAX,
               )
@@ -75,33 +71,34 @@ impl ApplicationHandler for App {
 
             aetna
               .device
-              .reset_fences(&[aetna.swapchain.may_begin_drawing[aetna.swapchain.current_image]])
+              .reset_fences(&[aetna.swapchain.may_begin_drawing[image_index as usize]])
               .expect("Unable to reset fences");
           }
-          println!("Fences reset");
+
           let semaphore_available =
             [aetna.swapchain.image_available[aetna.swapchain.current_image]];
           let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
           let semaphore_render_finished =
-            [aetna.swapchain.render_finished[aetna.swapchain.current_image]];
+            [aetna.swapchain.render_finished[image_index as usize]];
           let command_buffer = [aetna.command_buffers[image_index as usize]];
+          dbg!(image_index);
           let submit_info = [vk::SubmitInfo::default()
             .wait_semaphores(&semaphore_available)
             .wait_dst_stage_mask(&wait_stages)
             .command_buffers(&command_buffer)
             .signal_semaphores(&semaphore_render_finished)];
-          println!("Submitting queue");
+
           unsafe {
             aetna
               .device
               .queue_submit(
                 aetna.queues.graphics,
                 &submit_info,
-                aetna.swapchain.may_begin_drawing[aetna.swapchain.current_image],
+                aetna.swapchain.may_begin_drawing[image_index as usize],
               )
               .expect("Unable to submit queue");
           }
-          println!("Submitted queue");
+
           let swapchains = [aetna.swapchain.swapchain];
           let image_indices = [image_index];
           let present_info = vk::PresentInfoKHR::default()
@@ -115,12 +112,19 @@ impl ApplicationHandler for App {
               .queue_present(aetna.queues.graphics, &present_info)
               .expect("Unable to queue present");
           }
+          dbg!(aetna.swapchain.current_image);
           aetna.swapchain.current_image =
             (aetna.swapchain.current_image + 1) % aetna.swapchain.amount_of_images as usize;
         }
         println!("Redraw done");
-      }
+      },
       _ => {}
+    }
+  }
+
+  fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+    if let Some(aetna) = self.aetna.as_mut() {
+      //aetna.window.request_redraw();
     }
   }
 }
@@ -136,7 +140,7 @@ fn init_instance(
   let app_info = vk::ApplicationInfo::default()
     .application_name(&app_name)
     .engine_name(&engine_name)
-    .engine_version(vk::make_api_version(0, 0, 1, 0))
+    .engine_version(vk::make_api_version(0, 0, 42, 0))
     .application_version(vk::make_api_version(0, 0, 1, 0))
     .api_version(vk::make_api_version(0, 1, 3, 278));
 
@@ -427,7 +431,7 @@ impl SwapchainDong {
       .queue_family_indices(&queue_families)
       .pre_transform(surface_capabilities.current_transform)
       .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-      .present_mode(vk::PresentModeKHR::FIFO);
+      .present_mode(vk::PresentModeKHR::MAILBOX);
 
     let swapchain_loader = khr::swapchain::Device::new(instance, logical_device);
     let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) }?;
@@ -447,7 +451,6 @@ impl SwapchainDong {
         .image(*image)
         .view_type(vk::ImageViewType::TYPE_2D)
         .format(surface_format.format)
-        .components(vk::ComponentMapping::default())
         .subresource_range(subresource_range);
       let image_view = unsafe { logical_device.create_image_view(&image_view_create_info, None) }?;
       swapchain_image_views.push(image_view);
@@ -774,9 +777,9 @@ fn fill_command_buffers(
   vb: &vk::Buffer,
   vb1: &vk::Buffer,
 ) -> Result<(), vk::Result> {
-  for (i, command_buffer) in command_buffers.iter().enumerate() {
+  for (i, &command_buffer) in command_buffers.iter().enumerate() {
     let begin_info = vk::CommandBufferBeginInfo::default();
-    unsafe { logical_device.begin_command_buffer(*command_buffer, &begin_info) }?;
+    unsafe { logical_device.begin_command_buffer(command_buffer, &begin_info) }?;
 
     let clear_values = [vk::ClearValue {
       color: vk::ClearColorValue {
@@ -793,20 +796,20 @@ fn fill_command_buffers(
       .clear_values(&clear_values);
     unsafe {
       logical_device.cmd_begin_render_pass(
-        *command_buffer,
+        command_buffer,
         &render_pass_begin_info,
         vk::SubpassContents::INLINE,
       );
       logical_device.cmd_bind_pipeline(
-        *command_buffer,
+        command_buffer,
         vk::PipelineBindPoint::GRAPHICS,
         pipeline.pipeline,
       );
-      logical_device.cmd_bind_vertex_buffers(*command_buffer, 0, &[*vb], &[0]);
-      logical_device.cmd_bind_vertex_buffers(*command_buffer, 1, &[*vb1], &[0]);
-      logical_device.cmd_draw(*command_buffer, 3, 1, 0, 0);
-      logical_device.cmd_end_render_pass(*command_buffer);
-      logical_device.end_command_buffer(*command_buffer)?;
+      logical_device.cmd_bind_vertex_buffers(command_buffer, 0, &[*vb], &[0]);
+      logical_device.cmd_bind_vertex_buffers(command_buffer, 1, &[*vb1], &[0]);
+      logical_device.cmd_draw(command_buffer, 3, 1, 0, 0);
+      logical_device.cmd_end_render_pass(command_buffer);
+      logical_device.end_command_buffer(command_buffer)?;
     }
   }
   Ok(())
