@@ -1,6 +1,7 @@
 use std::{mem::ManuallyDrop, time::Instant};
 
 use ash::{ext, khr, vk};
+use vk_mem::Alloc;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
@@ -9,7 +10,13 @@ use winit::{
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   let event_loop = winit::event_loop::EventLoop::new().unwrap();
-  event_loop.run_app(&mut App { aetna: None, frame: 0, last_frame: Instant::now() }).unwrap();
+  event_loop
+    .run_app(&mut App {
+      aetna: None,
+      frame: 0,
+      last_frame: Instant::now(),
+    })
+    .unwrap();
 
   Ok(())
 }
@@ -41,10 +48,8 @@ impl ApplicationHandler for App {
         std::mem::drop(self.aetna.take());
       }
       winit::event::WindowEvent::RedrawRequested => {
+        println!("Redraw requested");
         if let Some(aetna) = self.aetna.as_mut() {
-          aetna.swapchain.current_image =
-            (aetna.swapchain.current_image + 1) % aetna.swapchain.amount_of_images as usize;
-
           let (image_index, _) = unsafe {
             aetna
               .swapchain
@@ -57,7 +62,7 @@ impl ApplicationHandler for App {
               )
               .expect("Unable to acquire next image")
           };
-
+          println!("Acquired image");
           unsafe {
             aetna
               .device
@@ -73,7 +78,7 @@ impl ApplicationHandler for App {
               .reset_fences(&[aetna.swapchain.may_begin_drawing[aetna.swapchain.current_image]])
               .expect("Unable to reset fences");
           }
-
+          println!("Fences reset");
           let semaphore_available =
             [aetna.swapchain.image_available[aetna.swapchain.current_image]];
           let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -85,14 +90,18 @@ impl ApplicationHandler for App {
             .wait_dst_stage_mask(&wait_stages)
             .command_buffers(&command_buffer)
             .signal_semaphores(&semaphore_render_finished)];
-
+          println!("Submitting queue");
           unsafe {
             aetna
               .device
-              .queue_submit(aetna.queues.graphics, &submit_info, vk::Fence::null())
+              .queue_submit(
+                aetna.queues.graphics,
+                &submit_info,
+                aetna.swapchain.may_begin_drawing[aetna.swapchain.current_image],
+              )
               .expect("Unable to submit queue");
           }
-
+          println!("Submitted queue");
           let swapchains = [aetna.swapchain.swapchain];
           let image_indices = [image_index];
           let present_info = vk::PresentInfoKHR::default()
@@ -106,7 +115,10 @@ impl ApplicationHandler for App {
               .queue_present(aetna.queues.graphics, &present_info)
               .expect("Unable to queue present");
           }
+          aetna.swapchain.current_image =
+            (aetna.swapchain.current_image + 1) % aetna.swapchain.amount_of_images as usize;
         }
+        println!("Redraw done");
       }
       _ => {}
     }
@@ -206,7 +218,6 @@ impl Drop for DebugDong {
 }
 
 struct SurfaceDong {
-  wayland_surface_loader: khr::wayland_surface::Instance,
   surface_loader: khr::surface::Instance,
   surface: vk::SurfaceKHR,
 }
@@ -217,28 +228,14 @@ impl SurfaceDong {
     instance: &ash::Instance,
     window: &winit::window::Window,
   ) -> Result<Self, Box<dyn std::error::Error>> {
-    let wayland_display = window.display_handle().unwrap().as_raw();
-    let wayland_display = match wayland_display {
-      winit::raw_window_handle::RawDisplayHandle::Wayland(display) => display.display.as_ptr(),
-      _ => panic!("Not a wayland display"),
-    };
-
-    let wayland_surface = window.window_handle().unwrap().as_raw();
-    let wayland_surface = match wayland_surface {
-      winit::raw_window_handle::RawWindowHandle::Wayland(surface) => surface.surface.as_ptr(),
-      _ => panic!("Not a wayland surface"),
-    };
-
-    let wayland_create_info = vk::WaylandSurfaceCreateInfoKHR::default()
-      .display(wayland_display as *mut vk::wl_display)
-      .surface(wayland_surface as *mut vk::wl_surface);
-    let wayland_surface_loader = khr::wayland_surface::Instance::new(entry, instance);
-    let surface =
-      unsafe { wayland_surface_loader.create_wayland_surface(&wayland_create_info, None) }?;
+    let display_handle = window.display_handle().unwrap().as_raw();
+    let window_handle = window.window_handle().unwrap().as_raw();
+    let surface = unsafe {
+      ash_window::create_surface(entry, instance, display_handle, window_handle, None)
+    }?;
     let surface_loader = khr::surface::Instance::new(entry, instance);
 
     Ok(Self {
-      wayland_surface_loader,
       surface_loader,
       surface,
     })
@@ -608,7 +605,38 @@ impl Pipeline {
       fragment_shader_stage_create_info,
     ];
 
-    let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default();
+    let vertex_attrib_descs = [
+      vk::VertexInputAttributeDescription::default()
+        .binding(0)
+        .location(0)
+        .offset(0)
+        .format(vk::Format::R32G32B32A32_SFLOAT),
+      vk::VertexInputAttributeDescription::default()
+        .binding(1)
+        .location(1)
+        .offset(0)
+        .format(vk::Format::R32_SFLOAT),
+      vk::VertexInputAttributeDescription::default()
+        .binding(1)
+        .location(2)
+        .offset(4)
+        .format(vk::Format::R32G32B32A32_SFLOAT),
+    ];
+
+    let vertex_binding_descs = [
+      vk::VertexInputBindingDescription::default()
+        .binding(0)
+        .stride(4 * 4)
+        .input_rate(vk::VertexInputRate::VERTEX),
+      vk::VertexInputBindingDescription::default()
+        .binding(1)
+        .stride(4 * 5)
+        .input_rate(vk::VertexInputRate::VERTEX),
+    ];
+
+    let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
+      .vertex_binding_descriptions(&vertex_binding_descs)
+      .vertex_attribute_descriptions(&vertex_attrib_descs);
     let input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo::default()
       .topology(vk::PrimitiveTopology::POINT_LIST);
 
@@ -743,6 +771,8 @@ fn fill_command_buffers(
   swapchain_dong: &SwapchainDong,
   render_pass: vk::RenderPass,
   pipeline: &Pipeline,
+  vb: &vk::Buffer,
+  vb1: &vk::Buffer,
 ) -> Result<(), vk::Result> {
   for (i, command_buffer) in command_buffers.iter().enumerate() {
     let begin_info = vk::CommandBufferBeginInfo::default();
@@ -772,12 +802,50 @@ fn fill_command_buffers(
         vk::PipelineBindPoint::GRAPHICS,
         pipeline.pipeline,
       );
-      logical_device.cmd_draw(*command_buffer, 1, 1, 0, 0);
+      logical_device.cmd_bind_vertex_buffers(*command_buffer, 0, &[*vb], &[0]);
+      logical_device.cmd_bind_vertex_buffers(*command_buffer, 1, &[*vb1], &[0]);
+      logical_device.cmd_draw(*command_buffer, 3, 1, 0, 0);
       logical_device.cmd_end_render_pass(*command_buffer);
       logical_device.end_command_buffer(*command_buffer)?;
     }
   }
   Ok(())
+}
+
+struct Buffer {
+  buffer: vk::Buffer,
+  allocation: vk_mem::Allocation,
+}
+
+impl Buffer {
+  fn new(
+    allocator: &vk_mem::Allocator,
+    size: u64,
+    usage: vk::BufferUsageFlags,
+    memory_usage: vk_mem::MemoryUsage,
+  ) -> Result<Self, vk::Result> {
+    let buffer_create_info = vk::BufferCreateInfo::default().size(size).usage(usage);
+    let allocation_create_info = vk_mem::AllocationCreateInfo {
+      usage: memory_usage,
+      ..Default::default()
+    };
+    let (buffer, allocation) =
+      unsafe { allocator.create_buffer(&buffer_create_info, &allocation_create_info) }?;
+    Ok(Self { buffer, allocation })
+  }
+
+  fn fill<T: Sized>(
+    &mut self,
+    allocator: &vk_mem::Allocator,
+    data: &[T],
+  ) -> Result<(), vk::Result> {
+    let data_ptr = unsafe { allocator.map_memory(&mut self.allocation) }? as *mut T;
+    unsafe {
+      data_ptr.copy_from_nonoverlapping(data.as_ptr(), data.len());
+      allocator.unmap_memory(&mut self.allocation);
+    }
+    Ok(())
+  }
 }
 
 struct Aetna {
@@ -796,6 +864,8 @@ struct Aetna {
   pipeline: Pipeline,
   pools: Pools,
   command_buffers: Vec<vk::CommandBuffer>,
+  allocator: ManuallyDrop<vk_mem::Allocator>,
+  buffers: Vec<Buffer>,
 }
 
 impl Aetna {
@@ -823,6 +893,39 @@ impl Aetna {
     swapchain_dong.create_frame_buffers(&logical_device, render_pass)?;
     let pipeline = Pipeline::init(&logical_device, &swapchain_dong, render_pass)?;
     let pools = Pools::init(&logical_device, &queue_families)?;
+
+    let allocator_create_info =
+      vk_mem::AllocatorCreateInfo::new(&instance, &logical_device, physical_device);
+    let allocator = unsafe { vk_mem::Allocator::new(allocator_create_info) }?;
+
+    let allocation_create_info = vk_mem::AllocationCreateInfo {
+      usage: vk_mem::MemoryUsage::CpuToGpu,
+      flags: vk_mem::AllocationCreateFlags::MAPPED,
+      ..Default::default()
+    };
+
+    let data = [
+      0.4f32, -0.2f32, 0.0f32, 1.0f32, 0.8f32, 0.0f32, 0.0f32, 1.0f32, -0.4f32, 0.2f32, 0.0f32,
+      1.0f32,
+    ];
+    let data1 = [5.0, 1.0, 0.0, 1.0, 1.0_f32];
+
+    let mut buffer = Buffer::new(
+      &allocator,
+      std::mem::size_of_val(&data) as u64,
+      vk::BufferUsageFlags::VERTEX_BUFFER,
+      vk_mem::MemoryUsage::CpuToGpu,
+    )?;
+    buffer.fill(&allocator, &data)?;
+
+    let mut buffer1 = Buffer::new(
+      &allocator,
+      std::mem::size_of_val(&data1) as u64,
+      vk::BufferUsageFlags::VERTEX_BUFFER,
+      vk_mem::MemoryUsage::CpuToGpu,
+    )?;
+    buffer1.fill(&allocator, &data1)?;
+
     let command_buffers =
       create_command_buffers(&logical_device, &pools, swapchain_dong.frame_buffers.len())?;
     fill_command_buffers(
@@ -831,6 +934,8 @@ impl Aetna {
       &swapchain_dong,
       render_pass,
       &pipeline,
+      &buffer.buffer,
+      &buffer1.buffer,
     )?;
 
     Ok(Self {
@@ -849,6 +954,8 @@ impl Aetna {
       pipeline,
       pools,
       command_buffers,
+      allocator: std::mem::ManuallyDrop::new(allocator),
+      buffers: vec![buffer, buffer1],
     })
   }
 }
@@ -860,6 +967,12 @@ impl Drop for Aetna {
         .device
         .device_wait_idle()
         .expect("Unable to wait for device idle");
+      for buffer in &mut self.buffers {
+        self
+          .allocator
+          .destroy_buffer(buffer.buffer, &mut buffer.allocation);
+      }
+      std::mem::ManuallyDrop::drop(&mut self.allocator);
       self
         .device
         .free_command_buffers(self.pools.command_pool_graphics, &self.command_buffers);
