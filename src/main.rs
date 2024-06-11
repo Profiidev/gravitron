@@ -13,6 +13,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   event_loop
     .run_app(&mut App {
       aetna: None,
+      frame: 0,
+      start_time: std::time::Instant::now(),
     })
     .unwrap();
 
@@ -21,6 +23,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 struct App {
   aetna: Option<Aetna>,
+  frame: u64,
+  start_time: std::time::Instant,
 }
 
 impl ApplicationHandler for App {
@@ -42,10 +46,25 @@ impl ApplicationHandler for App {
     match event {
       winit::event::WindowEvent::CloseRequested => {
         std::mem::drop(self.aetna.take());
-      },
+      }
       winit::event::WindowEvent::RedrawRequested => {
-        println!("Redraw requested");
         if let Some(aetna) = self.aetna.as_mut() {
+          unsafe {
+            aetna
+              .device
+              .wait_for_fences(
+                &[aetna.swapchain.may_begin_drawing[aetna.swapchain.current_image]],
+                true,
+                std::u64::MAX,
+              )
+              .expect("Unable to wait for fences");
+
+            aetna
+              .device
+              .reset_fences(&[aetna.swapchain.may_begin_drawing[aetna.swapchain.current_image]])
+              .expect("Unable to reset fences");
+          }
+
           let (image_index, _) = unsafe {
             aetna
               .swapchain
@@ -59,29 +78,13 @@ impl ApplicationHandler for App {
               .expect("Unable to acquire next image")
           };
 
-          unsafe {
-            aetna
-              .device
-              .wait_for_fences(
-                &[aetna.swapchain.may_begin_drawing[image_index as usize]],
-                true,
-                std::u64::MAX,
-              )
-              .expect("Unable to wait for fences");
-
-            aetna
-              .device
-              .reset_fences(&[aetna.swapchain.may_begin_drawing[image_index as usize]])
-              .expect("Unable to reset fences");
-          }
-
           let semaphore_available =
             [aetna.swapchain.image_available[aetna.swapchain.current_image]];
           let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
           let semaphore_render_finished =
-            [aetna.swapchain.render_finished[image_index as usize]];
-          let command_buffer = [aetna.command_buffers[image_index as usize]];
-          dbg!(image_index);
+            [aetna.swapchain.render_finished[aetna.swapchain.current_image]];
+          let command_buffer = [aetna.command_buffers[aetna.swapchain.current_image]];
+
           let submit_info = [vk::SubmitInfo::default()
             .wait_semaphores(&semaphore_available)
             .wait_dst_stage_mask(&wait_stages)
@@ -94,7 +97,7 @@ impl ApplicationHandler for App {
               .queue_submit(
                 aetna.queues.graphics,
                 &submit_info,
-                aetna.swapchain.may_begin_drawing[image_index as usize],
+                aetna.swapchain.may_begin_drawing[aetna.swapchain.current_image],
               )
               .expect("Unable to submit queue");
           }
@@ -112,19 +115,33 @@ impl ApplicationHandler for App {
               .queue_present(aetna.queues.graphics, &present_info)
               .expect("Unable to queue present");
           }
-          dbg!(aetna.swapchain.current_image);
+
           aetna.swapchain.current_image =
             (aetna.swapchain.current_image + 1) % aetna.swapchain.amount_of_images as usize;
+
+          self.frame += 1;
+          let elapsed = self.start_time.elapsed();
+          if elapsed.as_secs() >= 1 {
+            println!("FPS: {}", self.frame);
+            self.frame = 0;
+            self.start_time = std::time::Instant::now();
+          }
+          
+          let max_frames = 165;
+          let frame_time = std::time::Duration::from_secs(1) / max_frames;
+          let elapsed = self.start_time.elapsed();
+          if elapsed < frame_time * self.frame as u32 {
+            std::thread::sleep(frame_time * self.frame as u32 - elapsed);
+          }
         }
-        println!("Redraw done");
-      },
+      }
       _ => {}
     }
   }
 
   fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
     if let Some(aetna) = self.aetna.as_mut() {
-      //aetna.window.request_redraw();
+      aetna.window.request_redraw();
     }
   }
 }
@@ -171,7 +188,7 @@ fn init_physical_device_and_properties(
   let mut physical_device = None;
   for p in phys_devices {
     let properties = unsafe { instance.get_physical_device_properties(p) };
-    if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU {
+    if properties.device_type == vk::PhysicalDeviceType::INTEGRATED_GPU {
       physical_device = Some((p, properties));
       break;
     }
@@ -234,9 +251,8 @@ impl SurfaceDong {
   ) -> Result<Self, Box<dyn std::error::Error>> {
     let display_handle = window.display_handle().unwrap().as_raw();
     let window_handle = window.window_handle().unwrap().as_raw();
-    let surface = unsafe {
-      ash_window::create_surface(entry, instance, display_handle, window_handle, None)
-    }?;
+    let surface =
+      unsafe { ash_window::create_surface(entry, instance, display_handle, window_handle, None) }?;
     let surface_loader = khr::surface::Instance::new(entry, instance);
 
     Ok(Self {
@@ -416,12 +432,16 @@ impl SwapchainDong {
     }
 
     let queue_families = [queue_families.graphics_q_index.unwrap()];
+    let image_count =
+      if surface_capabilities.min_image_count <= surface_capabilities.max_image_count {
+        3.max(surface_capabilities.min_image_count)
+          .min(surface_capabilities.max_image_count)
+      } else {
+        surface_capabilities.min_image_count
+      };
     let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
       .surface(surfaces.surface)
-      .min_image_count(
-        3.max(surface_capabilities.min_image_count)
-          .min(surface_capabilities.max_image_count),
-      )
+      .min_image_count(image_count)
       .image_format(surface_format.format)
       .image_color_space(surface_format.color_space)
       .image_extent(extent)
