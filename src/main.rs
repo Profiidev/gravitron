@@ -1,7 +1,7 @@
 use std::mem::ManuallyDrop;
 
 use ash::{ext, khr, vk};
-use vk_mem::Alloc;
+use gpu_allocator::vulkan;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
@@ -804,7 +804,7 @@ fn fill_command_buffers(
 
     let clear_values = [vk::ClearValue {
       color: vk::ClearColorValue {
-        float32: [0.0, 0.0, 0.08, 1.0],
+        float32: [0.0, 0.0, 0.0, 1.0],
       },
     }];
     let render_pass_begin_info = vk::RenderPassBeginInfo::default()
@@ -838,35 +838,42 @@ fn fill_command_buffers(
 
 struct Buffer {
   buffer: vk::Buffer,
-  allocation: vk_mem::Allocation,
+  allocation: vulkan::Allocation,
 }
 
 impl Buffer {
   fn new(
-    allocator: &vk_mem::Allocator,
+    allocator: &mut vulkan::Allocator,
+    device: &ash::Device,
     size: u64,
     usage: vk::BufferUsageFlags,
-    memory_usage: vk_mem::MemoryUsage,
+    memory_location: gpu_allocator::MemoryLocation,
   ) -> Result<Self, vk::Result> {
     let buffer_create_info = vk::BufferCreateInfo::default().size(size).usage(usage);
-    let allocation_create_info = vk_mem::AllocationCreateInfo {
-      usage: memory_usage,
-      ..Default::default()
+    let buffer = unsafe { device.create_buffer(&buffer_create_info, None) }?;
+    let requirements = unsafe { device.get_buffer_memory_requirements(buffer) };
+
+    let allocation_create_desc = vulkan::AllocationCreateDesc {
+      requirements,
+      location: memory_location,
+      linear: true,
+      allocation_scheme: vulkan::AllocationScheme::GpuAllocatorManaged,
+      name: "Buffer",
     };
-    let (buffer, allocation) =
-      unsafe { allocator.create_buffer(&buffer_create_info, &allocation_create_info) }?;
+    let allocation = allocator.allocate(&allocation_create_desc).unwrap();
+
+    unsafe { device.bind_buffer_memory(buffer, allocation.memory(), allocation.offset()) }?;
+
     Ok(Self { buffer, allocation })
   }
 
   fn fill<T: Sized>(
     &mut self,
-    allocator: &vk_mem::Allocator,
     data: &[T],
   ) -> Result<(), vk::Result> {
-    let data_ptr = unsafe { allocator.map_memory(&mut self.allocation) }? as *mut T;
+    let data_ptr = self.allocation.mapped_ptr().unwrap().as_ptr() as *mut T;
     unsafe {
       data_ptr.copy_from_nonoverlapping(data.as_ptr(), data.len());
-      allocator.unmap_memory(&mut self.allocation);
     }
     Ok(())
   }
@@ -889,7 +896,7 @@ struct Aetna {
   pipeline: Pipeline,
   pools: Pools,
   command_buffers: Vec<vk::CommandBuffer>,
-  allocator: ManuallyDrop<vk_mem::Allocator>,
+  allocator: ManuallyDrop<vulkan::Allocator>,
   buffers: Vec<Buffer>,
 }
 
@@ -919,9 +926,15 @@ impl Aetna {
     let pipeline = Pipeline::init(&logical_device, &swapchain_dong, render_pass)?;
     let pools = Pools::init(&logical_device, &queue_families)?;
 
-    let allocator_create_info =
-      vk_mem::AllocatorCreateInfo::new(&instance, &logical_device, physical_device);
-    let allocator = unsafe { vk_mem::Allocator::new(allocator_create_info) }?;
+    let allocator_create_desc = gpu_allocator::vulkan::AllocatorCreateDesc {
+      instance: instance.clone(),
+      device: logical_device.clone(),
+      physical_device,
+      debug_settings: Default::default(),
+      buffer_device_address: false,
+      allocation_sizes: Default::default(),
+    };
+    let mut allocator = gpu_allocator::vulkan::Allocator::new(&allocator_create_desc)?;
 
     let data = [
       0.4f32, -0.2f32, 0.0f32, 1.0f32, 0.8f32, 0.0f32, 0.0f32, 1.0f32, -0.4f32, 0.2f32, 0.0f32,
@@ -930,20 +943,22 @@ impl Aetna {
     let data1 = [5.0, 1.0, 0.0, 1.0, 1.0_f32];
 
     let mut buffer = Buffer::new(
-      &allocator,
+      &mut allocator,
+      &logical_device,
       std::mem::size_of_val(&data) as u64,
       vk::BufferUsageFlags::VERTEX_BUFFER,
-      vk_mem::MemoryUsage::CpuToGpu,
+      gpu_allocator::MemoryLocation::CpuToGpu,
     )?;
-    buffer.fill(&allocator, &data)?;
+    buffer.fill(&data)?;
 
     let mut buffer1 = Buffer::new(
-      &allocator,
+      &mut allocator,
+      &logical_device,
       std::mem::size_of_val(&data1) as u64,
       vk::BufferUsageFlags::VERTEX_BUFFER,
-      vk_mem::MemoryUsage::CpuToGpu,
+      gpu_allocator::MemoryLocation::CpuToGpu,
     )?;
-    buffer1.fill(&allocator, &data1)?;
+    buffer1.fill(&data1)?;
 
     let command_buffers =
       create_command_buffers(&logical_device, &pools, swapchain_dong.frame_buffers.len())?;
@@ -989,7 +1004,8 @@ impl Drop for Aetna {
       for buffer in &mut self.buffers {
         self
           .allocator
-          .destroy_buffer(buffer.buffer, &mut buffer.allocation);
+          .free(std::mem::take(&mut buffer.allocation)).unwrap();
+        self.device.destroy_buffer(buffer.buffer, None);
       }
       std::mem::ManuallyDrop::drop(&mut self.allocator);
       self
