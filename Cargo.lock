@@ -410,6 +410,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "779ae4bf7e8421cf91c0b3b64e7e8b40b862fba4d393f59150042de7c4965a94"
+
+[[package]]
 name = "gpu-allocator"
 version = "0.26.0"
 source = "git+https://github.com/Traverse-Research/gpu-allocator?branch=ash-0.38#2e2296e3045f6ae83a879928c87e558830d7ab63"
@@ -1120,6 +1126,7 @@ version = "0.1.0"
 dependencies = [
  "ash",
  "ash-window",
+ "glam",
  "gpu-allocator",
  "vk-shader-macros",
  "winit",
