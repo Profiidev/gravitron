@@ -139,7 +139,7 @@ impl ApplicationHandler for App {
     }
   }
 
-  fn about_to_wait(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+  fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
     if let Some(aetna) = self.aetna.as_mut() {
       aetna.window.request_redraw();
     }
@@ -188,7 +188,7 @@ fn init_physical_device_and_properties(
   let mut physical_device = None;
   for p in phys_devices {
     let properties = unsafe { instance.get_physical_device_properties(p) };
-    if properties.device_type == vk::PhysicalDeviceType::INTEGRATED_GPU {
+    if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU {
       physical_device = Some((p, properties));
       break;
     }
@@ -271,7 +271,7 @@ impl SurfaceDong {
         .get_physical_device_surface_capabilities(physical_device, self.surface)
     }
   }
-
+/*
   fn get_present_modes(
     &self,
     physical_device: vk::PhysicalDevice,
@@ -282,7 +282,7 @@ impl SurfaceDong {
         .get_physical_device_surface_present_modes(physical_device, self.surface)
     }
   }
-
+*/
   fn get_formats(
     &self,
     physical_device: vk::PhysicalDevice,
@@ -358,6 +358,7 @@ impl QueueFamilies {
 
 struct Queues {
   graphics: vk::Queue,
+  #[allow(dead_code)]
   transfer: vk::Queue,
 }
 
@@ -401,10 +402,10 @@ impl Queues {
 struct SwapchainDong {
   loader: khr::swapchain::Device,
   swapchain: vk::SwapchainKHR,
-  images: Vec<vk::Image>,
+  //images: Vec<vk::Image>,
   image_views: Vec<vk::ImageView>,
   frame_buffers: Vec<vk::Framebuffer>,
-  surface_format: vk::SurfaceFormatKHR,
+  //surface_format: vk::SurfaceFormatKHR,
   extent: vk::Extent2D,
   image_available: Vec<vk::Semaphore>,
   render_finished: Vec<vk::Semaphore>,
@@ -422,7 +423,7 @@ impl SwapchainDong {
     queue_families: &QueueFamilies,
   ) -> Result<Self, vk::Result> {
     let surface_capabilities = surfaces.get_capabilities(physical_device)?;
-    let surface_present_modes = surfaces.get_present_modes(physical_device)?;
+    //let surface_present_modes = surfaces.get_present_modes(physical_device)?;
     let surface_format = *surfaces.get_formats(physical_device)?.first().unwrap();
 
     let mut extent = surface_capabilities.current_extent;
@@ -495,10 +496,10 @@ impl SwapchainDong {
     Ok(Self {
       loader: swapchain_loader,
       swapchain,
-      images: swapchain_images,
+      //images: swapchain_images,
       image_views: swapchain_image_views,
       frame_buffers: Vec::new(),
-      surface_format,
+      //surface_format,
       extent,
       image_available,
       render_finished,
@@ -873,13 +874,14 @@ impl Buffer {
 
 struct Aetna {
   window: winit::window::Window,
+  #[allow(dead_code)]
   entry: ash::Entry,
   instance: ash::Instance,
   debug: ManuallyDrop<DebugDong>,
   surfaces: ManuallyDrop<SurfaceDong>,
-  physical_device: vk::PhysicalDevice,
-  physical_device_properties: vk::PhysicalDeviceProperties,
-  queue_families: QueueFamilies,
+  //physical_device: vk::PhysicalDevice,
+  //physical_device_properties: vk::PhysicalDeviceProperties,
+  //queue_families: QueueFamilies,
   queues: Queues,
   device: ash::Device,
   swapchain: SwapchainDong,
@@ -902,7 +904,7 @@ impl Aetna {
     let instance = init_instance(&entry, &layer_names, &mut debug_create_info)?;
     let debug_messenger = DebugDong::init(&entry, &instance, &debug_create_info)?;
     let surface_dong = SurfaceDong::init(&entry, &instance, &window)?;
-    let (physical_device, properties) = init_physical_device_and_properties(&instance)?;
+    let (physical_device, _properties) = init_physical_device_and_properties(&instance)?;
     let queue_families = QueueFamilies::init(&instance, physical_device, &surface_dong)?;
     let (logical_device, queues) = Queues::init(&instance, physical_device, &queue_families)?;
     let mut swapchain_dong = SwapchainDong::init(
@@ -920,12 +922,6 @@ impl Aetna {
     let allocator_create_info =
       vk_mem::AllocatorCreateInfo::new(&instance, &logical_device, physical_device);
     let allocator = unsafe { vk_mem::Allocator::new(allocator_create_info) }?;
-
-    let allocation_create_info = vk_mem::AllocationCreateInfo {
-      usage: vk_mem::MemoryUsage::CpuToGpu,
-      flags: vk_mem::AllocationCreateFlags::MAPPED,
-      ..Default::default()
-    };
 
     let data = [
       0.4f32, -0.2f32, 0.0f32, 1.0f32, 0.8f32, 0.0f32, 0.0f32, 1.0f32, -0.4f32, 0.2f32, 0.0f32,
@@ -967,9 +963,9 @@ impl Aetna {
       instance,
       debug: std::mem::ManuallyDrop::new(debug_messenger),
       surfaces: std::mem::ManuallyDrop::new(surface_dong),
-      physical_device,
-      physical_device_properties: properties,
-      queue_families,
+      //physical_device,
+      //physical_device_properties: properties,
+      //queue_families,
       queues,
       device: logical_device,
       swapchain: swapchain_dong,
