@@ -153,6 +153,9 @@ impl ApplicationHandler for App {
         winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowRight) => {
           self.camera.turn_right(0.05);
         }
+        winit::keyboard::Key::Named(winit::keyboard::NamedKey::F12) => {
+          screenshot(self.aetna.as_mut().unwrap()).expect("Unable to take screenshot");
+        }
         _ => {}
       },
       winit::event::WindowEvent::RedrawRequested => {
@@ -263,4 +266,294 @@ impl ApplicationHandler for App {
       aetna.window.request_redraw();
     }
   }
+}
+
+fn screenshot(aetna: &mut Aetna) -> Result<(), Box<dyn std::error::Error>> {
+  let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::default()
+    .command_pool(aetna.pools.command_pool_graphics)
+    .command_buffer_count(1);
+  let copy_buffer = unsafe {
+    aetna
+      .device
+      .allocate_command_buffers(&command_buffer_allocate_info)
+      .expect("Unable to allocate command buffer")[0]
+  };
+
+  let command_buffer_begin_info = vk::CommandBufferBeginInfo::default()
+    .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+  unsafe {
+    aetna
+      .device
+      .begin_command_buffer(copy_buffer, &command_buffer_begin_info)
+  }?;
+
+  let ici = vk::ImageCreateInfo::default()
+    .image_type(vk::ImageType::TYPE_2D)
+    .format(vk::Format::R8G8B8A8_UNORM)
+    .extent(vk::Extent3D {
+      width: aetna.swapchain.extent.width,
+      height: aetna.swapchain.extent.height,
+      depth: 1,
+    })
+    .mip_levels(1)
+    .array_layers(1)
+    .samples(vk::SampleCountFlags::TYPE_1)
+    .tiling(vk::ImageTiling::LINEAR)
+    .usage(vk::ImageUsageFlags::TRANSFER_DST)
+    .initial_layout(vk::ImageLayout::UNDEFINED);
+
+  let image = unsafe {
+    aetna
+      .device
+      .create_image(&ici, None)
+      .expect("Unable to create image")
+  };
+
+  let memory_requirements = unsafe {
+    aetna
+      .device
+      .get_image_memory_requirements(image)
+  };
+
+  let alloc_info = vulkan::AllocationCreateDesc {
+    name: "Screenshot",
+    requirements: memory_requirements,
+    location: gpu_allocator::MemoryLocation::GpuToCpu,
+    linear: true,
+    allocation_scheme: vulkan::AllocationScheme::GpuAllocatorManaged,
+  };
+
+  let allocation = aetna.allocator.allocate(&alloc_info).unwrap();
+
+  unsafe {
+    aetna
+      .device
+      .bind_image_memory(image, allocation.memory(), allocation.offset())
+      .expect("Unable to bind image memory");
+  }
+
+  let barrier = vk::ImageMemoryBarrier::default()
+    .src_access_mask(vk::AccessFlags::empty())
+    .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+    .old_layout(vk::ImageLayout::UNDEFINED)
+    .new_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+    .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+    .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+    .image(image)
+    .subresource_range(vk::ImageSubresourceRange {
+      aspect_mask: vk::ImageAspectFlags::COLOR,
+      base_mip_level: 0,
+      level_count: 1,
+      base_array_layer: 0,
+      layer_count: 1,
+    });
+
+  unsafe {
+    aetna
+      .device
+      .cmd_pipeline_barrier(
+        copy_buffer,
+        vk::PipelineStageFlags::TRANSFER,
+        vk::PipelineStageFlags::TRANSFER,
+        vk::DependencyFlags::empty(),
+        &[],
+        &[],
+        &[barrier],
+      );
+  }
+
+  let source_image = aetna.swapchain.images[aetna.swapchain.current_image];
+  let barrier = vk::ImageMemoryBarrier::default()
+    .src_access_mask(vk::AccessFlags::MEMORY_READ)
+    .dst_access_mask(vk::AccessFlags::TRANSFER_READ)
+    .old_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+    .new_layout(vk::ImageLayout::TRANSFER_SRC_OPTIMAL)
+    .image(source_image)
+    .subresource_range(vk::ImageSubresourceRange {
+      aspect_mask: vk::ImageAspectFlags::COLOR,
+      base_mip_level: 0,
+      level_count: 1,
+      base_array_layer: 0,
+      layer_count: 1,
+    });
+
+  unsafe {
+    aetna
+      .device
+      .cmd_pipeline_barrier(
+        copy_buffer,
+        vk::PipelineStageFlags::TRANSFER,
+        vk::PipelineStageFlags::TRANSFER,
+        vk::DependencyFlags::empty(),
+        &[],
+        &[],
+        &[barrier],
+      );
+  }
+
+  let zero_offset = vk::Offset3D::default();
+  let copy_region = vk::ImageCopy::default()
+    .src_subresource(vk::ImageSubresourceLayers {
+      aspect_mask: vk::ImageAspectFlags::COLOR,
+      mip_level: 0,
+      base_array_layer: 0,
+      layer_count: 1,
+    })
+    .src_offset(zero_offset)
+    .dst_subresource(vk::ImageSubresourceLayers {
+      aspect_mask: vk::ImageAspectFlags::COLOR,
+      mip_level: 0,
+      base_array_layer: 0,
+      layer_count: 1,
+    })
+    .dst_offset(zero_offset)
+    .extent(vk::Extent3D {
+      width: aetna.swapchain.extent.width,
+      height: aetna.swapchain.extent.height,
+      depth: 1,
+    });
+
+  unsafe {
+    aetna
+      .device
+      .cmd_copy_image(
+        copy_buffer,
+        source_image,
+        vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+        image,
+        vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+        &[copy_region],
+      );
+  }
+
+  let barrier = vk::ImageMemoryBarrier::default()
+    .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+    .dst_access_mask(vk::AccessFlags::MEMORY_READ)
+    .old_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+    .new_layout(vk::ImageLayout::GENERAL)
+    .image(image)
+    .subresource_range(vk::ImageSubresourceRange {
+      aspect_mask: vk::ImageAspectFlags::COLOR,
+      base_mip_level: 0,
+      level_count: 1,
+      base_array_layer: 0,
+      layer_count: 1,
+    });
+
+  unsafe {
+    aetna
+      .device
+      .cmd_pipeline_barrier(
+        copy_buffer,
+        vk::PipelineStageFlags::TRANSFER,
+        vk::PipelineStageFlags::TRANSFER,
+        vk::DependencyFlags::empty(),
+        &[],
+        &[],
+        &[barrier],
+      );
+  }
+
+  let barrier = vk::ImageMemoryBarrier::default()
+    .src_access_mask(vk::AccessFlags::TRANSFER_READ)
+    .dst_access_mask(vk::AccessFlags::MEMORY_READ)
+    .old_layout(vk::ImageLayout::TRANSFER_SRC_OPTIMAL)
+    .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+    .image(source_image)
+    .subresource_range(vk::ImageSubresourceRange {
+      aspect_mask: vk::ImageAspectFlags::COLOR,
+      base_mip_level: 0,
+      level_count: 1,
+      base_array_layer: 0,
+      layer_count: 1,
+    });
+
+  unsafe {
+    aetna
+      .device
+      .cmd_pipeline_barrier(
+        copy_buffer,
+        vk::PipelineStageFlags::TRANSFER,
+        vk::PipelineStageFlags::TRANSFER,
+        vk::DependencyFlags::empty(),
+        &[],
+        &[],
+        &[barrier],
+      );
+  }
+
+  unsafe {
+    aetna
+      .device
+      .end_command_buffer(copy_buffer)
+  }?;
+
+  let copy = [copy_buffer];
+  let submit_info = vk::SubmitInfo::default()
+    .command_buffers(&copy);
+  let fence = unsafe {
+    aetna
+      .device
+      .create_fence(&vk::FenceCreateInfo::default(), None)
+      .expect("Unable to create fence")
+  };
+  unsafe {
+    aetna
+      .device
+      .queue_submit(aetna.queues.graphics, &[submit_info], fence)
+      .expect("Unable to submit queue");
+    aetna
+      .device
+      .wait_for_fences(&[fence], true, std::u64::MAX)
+      .expect("Unable to wait for fences");
+    aetna
+      .device
+      .destroy_fence(fence, None);
+    aetna
+      .device
+      .free_command_buffers(aetna.pools.command_pool_graphics, &copy);
+  }
+
+  let source_ptr = allocation.mapped_ptr().unwrap().as_ptr() as *mut u8;
+  let subresource_layout = unsafe {
+    aetna
+      .device
+      .get_image_subresource_layout(image, vk::ImageSubresource {
+        aspect_mask: vk::ImageAspectFlags::COLOR,
+        mip_level: 0,
+        array_layer: 0,
+      })
+  };
+
+  let mut data = Vec::with_capacity(subresource_layout.size as usize);
+  unsafe {
+    std::ptr::copy(
+      source_ptr,
+      data.as_mut_ptr(),
+      subresource_layout.size as usize,
+    );
+    data.set_len(subresource_layout.size as usize);
+  }
+
+  unsafe {
+    aetna
+      .device
+      .destroy_image(image, None);
+    aetna
+      .allocator
+      .free(allocation)
+      .unwrap();
+  }
+
+  let image = image::ImageBuffer::from_raw(
+    aetna.swapchain.extent.width,
+    aetna.swapchain.extent.height,
+    data,
+  ).unwrap();
+
+  let image = image::DynamicImage::ImageRgba8(image);
+  image.save("screenshot.png").expect("Unable to save screenshot");
+  
+  Ok(())
 }
