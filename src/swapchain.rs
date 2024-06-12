@@ -8,7 +8,7 @@ use crate::queues::QueueFamilies;
 pub struct SwapchainDong {
   pub loader: khr::swapchain::Device,
   pub swapchain: vk::SwapchainKHR,
-  //pub images: Vec<vk::Image>,
+  pub images: Vec<vk::Image>,
   pub image_views: Vec<vk::ImageView>,
   pub depth_image: vk::Image,
   pub depth_image_allocation: vulkan::Allocation,
@@ -57,7 +57,7 @@ impl SwapchainDong {
       .image_color_space(surface_format.color_space)
       .image_extent(extent)
       .image_array_layers(1)
-      .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+      .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC)
       .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
       .queue_family_indices(&queue_families)
       .pre_transform(surface_capabilities.current_transform)
@@ -155,7 +155,7 @@ impl SwapchainDong {
     Ok(Self {
       loader: swapchain_loader,
       swapchain,
-      //images: swapchain_images,
+      images: swapchain_images,
       image_views: swapchain_image_views,
       frame_buffers: Vec::new(),
       //surface_format,

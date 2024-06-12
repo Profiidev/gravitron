@@ -5,14 +5,7 @@ use gpu_allocator::vulkan;
 use glam as g;
 
 use crate::{
-  debug::DebugDong,
-  surface::SurfaceDong,
-  swapchain::SwapchainDong,
-  queues::{QueueFamilies, Queues, init_instance, init_physical_device_and_properties},
-  pipeline::{Pipeline, init_render_pass},
-  pools::{Pools, create_command_buffers},
-  buffer::Buffer,
-  model::{Model, InstanceData},
+  buffer::Buffer, debug::DebugDong, model::{InstanceData, Model, VertexData}, pipeline::{init_render_pass, Pipeline}, pools::{create_command_buffers, Pools}, queues::{init_instance, init_physical_device_and_properties, QueueFamilies, Queues}, surface::SurfaceDong, swapchain::SwapchainDong
 };
 
 
@@ -34,7 +27,7 @@ pub struct Aetna {
   pub pools: Pools,
   pub command_buffers: Vec<vk::CommandBuffer>,
   pub allocator: ManuallyDrop<vulkan::Allocator>,
-  pub models: Vec<Model<[f32; 3], InstanceData>>,
+  pub models: Vec<Model<VertexData, InstanceData>>,
   pub uniform_buffer: Buffer,
   pub descriptor_pool: vk::DescriptorPool,
   pub descriptor_sets: Vec<vk::DescriptorSet>,
@@ -163,7 +156,7 @@ impl Aetna {
     let clear_values = [
       vk::ClearValue {
         color: vk::ClearColorValue {
-          float32: [0.0, 0.0, 0.08, 1.0],
+          float32: [0.0, 0.0, 0.0, 1.0],
         },
       },
       vk::ClearValue {

@@ -145,8 +145,8 @@ impl Camera {
 
   pub fn turn_up(&mut self, amount: f32) {
     let rotation = g::Quat::from_axis_angle(self.view_direction.cross(self.up), amount);
-    self.view_direction = rotation * self.view_direction;
-    self.up = rotation * self.up;
+    self.view_direction = rotation * self.view_direction.normalize();
+    self.up = rotation * self.up.normalize();
     self.update_view_matrix();
   }
 

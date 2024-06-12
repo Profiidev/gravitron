@@ -4,6 +4,7 @@ use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
 };
+use gpu_allocator::vulkan;
 
 use crate::camera::Camera;
 use crate::aetna::Aetna;
@@ -53,60 +54,50 @@ impl ApplicationHandler for App {
     let mut aetna = Aetna::init(window).unwrap();
 
     let mut cube = Model::cube();
-    
-    let _scale = g::Mat4::from_scale(g::Vec3::from_array([0.1, 0.1, 0.1]));
-    let scale_2 = g::Mat4::from_scale(g::Vec3::from_array([0.02, 0.02, 0.02]));
-    let scale_3 = g::Mat4::from_scale(g::Vec3::from_array([0.03, 0.03, 0.03]));
-    for i in 0..10 {
-      for j in 0..10 {
-        self.handle = cube.insert_visibly(InstanceData {
-          model_matrix: (g::Mat4::from_translation(g::Vec3::new(
-            i as f32 * 0.2 - 1.0,
-            j as f32 * 0.2 - 1.0,
-            0.5,
-          )) * scale_3)
-            .to_cols_array_2d(),
-          color: [1.0, i as f32 * 0.07, j as f32 * 0.07],
-        });
-        self.handle = cube.insert_visibly(InstanceData {
-          model_matrix: (g::Mat4::from_translation(g::Vec3::new(
-            i as f32 * 0.2 - 1.0,
-            0.0,
-            j as f32 * 0.2 - 1.0,
-          )) * scale_2)
-            .to_cols_array_2d(),
-          color: [i as f32 * 0.07, j as f32 * 0.07, 1.0],
-        });
-      }
-    }
 
-    self.handle = cube.insert_visibly(InstanceData {
-      model_matrix: (g::Mat4::from_translation(g::Vec3::new(0.5, 0.0, 0.0))
-        * g::Mat4::from_scale(g::Vec3::from_array([0.5, 0.01, 0.01])))
-      .to_cols_array_2d(),
-      color: [1.0, 0.5, 0.5],
-    });
-    self.handle = cube.insert_visibly(InstanceData {
-      model_matrix: (g::Mat4::from_translation(g::Vec3::new(0.0, 0.5, 0.0))
-        * g::Mat4::from_scale(g::Vec3::from_array([0.01, 0.5, 0.01])))
-      .to_cols_array_2d(),
-      color: [0.5, 1.0, 0.5],
-    });
-    self.handle = cube.insert_visibly(InstanceData {
-      model_matrix: (g::Mat4::from_translation(g::Vec3::new(0.0, 0.0, 0.0))
-        * g::Mat4::from_scale(g::Vec3::from_array([0.01, 0.01, 0.5])))
-      .to_cols_array_2d(),
-      color: [0.5, 0.5, 1.0],
-    });
+    self.handle = cube.insert_visibly(InstanceData::new(
+      g::Mat4::from_translation(g::Vec3::new(0.5, 0.0, 0.0))
+        * g::Mat4::from_scale(g::Vec3::from_array([0.5, 0.01, 0.01])),
+      [1.0, 0.5, 0.5],
+    ));
+    self.handle = cube.insert_visibly(InstanceData::new(
+      g::Mat4::from_translation(g::Vec3::new(0.0, 0.5, 0.0))
+        * g::Mat4::from_scale(g::Vec3::from_array([0.01, 0.5, 0.01])),
+      [0.5, 1.0, 0.5],
+    ));
+    self.handle = cube.insert_visibly(InstanceData::new(
+      g::Mat4::from_translation(g::Vec3::new(0.0, 0.0, 0.5))
+        * g::Mat4::from_scale(g::Vec3::from_array([0.01, 0.01, 0.5])),
+      [0.5, 0.5, 1.0],
+    ));
+
+    let mut ico = Model::sphere(3);
+    self.handle = ico.insert_visibly(InstanceData::new(
+      g::Mat4::from_scale(g::Vec3::from_array([0.5, 0.5, 0.5])),
+      [0.5, 0.0, 0.0],
+    ));
 
     cube
       .update_vertex_buffer(&mut aetna.allocator, &aetna.device)
       .unwrap();
     cube
+      .update_index_buffer(&mut aetna.allocator, &aetna.device)
+      .unwrap();
+    cube
       .update_instance_buffer(&mut aetna.allocator, &aetna.device)
       .unwrap();
 
-    let models = vec![cube];
+    ico
+      .update_vertex_buffer(&mut aetna.allocator, &aetna.device)
+      .unwrap();
+    ico
+      .update_index_buffer(&mut aetna.allocator, &aetna.device)
+      .unwrap();
+    ico
+      .update_instance_buffer(&mut aetna.allocator, &aetna.device)
+      .unwrap();
+
+    let models = vec![cube, ico];
     aetna.models = models;
 
     self.aetna = Some(aetna);
@@ -151,10 +142,10 @@ impl ApplicationHandler for App {
           self.camera.move_down(0.05);
         }
         winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowUp) => {
-          self.camera.turn_up(0.1);
+          self.camera.turn_up(0.05);
         }
         winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowDown) => {
-          self.camera.turn_down(0.1);
+          self.camera.turn_down(0.05);
         }
         winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft) => {
           self.camera.turn_left(0.05);
