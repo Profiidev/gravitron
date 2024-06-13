@@ -1,13 +1,19 @@
 use std::mem::ManuallyDrop;
 
 use ash::vk;
-use gpu_allocator::vulkan;
 use glam as g;
+use gpu_allocator::vulkan;
 
 use crate::{
-  buffer::Buffer, debug::DebugDong, model::{InstanceData, Model, VertexData}, pipeline::{init_render_pass, Pipeline}, pools::{create_command_buffers, Pools}, queues::{init_instance, init_physical_device_and_properties, QueueFamilies, Queues}, surface::SurfaceDong, swapchain::SwapchainDong
+  buffer::Buffer,
+  debug::DebugDong,
+  model::{InstanceData, Model, VertexData},
+  pipeline::{init_render_pass, Pipeline},
+  pools::{create_command_buffers, Pools},
+  queues::{init_instance, init_physical_device_and_properties, QueueFamilies, Queues},
+  surface::SurfaceDong,
+  swapchain::SwapchainDong,
 };
-
 
 pub struct Aetna {
   pub window: winit::window::Window,
@@ -31,6 +37,8 @@ pub struct Aetna {
   pub uniform_buffer: Buffer,
   pub descriptor_pool: vk::DescriptorPool,
   pub descriptor_sets: Vec<vk::DescriptorSet>,
+  pub descriptor_sets_light: Vec<vk::DescriptorSet>,
+  pub light_buffer: Buffer,
 }
 
 impl Aetna {
@@ -85,14 +93,21 @@ impl Aetna {
       vk::BufferUsageFlags::UNIFORM_BUFFER,
       gpu_allocator::MemoryLocation::CpuToGpu,
     )?;
-    let camera_transform = [g::Mat4::IDENTITY.to_cols_array_2d(), g::Mat4::IDENTITY.to_cols_array_2d()];
+    let camera_transform = [
+      g::Mat4::IDENTITY.to_cols_array_2d(),
+      g::Mat4::IDENTITY.to_cols_array_2d(),
+    ];
     uniform_buffer.fill(&camera_transform)?;
 
     let pool_sizes = [vk::DescriptorPoolSize::default()
       .ty(vk::DescriptorType::UNIFORM_BUFFER)
-      .descriptor_count(swapchain_dong.amount_of_images)];
+      .descriptor_count(swapchain_dong.amount_of_images),
+      vk::DescriptorPoolSize::default()
+        .ty(vk::DescriptorType::STORAGE_BUFFER)
+        .descriptor_count(swapchain_dong.amount_of_images)
+      ];
     let descriptor_pool_create_info = vk::DescriptorPoolCreateInfo::default()
-      .max_sets(swapchain_dong.amount_of_images)
+      .max_sets(2 * swapchain_dong.amount_of_images)
       .pool_sizes(&pool_sizes);
     let descriptor_pool =
       unsafe { logical_device.create_descriptor_pool(&descriptor_pool_create_info, None) }?;
@@ -120,6 +135,39 @@ impl Aetna {
       }
     }
 
+    let desc_layouts_light =
+      vec![pipeline.descriptor_set_layouts[1]; swapchain_dong.amount_of_images as usize];
+    let descriptor_set_allocate_info_light = vk::DescriptorSetAllocateInfo::default()
+      .descriptor_pool(descriptor_pool)
+      .set_layouts(&desc_layouts_light);
+    let descriptor_sets_light =
+      unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info_light) }?;
+
+    for &descriptor_set in &descriptor_sets_light {
+      let buffer_info = [vk::DescriptorBufferInfo::default()
+        .buffer(uniform_buffer.buffer)
+        .offset(0)
+        .range(8)];
+      let write_descriptor_set = vk::WriteDescriptorSet::default()
+        .dst_set(descriptor_set)
+        .dst_binding(0)
+        .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+        .buffer_info(&buffer_info);
+      unsafe {
+        logical_device.update_descriptor_sets(&[write_descriptor_set], &[]);
+      }
+    }
+
+    let mut light_buffer = Buffer::new(
+      &mut allocator,
+      &logical_device,
+      144,
+      vk::BufferUsageFlags::UNIFORM_BUFFER,
+      gpu_allocator::MemoryLocation::CpuToGpu,
+    )?;
+    let light_data = [0.0f32; 24];
+    light_buffer.fill(&light_data)?;
+
     Ok(Self {
       window,
       entry,
@@ -141,6 +189,8 @@ impl Aetna {
       uniform_buffer,
       descriptor_pool,
       descriptor_sets,
+      descriptor_sets_light,
+      light_buffer,
     })
   }
 
@@ -192,7 +242,10 @@ impl Aetna {
         vk::PipelineBindPoint::GRAPHICS,
         self.pipeline.pipeline_layout,
         0,
-        &[self.descriptor_sets[index]],
+        &[
+          self.descriptor_sets[index],
+          self.descriptor_sets_light[index],
+        ],
         &[],
       );
 
@@ -215,6 +268,11 @@ impl Drop for Aetna {
         .device
         .device_wait_idle()
         .expect("Unable to wait for device idle");
+      self.device.destroy_buffer(self.light_buffer.buffer, None);
+      self
+        .allocator
+        .free(std::mem::take(&mut self.light_buffer.allocation))
+        .unwrap();
       self
         .device
         .destroy_descriptor_pool(self.descriptor_pool, None);

@@ -22,14 +22,18 @@ pub struct InstanceData {
   pub model_matrix: [[f32; 4]; 4],
   pub inv_model_matrix: [[f32; 4]; 4],
   pub color: [f32; 3],
+  pub metallic: f32,
+  pub roughness: f32,
 }
 
 impl InstanceData {
-  pub fn new(model_matrix: g::Mat4, color: [f32; 3]) -> Self {
+  pub fn new(model_matrix: g::Mat4, color: [f32; 3], metallic: f32, roughness: f32) -> Self {
     Self {
       model_matrix: model_matrix.to_cols_array_2d(),
       inv_model_matrix: model_matrix.inverse().to_cols_array_2d(),
       color,
+      metallic,
+      roughness,
     }
   }
 }

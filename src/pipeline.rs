@@ -148,6 +148,16 @@ impl Pipeline {
         .location(10)
         .offset(128)
         .format(vk::Format::R32G32B32_SFLOAT),
+      vk::VertexInputAttributeDescription::default()
+        .binding(1)
+        .location(11)
+        .offset(140)
+        .format(vk::Format::R32_SFLOAT),
+      vk::VertexInputAttributeDescription::default()
+        .binding(1)
+        .location(12)
+        .offset(144)
+        .format(vk::Format::R32_SFLOAT),
     ];
 
     let vertex_binding_descs = [
@@ -157,7 +167,7 @@ impl Pipeline {
         .input_rate(vk::VertexInputRate::VERTEX),
       vk::VertexInputBindingDescription::default()
         .binding(1)
-        .stride(140)
+        .stride(148)
         .input_rate(vk::VertexInputRate::INSTANCE),
     ];
 
@@ -218,7 +228,19 @@ impl Pipeline {
     let descriptor_set_layout = unsafe {
       logical_device.create_descriptor_set_layout(&descriptor_set_layout_create_info, None)
     }?;
-    let descriptor_set_layouts = vec![descriptor_set_layout];
+
+    let descriptor_set_layout_binding_descs1 = [vk::DescriptorSetLayoutBinding::default()
+      .binding(0)
+      .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+      .descriptor_count(1)
+      .stage_flags(vk::ShaderStageFlags::FRAGMENT)];
+    let descriptor_set_layout_create_info1 =
+      vk::DescriptorSetLayoutCreateInfo::default().bindings(&descriptor_set_layout_binding_descs1);
+    let descriptor_set_layout1 = unsafe {
+      logical_device.create_descriptor_set_layout(&descriptor_set_layout_create_info1, None)
+    }?;
+
+    let descriptor_set_layouts = vec![descriptor_set_layout, descriptor_set_layout1];
 
     let pipeline_layout_create_info =
       vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_set_layouts);

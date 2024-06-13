@@ -54,6 +54,8 @@ pub fn init_physical_device_and_properties(
     if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU {
       physical_device = Some((p, properties));
       break;
+    } else if properties.device_type == vk::PhysicalDeviceType::INTEGRATED_GPU {
+      physical_device = Some((p, properties));
     }
   }
   Ok(physical_device.unwrap())

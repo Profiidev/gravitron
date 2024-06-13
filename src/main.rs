@@ -4,7 +4,6 @@ use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
 };
-use gpu_allocator::vulkan;
 
 use crate::camera::Camera;
 use crate::aetna::Aetna;
@@ -20,6 +19,7 @@ mod pools;
 mod buffer;
 mod model;
 mod aetna;
+mod light;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   let event_loop = winit::event_loop::EventLoop::new().unwrap();
@@ -55,27 +55,58 @@ impl ApplicationHandler for App {
 
     let mut cube = Model::cube();
 
+    let mut lights = light::LightManager::default();
+    lights.add_light(light::DirectionalLight {
+      direction: g::Vec3::new(-1.0, 1.0, 0.0),
+      illuminance: [10.0, 10.0, 10.0],
+    });
+    lights.add_light(light::PointLight {
+      position: g::Vec3::new(1.5, 0.0, 0.0),
+      illuminance: [10.0, 10.0, 10.0],
+    });
+    lights.add_light(light::PointLight {
+      position: g::Vec3::new(1.5, 0.2, 0.0),
+      illuminance: [5.0, 5.0, 5.0],
+    });
+    lights.add_light(light::PointLight {
+      position: g::Vec3::new(1.6, -0.2, 0.1),
+      illuminance: [5.0, 5.0, 5.0],
+    });
+    lights.update_buffer(&mut aetna.light_buffer).unwrap();
+
     self.handle = cube.insert_visibly(InstanceData::new(
       g::Mat4::from_translation(g::Vec3::new(0.5, 0.0, 0.0))
         * g::Mat4::from_scale(g::Vec3::from_array([0.5, 0.01, 0.01])),
       [1.0, 0.5, 0.5],
+      0.0,
+      1.0
     ));
     self.handle = cube.insert_visibly(InstanceData::new(
       g::Mat4::from_translation(g::Vec3::new(0.0, 0.5, 0.0))
         * g::Mat4::from_scale(g::Vec3::from_array([0.01, 0.5, 0.01])),
       [0.5, 1.0, 0.5],
+      0.0,
+      1.0
     ));
     self.handle = cube.insert_visibly(InstanceData::new(
       g::Mat4::from_translation(g::Vec3::new(0.0, 0.0, 0.5))
         * g::Mat4::from_scale(g::Vec3::from_array([0.01, 0.01, 0.5])),
       [0.5, 0.5, 1.0],
+      0.0,
+      1.0
     ));
 
     let mut ico = Model::sphere(3);
-    self.handle = ico.insert_visibly(InstanceData::new(
-      g::Mat4::from_scale(g::Vec3::from_array([0.5, 0.5, 0.5])),
-      [0.5, 0.0, 0.0],
-    ));
+    for i in 0..10 {
+      for j in 0..10 {
+        self.handle = ico.insert_visibly(InstanceData::new(
+          g::Mat4::from_scale(g::Vec3::from_array([0.5, 0.5, 0.5])) * g::Mat4::from_translation(g::Vec3::new(i as f32 - 5.0, j as f32 - 5.0, 10.0)),
+          [0.0, 0.0, 0.8],
+          i as f32 * 0.1,
+          j as f32 * 0.1
+        ));
+      }
+    }
 
     cube
       .update_vertex_buffer(&mut aetna.allocator, &aetna.device)
