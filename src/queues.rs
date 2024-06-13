@@ -31,10 +31,15 @@ pub fn init_instance(
     khr::xlib_surface::NAME.as_ptr(),
     #[cfg(target_os = "windows")]
     khr::win32_surface::NAME.as_ptr(),
+    ext::debug_report::NAME.as_ptr(),
   ];
+
+  let mut validation_features = vk::ValidationFeaturesEXT::default()
+    .enabled_validation_features(&[vk::ValidationFeatureEnableEXT::DEBUG_PRINTF]);
 
   let instance_create_info = vk::InstanceCreateInfo::default()
     .push_next(debug_create_info)
+    .push_next(&mut validation_features)
     .application_info(&app_info)
     .enabled_layer_names(&layer_name_ptrs)
     .enabled_extension_names(&extension_name_ptrs);

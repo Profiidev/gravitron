@@ -135,6 +135,16 @@ impl Aetna {
       }
     }
 
+    let mut light_buffer = Buffer::new(
+      &mut allocator,
+      &logical_device,
+      144,
+      vk::BufferUsageFlags::STORAGE_BUFFER,
+      gpu_allocator::MemoryLocation::CpuToGpu,
+    )?;
+    let light_data = [0.0f32; 24];
+    light_buffer.fill(&light_data)?;
+
     let desc_layouts_light =
       vec![pipeline.descriptor_set_layouts[1]; swapchain_dong.amount_of_images as usize];
     let descriptor_set_allocate_info_light = vk::DescriptorSetAllocateInfo::default()
@@ -143,30 +153,20 @@ impl Aetna {
     let descriptor_sets_light =
       unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info_light) }?;
 
-    for &descriptor_set in &descriptor_sets_light {
+    for descriptor_set in &descriptor_sets_light {
       let buffer_info = [vk::DescriptorBufferInfo::default()
-        .buffer(uniform_buffer.buffer)
+        .buffer(light_buffer.buffer)
         .offset(0)
-        .range(8)];
+        .range(144)];
       let write_descriptor_set = vk::WriteDescriptorSet::default()
-        .dst_set(descriptor_set)
+        .dst_set(*descriptor_set)
         .dst_binding(0)
-        .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+        .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
         .buffer_info(&buffer_info);
       unsafe {
         logical_device.update_descriptor_sets(&[write_descriptor_set], &[]);
       }
     }
-
-    let mut light_buffer = Buffer::new(
-      &mut allocator,
-      &logical_device,
-      144,
-      vk::BufferUsageFlags::UNIFORM_BUFFER,
-      gpu_allocator::MemoryLocation::CpuToGpu,
-    )?;
-    let light_data = [0.0f32; 24];
-    light_buffer.fill(&light_data)?;
 
     Ok(Self {
       window,

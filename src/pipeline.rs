@@ -231,7 +231,7 @@ impl Pipeline {
 
     let descriptor_set_layout_binding_descs1 = [vk::DescriptorSetLayoutBinding::default()
       .binding(0)
-      .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+      .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
       .descriptor_count(1)
       .stage_flags(vk::ShaderStageFlags::FRAGMENT)];
     let descriptor_set_layout_create_info1 =

@@ -1,6 +1,5 @@
 use ash::vk;
 use glam as g;
-use gpu_allocator::vulkan;
 
 use crate::buffer::Buffer;
 

@@ -1,6 +1,6 @@
 #version 450
 
-readonly layout (set=1, binding=0) buffer StorageBufferObject {
+layout (set=1, binding=0) buffer readonly StorageBufferObject {
   float num_directional_lights;
   float num_point_lights;
   vec3 data[];
