@@ -7,12 +7,13 @@ use gpu_allocator::vulkan;
 use crate::{
   buffer::Buffer,
   debug::DebugDong,
-  model::{InstanceData, Model, VertexData},
+  model::{Model, TexturedInstanceData, TexturedVertexData},
   pipeline::{init_render_pass, Pipeline},
   pools::{create_command_buffers, Pools},
   queues::{init_instance, init_physical_device_and_properties, QueueFamilies, Queues},
   surface::SurfaceDong,
   swapchain::SwapchainDong,
+  texture::Texture,
 };
 
 pub struct Aetna {
@@ -22,9 +23,9 @@ pub struct Aetna {
   pub instance: ash::Instance,
   pub debug: ManuallyDrop<DebugDong>,
   pub surfaces: ManuallyDrop<SurfaceDong>,
-  //pub physical_device: vk::PhysicalDevice,
+  pub physical_device: vk::PhysicalDevice,
   //pub physical_device_properties: vk::PhysicalDeviceProperties,
-  //pub queue_families: QueueFamilies,
+  pub queue_families: QueueFamilies,
   pub queues: Queues,
   pub device: ash::Device,
   pub swapchain: SwapchainDong,
@@ -33,12 +34,12 @@ pub struct Aetna {
   pub pools: Pools,
   pub command_buffers: Vec<vk::CommandBuffer>,
   pub allocator: ManuallyDrop<vulkan::Allocator>,
-  pub models: Vec<Model<VertexData, InstanceData>>,
+  pub models: Vec<Model<TexturedVertexData, TexturedInstanceData>>,
   pub uniform_buffer: Buffer,
   pub descriptor_pool: vk::DescriptorPool,
   pub descriptor_sets: Vec<vk::DescriptorSet>,
-  pub descriptor_sets_light: Vec<vk::DescriptorSet>,
-  pub light_buffer: Buffer,
+  pub descriptor_sets_texture: Vec<vk::DescriptorSet>,
+  pub texture: Texture,
 }
 
 impl Aetna {
@@ -99,13 +100,14 @@ impl Aetna {
     ];
     uniform_buffer.fill(&camera_transform)?;
 
-    let pool_sizes = [vk::DescriptorPoolSize::default()
-      .ty(vk::DescriptorType::UNIFORM_BUFFER)
-      .descriptor_count(swapchain_dong.amount_of_images),
+    let pool_sizes = [
       vk::DescriptorPoolSize::default()
-        .ty(vk::DescriptorType::STORAGE_BUFFER)
-        .descriptor_count(swapchain_dong.amount_of_images)
-      ];
+        .ty(vk::DescriptorType::UNIFORM_BUFFER)
+        .descriptor_count(swapchain_dong.amount_of_images),
+      vk::DescriptorPoolSize::default()
+        .ty(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+        .descriptor_count(swapchain_dong.amount_of_images),
+    ];
     let descriptor_pool_create_info = vk::DescriptorPoolCreateInfo::default()
       .max_sets(2 * swapchain_dong.amount_of_images)
       .pool_sizes(&pool_sizes);
@@ -135,36 +137,37 @@ impl Aetna {
       }
     }
 
-    let mut light_buffer = Buffer::new(
+    let desc_layouts_texture =
+      vec![pipeline.descriptor_set_layouts[1]; swapchain_dong.amount_of_images as usize];
+    let descriptor_set_allocate_info_texture = vk::DescriptorSetAllocateInfo::default()
+      .descriptor_pool(descriptor_pool)
+      .set_layouts(&desc_layouts_texture);
+    let descriptor_sets_texture =
+      unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info_texture) }?;
+
+    let texture = Texture::from_file(
+      "assets/image.png",
       &mut allocator,
       &logical_device,
-      144,
-      vk::BufferUsageFlags::STORAGE_BUFFER,
-      gpu_allocator::MemoryLocation::CpuToGpu,
-    )?;
-    let light_data = [0.0f32; 24];
-    light_buffer.fill(&light_data)?;
+      &queues,
+      &pools,
+    )
+    .unwrap();
 
-    let desc_layouts_light =
-      vec![pipeline.descriptor_set_layouts[1]; swapchain_dong.amount_of_images as usize];
-    let descriptor_set_allocate_info_light = vk::DescriptorSetAllocateInfo::default()
-      .descriptor_pool(descriptor_pool)
-      .set_layouts(&desc_layouts_light);
-    let descriptor_sets_light =
-      unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info_light) }?;
-
-    for descriptor_set in &descriptor_sets_light {
-      let buffer_info = [vk::DescriptorBufferInfo::default()
-        .buffer(light_buffer.buffer)
-        .offset(0)
-        .range(144)];
-      let write_descriptor_set = vk::WriteDescriptorSet::default()
-        .dst_set(*descriptor_set)
+    for &descriptor_set in descriptor_sets_texture.iter() {
+      let image_info = [vk::DescriptorImageInfo::default()
+        .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+        .image_view(texture.image_view)
+        .sampler(texture.sampler)];
+      let write_descriptor_set_texture = vk::WriteDescriptorSet::default()
         .dst_binding(0)
-        .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-        .buffer_info(&buffer_info);
+        .dst_array_element(0)
+        .descriptor_count(1)
+        .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+        .dst_set(descriptor_set)
+        .image_info(&image_info);
       unsafe {
-        logical_device.update_descriptor_sets(&[write_descriptor_set], &[]);
+        logical_device.update_descriptor_sets(&[write_descriptor_set_texture], &[]);
       }
     }
 
@@ -174,9 +177,9 @@ impl Aetna {
       instance,
       debug: std::mem::ManuallyDrop::new(debug_messenger),
       surfaces: std::mem::ManuallyDrop::new(surface_dong),
-      //physical_device,
+      physical_device,
       //physical_device_properties: properties,
-      //queue_families,
+      queue_families,
       queues,
       device: logical_device,
       swapchain: swapchain_dong,
@@ -189,12 +192,16 @@ impl Aetna {
       uniform_buffer,
       descriptor_pool,
       descriptor_sets,
-      descriptor_sets_light,
-      light_buffer,
+      descriptor_sets_texture,
+      texture,
     })
   }
 
   pub fn update_command_buffer(&mut self, index: usize) -> Result<(), vk::Result> {
+    self
+      .swapchain
+      .create_frame_buffers(&self.device, self.render_pass)?;
+
     let command_buffer = self.command_buffers[index];
     let command_buffer_begin_info = vk::CommandBufferBeginInfo::default();
     unsafe {
@@ -244,7 +251,7 @@ impl Aetna {
         0,
         &[
           self.descriptor_sets[index],
-          self.descriptor_sets_light[index],
+          self.descriptor_sets_texture[index],
         ],
         &[],
       );
@@ -259,6 +266,30 @@ impl Aetna {
 
     Ok(())
   }
+
+  pub fn recreate_swapchain(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    unsafe {
+      self.device.device_wait_idle()?;
+    }
+    unsafe {
+      self.swapchain.cleanup(&self.device, &mut self.allocator);
+    }
+    self.swapchain = SwapchainDong::init(
+      &self.instance,
+      self.physical_device,
+      &self.device,
+      &self.surfaces,
+      &self.queue_families,
+      &mut self.allocator,
+    )?;
+
+    unsafe {
+      self.pipeline.cleanup(&self.device);
+    }
+    self.pipeline = Pipeline::init(&self.device, &self.swapchain, self.render_pass)?;
+
+    Ok(())
+  }
 }
 
 impl Drop for Aetna {
@@ -268,11 +299,7 @@ impl Drop for Aetna {
         .device
         .device_wait_idle()
         .expect("Unable to wait for device idle");
-      self.device.destroy_buffer(self.light_buffer.buffer, None);
-      self
-        .allocator
-        .free(std::mem::take(&mut self.light_buffer.allocation))
-        .unwrap();
+      self.texture.destroy(&self.device); 
       self
         .device
         .destroy_descriptor_pool(self.descriptor_pool, None);

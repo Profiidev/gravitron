@@ -102,7 +102,7 @@ impl Pipeline {
         .binding(0)
         .location(1)
         .offset(12)
-        .format(vk::Format::R32G32B32_SFLOAT),
+        .format(vk::Format::R32G32_SFLOAT),
       vk::VertexInputAttributeDescription::default()
         .binding(1)
         .location(2)
@@ -143,31 +143,16 @@ impl Pipeline {
         .location(9)
         .offset(112)
         .format(vk::Format::R32G32B32A32_SFLOAT),
-      vk::VertexInputAttributeDescription::default()
-        .binding(1)
-        .location(10)
-        .offset(128)
-        .format(vk::Format::R32G32B32_SFLOAT),
-      vk::VertexInputAttributeDescription::default()
-        .binding(1)
-        .location(11)
-        .offset(140)
-        .format(vk::Format::R32_SFLOAT),
-      vk::VertexInputAttributeDescription::default()
-        .binding(1)
-        .location(12)
-        .offset(144)
-        .format(vk::Format::R32_SFLOAT),
     ];
 
     let vertex_binding_descs = [
       vk::VertexInputBindingDescription::default()
         .binding(0)
-        .stride(24)
+        .stride(20)
         .input_rate(vk::VertexInputRate::VERTEX),
       vk::VertexInputBindingDescription::default()
         .binding(1)
-        .stride(148)
+        .stride(128)
         .input_rate(vk::VertexInputRate::INSTANCE),
     ];
 
@@ -231,7 +216,7 @@ impl Pipeline {
 
     let descriptor_set_layout_binding_descs1 = [vk::DescriptorSetLayoutBinding::default()
       .binding(0)
-      .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+      .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
       .descriptor_count(1)
       .stage_flags(vk::ShaderStageFlags::FRAGMENT)];
     let descriptor_set_layout_create_info1 =

@@ -1,5 +1,6 @@
 use ash::vk;
 use glam as g;
+use model::TexturedInstanceData;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
@@ -7,7 +8,7 @@ use winit::{
 
 use crate::camera::Camera;
 use crate::aetna::Aetna;
-use crate::model::{Model, InstanceData};
+use crate::model::Model;
 
 mod camera;
 mod debug;
@@ -20,6 +21,7 @@ mod buffer;
 mod model;
 mod aetna;
 mod light;
+mod texture;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   let event_loop = winit::event_loop::EventLoop::new().unwrap();
@@ -28,7 +30,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
       aetna: None,
       frame: 0,
       start_time: std::time::Instant::now(),
-      handle: 0,
       camera: Camera::builder().build(),
     })
     .unwrap();
@@ -40,7 +41,6 @@ struct App {
   aetna: Option<Aetna>,
   frame: u64,
   start_time: std::time::Instant,
-  handle: usize,
   camera: Camera,
 }
 
@@ -53,82 +53,16 @@ impl ApplicationHandler for App {
     let window = event_loop.create_window(window_attributes).unwrap();
     let mut aetna = Aetna::init(window).unwrap();
 
-    let mut cube = Model::cube();
+    let mut quad = Model::quad();
+    
+    quad.insert_visibly(TexturedInstanceData::new(g::Mat4::from_translation(g::Vec3::from_array([0.0, 0.0, 0.0]))));
 
-    let mut lights = light::LightManager::default();
-    lights.add_light(light::DirectionalLight {
-      direction: g::Vec3::new(-1.0, 1.0, 0.0),
-      illuminance: [10.0, 10.0, 10.0],
-    });
-    lights.add_light(light::PointLight {
-      position: g::Vec3::new(1.5, 0.0, 0.0),
-      illuminance: [10.0, 10.0, 10.0],
-    });
-    lights.add_light(light::PointLight {
-      position: g::Vec3::new(1.5, 0.2, 0.0),
-      illuminance: [5.0, 5.0, 5.0],
-    });
-    lights.add_light(light::PointLight {
-      position: g::Vec3::new(1.6, -0.2, 0.1),
-      illuminance: [5.0, 5.0, 5.0],
-    });
-    lights.update_buffer(&mut aetna.light_buffer).unwrap();
+    quad.update_instance_buffer(&mut aetna.allocator, &aetna.device).unwrap();
+    //quad.update_texture(&mut aetna.allocator, &aetna.device).unwrap();
+    quad.update_index_buffer(&mut aetna.allocator, &aetna.device).unwrap();
+    quad.update_vertex_buffer(&mut aetna.allocator, &aetna.device).unwrap();
 
-    self.handle = cube.insert_visibly(InstanceData::new(
-      g::Mat4::from_translation(g::Vec3::new(0.5, 0.0, 0.0))
-        * g::Mat4::from_scale(g::Vec3::from_array([0.5, 0.01, 0.01])),
-      [1.0, 0.5, 0.5],
-      0.0,
-      1.0
-    ));
-    self.handle = cube.insert_visibly(InstanceData::new(
-      g::Mat4::from_translation(g::Vec3::new(0.0, 0.5, 0.0))
-        * g::Mat4::from_scale(g::Vec3::from_array([0.01, 0.5, 0.01])),
-      [0.5, 1.0, 0.5],
-      0.0,
-      1.0
-    ));
-    self.handle = cube.insert_visibly(InstanceData::new(
-      g::Mat4::from_translation(g::Vec3::new(0.0, 0.0, 0.5))
-        * g::Mat4::from_scale(g::Vec3::from_array([0.01, 0.01, 0.5])),
-      [0.5, 0.5, 1.0],
-      0.0,
-      1.0
-    ));
-
-    let mut ico = Model::sphere(3);
-    for i in 0..10 {
-      for j in 0..10 {
-        self.handle = ico.insert_visibly(InstanceData::new(
-          g::Mat4::from_scale(g::Vec3::from_array([0.5, 0.5, 0.5])) * g::Mat4::from_translation(g::Vec3::new(i as f32 - 5.0, j as f32 - 5.0, 10.0)),
-          [0.0, 0.0, 0.8],
-          i as f32 * 0.1,
-          j as f32 * 0.1
-        ));
-      }
-    }
-
-    cube
-      .update_vertex_buffer(&mut aetna.allocator, &aetna.device)
-      .unwrap();
-    cube
-      .update_index_buffer(&mut aetna.allocator, &aetna.device)
-      .unwrap();
-    cube
-      .update_instance_buffer(&mut aetna.allocator, &aetna.device)
-      .unwrap();
-
-    ico
-      .update_vertex_buffer(&mut aetna.allocator, &aetna.device)
-      .unwrap();
-    ico
-      .update_index_buffer(&mut aetna.allocator, &aetna.device)
-      .unwrap();
-    ico
-      .update_instance_buffer(&mut aetna.allocator, &aetna.device)
-      .unwrap();
-
-    let models = vec![cube, ico];
+    let models = vec![quad];
     aetna.models = models;
 
     self.aetna = Some(aetna);
@@ -215,8 +149,8 @@ impl ApplicationHandler for App {
             .update_command_buffer(aetna.swapchain.current_image)
             .expect("Unable to update command buffer");
 
-          let (image_index, _) = unsafe {
-            aetna
+          let image_index = unsafe {
+            match aetna
               .swapchain
               .loader
               .acquire_next_image(
@@ -224,8 +158,18 @@ impl ApplicationHandler for App {
                 std::u64::MAX,
                 aetna.swapchain.image_available[aetna.swapchain.current_image],
                 vk::Fence::null(),
-              )
-              .expect("Unable to acquire next image")
+              ) {
+              Ok((image_index, _)) => image_index,
+              Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
+                aetna.recreate_swapchain().expect("Unable to recreate swapchain");
+                self.camera.set_aspect_ratio(aetna.swapchain.extent.width as f32 / aetna.swapchain.extent.height as f32);
+                self.camera.update_buffer(&mut aetna.uniform_buffer).unwrap();
+                return;
+              }
+              Err(e) => {
+                panic!("Unable to acquire next image: {:?}", e);
+              }
+            }
           };
 
           let semaphore_available =
@@ -258,12 +202,21 @@ impl ApplicationHandler for App {
             .wait_semaphores(&semaphore_render_finished)
             .swapchains(&swapchains)
             .image_indices(&image_indices);
-          unsafe {
+          match unsafe {
             aetna
               .swapchain
               .loader
               .queue_present(aetna.queues.graphics, &present_info)
-              .expect("Unable to queue present");
+          } {
+            Ok(_) => {},
+            Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
+              aetna.recreate_swapchain().expect("Unable to recreate swapchain");
+              self.camera.set_aspect_ratio(aetna.swapchain.extent.width as f32 / aetna.swapchain.extent.height as f32);
+              self.camera.update_buffer(&mut aetna.uniform_buffer).unwrap();
+            },
+            Err(e) => {
+              panic!("Unable to present queue: {:?}", e);
+            }
           }
 
           aetna.swapchain.current_image =
@@ -294,4 +247,5 @@ impl ApplicationHandler for App {
       aetna.window.request_redraw();
     }
   }
+
 }

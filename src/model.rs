@@ -473,6 +473,62 @@ impl Model<VertexData, InstanceData> {
   }
 }
 
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct TexturedVertexData {
+  pub position: [f32; 3],
+  pub uv: [f32; 2],
+}
+
+#[repr(C)]
+pub struct TexturedInstanceData {
+  pub model_matrix: [[f32; 4]; 4],
+  pub inv_model_matrix: [[f32; 4]; 4],
+}
+
+impl TexturedInstanceData {
+  pub fn new(model_matrix: g::Mat4) -> Self {
+    Self {
+      model_matrix: model_matrix.to_cols_array_2d(),
+      inv_model_matrix: model_matrix.inverse().to_cols_array_2d(),
+    }
+  }
+}
+
+impl Model<TexturedVertexData, TexturedInstanceData> {
+  pub fn quad() -> Model<TexturedVertexData, TexturedInstanceData> {
+    let lb = TexturedVertexData {
+      position: [-1.0, 1.0, 0.0],
+      uv: [0.0, 1.0],
+    };
+    let lt = TexturedVertexData {
+      position: [-1.0, -1.0, 0.0],
+      uv: [0.0, 0.0],
+    };
+    let rt = TexturedVertexData {
+      position: [1.0, 1.0, 0.0],
+      uv: [1.0, 1.0],
+    };
+    let rb = TexturedVertexData {
+      position: [1.0, -1.0, 0.0],
+      uv: [1.0, 0.0],
+    };
+
+    Model {
+      vertex_data: vec![lb, lt, rt, rb],
+      index_data: vec![0, 1, 2, 1, 3, 2],
+      handle_to_index: std::collections::HashMap::new(),
+      handles: vec![],
+      instances: vec![],
+      first_invisible: 0,
+      next_handle: 0,
+      vertex_buffer: None,
+      index_buffer: None,
+      instance_buffer: None,
+    }
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct InvalidHandle;
 

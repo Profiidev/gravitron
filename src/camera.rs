@@ -82,9 +82,9 @@ pub struct Camera {
 impl Camera {
   pub fn builder() -> CameraBuilder {
     CameraBuilder {
-      position: g::Vec3::new(0.0, 3.0, -3.0),
-      view_direction: g::Vec3::new(0.0, -1.0, 1.0),
-      up: g::Vec3::new(0.0, 1.0, 1.0),
+      position: g::Vec3::new(0.0, 0.0, -3.0),
+      view_direction: g::Vec3::new(0.0, 0.0, 1.0),
+      up: g::Vec3::new(0.0, 1.0, 0.0),
       fov: std::f32::consts::FRAC_PI_3,
       aspect_ratio: 800.0 / 600.0,
       near: 0.1,
@@ -152,5 +152,10 @@ impl Camera {
 
   pub fn turn_down(&mut self, amount: f32) {
     self.turn_up(-amount);
+  }
+
+  pub fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
+    self.aspect_ratio = aspect_ratio;
+    self.update_projection_matrix();
   }
 }
