@@ -39,7 +39,7 @@ pub struct Aetna {
   pub descriptor_pool: vk::DescriptorPool,
   pub descriptor_sets: Vec<vk::DescriptorSet>,
   pub descriptor_sets_texture: Vec<vk::DescriptorSet>,
-  pub texture: Texture,
+  pub texture: Vec<Texture>,
 }
 
 impl Aetna {
@@ -154,11 +154,26 @@ impl Aetna {
     )
     .unwrap();
 
+    let texture1 = Texture::from_file(
+      "assets/image1.png",
+      &mut allocator,
+      &logical_device,
+      &queues,
+      &pools,
+    )
+    .unwrap();
+
     for &descriptor_set in descriptor_sets_texture.iter() {
-      let image_info = [vk::DescriptorImageInfo::default()
-        .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-        .image_view(texture.image_view)
-        .sampler(texture.sampler)];
+      let image_info = [
+        vk::DescriptorImageInfo::default()
+          .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+          .image_view(texture.image_view)
+          .sampler(texture.sampler),
+        vk::DescriptorImageInfo::default()
+          .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+          .image_view(texture.image_view)
+          .sampler(texture.sampler),
+      ];
       let write_descriptor_set_texture = vk::WriteDescriptorSet::default()
         .dst_binding(0)
         .dst_array_element(0)
@@ -193,7 +208,7 @@ impl Aetna {
       descriptor_pool,
       descriptor_sets,
       descriptor_sets_texture,
-      texture,
+      texture: vec![texture, texture1],
     })
   }
 
@@ -299,7 +314,9 @@ impl Drop for Aetna {
         .device
         .device_wait_idle()
         .expect("Unable to wait for device idle");
-      self.texture.destroy(&self.device); 
+      for texture in &self.texture {
+        texture.destroy(&self.device);
+      }
       self
         .device
         .destroy_descriptor_pool(self.descriptor_pool, None);

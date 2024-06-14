@@ -217,7 +217,7 @@ impl Pipeline {
     let descriptor_set_layout_binding_descs1 = [vk::DescriptorSetLayoutBinding::default()
       .binding(0)
       .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-      .descriptor_count(1)
+      .descriptor_count(2)
       .stage_flags(vk::ShaderStageFlags::FRAGMENT)];
     let descriptor_set_layout_create_info1 =
       vk::DescriptorSetLayoutCreateInfo::default().bindings(&descriptor_set_layout_binding_descs1);
