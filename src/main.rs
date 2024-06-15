@@ -1,5 +1,6 @@
 use ash::vk;
 use glam as g;
+use vulkan::Vulkan;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
@@ -20,8 +21,10 @@ mod buffer;
 mod model;
 mod aetna;
 mod light;
+mod vulkan;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+  Vulkan::init(vulkan::VulkanConfig::default().set_debug(true))?;
   let event_loop = winit::event_loop::EventLoop::new().unwrap();
   event_loop
     .run_app(&mut App {
