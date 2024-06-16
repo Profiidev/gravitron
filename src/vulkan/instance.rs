@@ -32,6 +32,10 @@ impl InstanceDevice {
     &self.instance
   }
 
+  pub(crate) fn get_physical_device(&self) -> vk::PhysicalDevice {
+    self.physical_device
+  }
+
   fn init_instance(
     entry: &ash::Entry,
     config: &mut InstanceDeviceConfig,

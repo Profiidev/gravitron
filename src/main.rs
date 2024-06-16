@@ -22,9 +22,9 @@ mod model;
 mod aetna;
 mod light;
 mod vulkan;
+mod utils;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-  Vulkan::init(vulkan::VulkanConfig::default().set_debug(true))?;
   let event_loop = winit::event_loop::EventLoop::new().unwrap();
   event_loop
     .run_app(&mut App {
@@ -54,6 +54,8 @@ impl ApplicationHandler for App {
       .with_inner_size(Size::Logical(LogicalSize::new(800.0, 600.0)));
 
     let window = event_loop.create_window(window_attributes).unwrap();
+    let mut v = Vulkan::init(vulkan::VulkanConfig::default().set_debug(false).set_debug_log_level(utils::LogLevel::Verbose), &window).unwrap();
+    v.destroy();
     let mut aetna = Aetna::init(window).unwrap();
 
     let mut cube = Model::cube();
