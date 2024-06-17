@@ -72,6 +72,10 @@ impl Surface {
     }
   }
 
+  pub(crate) fn get_surface(&self) -> vk::SurfaceKHR {
+    self.surface
+  }
+
   pub(crate) fn destroy(&self) {
     unsafe {
       self.surface_loader.destroy_surface(self.surface, None);

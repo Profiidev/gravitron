@@ -1,18 +1,22 @@
+use std::mem::ManuallyDrop;
+
 use anyhow::Error;
-use ash::vk;
+use config::VulkanConfig;
 use debug::Debugger;
+use device::Device;
+use gpu_allocator::vulkan;
+use graphics::Renderer;
 use instance::{InstanceDevice, InstanceDeviceConfig};
 use surface::Surface;
 use winit::window::Window;
-use device::Device;
-
-use crate::utils::LogLevel;
 
 mod debug;
 mod device;
-mod error;
+pub(crate) mod error;
+mod graphics;
 mod instance;
 mod surface;
+pub(crate) mod config;
 
 pub(crate) struct Vulkan {
   #[allow(dead_code)]
@@ -21,26 +25,28 @@ pub(crate) struct Vulkan {
   instance: InstanceDevice,
   surface: Surface,
   device: Device,
+  renderer: Renderer,
+  allocator: ManuallyDrop<vulkan::Allocator>,
 }
 
 impl Vulkan {
   pub(crate) fn init(mut config: VulkanConfig, window: &Window) -> Result<Self, Error> {
     let entry = unsafe { ash::Entry::load() }?;
 
-    let debugger_info = if config.debug {
-      Some(Debugger::init_info(&mut config))
+    let debugger_info = if config.engine.debug {
+      Some(Debugger::init_info(&mut config.engine))
     } else {
       None
     };
 
     let mut instance_config = InstanceDeviceConfig::default()
-      .add_layers(config.layers.clone())
-      .add_extensions(config.instance_extensions.clone())
-      .add_instance_nexts(std::mem::take(&mut config.instance_next));
+      .add_layers(config.engine.layers.clone())
+      .add_extensions(config.engine.instance_extensions.clone())
+      .add_instance_nexts(std::mem::take(&mut config.engine.instance_next));
 
-    let instance = InstanceDevice::init(&mut instance_config, &entry)?;
+    let instance = InstanceDevice::init(&mut instance_config, &entry, &config.app)?;
 
-    let debugger = if config.debug {
+    let debugger = if config.engine.debug {
       Some(Debugger::init(
         &entry,
         instance.get_instance(),
@@ -51,7 +57,23 @@ impl Vulkan {
     };
 
     let surface = Surface::init(&entry, instance.get_instance(), window)?;
-    let device = Device::init(instance.get_instance(), instance.get_physical_device(), &surface, &config)?;
+    let device = Device::init(
+      instance.get_instance(),
+      instance.get_physical_device(),
+      &surface,
+      &config.engine,
+    )?;
+
+    let mut allocator = vulkan::Allocator::new(&vulkan::AllocatorCreateDesc {
+      device: device.get_device().clone(),
+      physical_device: instance.get_physical_device(),
+      instance: instance.get_instance().clone(),
+      debug_settings: Default::default(),
+      buffer_device_address: false,
+      allocation_sizes: Default::default(),
+    })?;
+
+    let renderer = Renderer::init(&instance, &device, &mut allocator, &surface, &mut config)?;
 
     Ok(Vulkan {
       entry,
@@ -59,61 +81,21 @@ impl Vulkan {
       instance,
       surface,
       device,
+      renderer,
+      allocator: ManuallyDrop::new(allocator),
     })
   }
 
   pub(crate) fn destroy(&mut self) {
+    self.renderer.destroy(self.device.get_device(), &mut self.allocator);
+    unsafe {
+      ManuallyDrop::drop(&mut self.allocator);
+    }
     self.device.destroy();
     self.surface.destroy();
     if let Some(debugger) = &mut self.debugger {
       debugger.destroy();
     }
     self.instance.destroy();
-  }
-}
-
-#[derive(Default)]
-pub(crate) struct VulkanConfig<'a> {
-  layers: Vec<&'a std::ffi::CStr>,
-  instance_extensions: Vec<&'a std::ffi::CStr>,
-  instance_next: Vec<Box<dyn vk::ExtendsInstanceCreateInfo>>,
-  device_extensions: Vec<&'a std::ffi::CStr>,
-  device_features: vk::PhysicalDeviceFeatures,
-  debug: bool,
-  debug_log_level: vk::DebugUtilsMessageSeverityFlagsEXT,
-}
-
-impl<'a> VulkanConfig<'a> {
-  pub(crate) fn add_layer(mut self, layer: &'a std::ffi::CStr) -> Self {
-    self.layers.push(layer);
-    self
-  }
-
-  pub(crate) fn set_debug(mut self, debug: bool) -> Self {
-    self.debug = debug;
-    self
-  }
-
-  pub(crate) fn set_debug_log_level(mut self, level: LogLevel) -> Self {
-    self.debug_log_level = match level {
-      LogLevel::Verbose => {
-        vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-          | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
-          | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-          | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-      }
-      LogLevel::Info => {
-        vk::DebugUtilsMessageSeverityFlagsEXT::INFO
-          | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-          | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-      }
-      LogLevel::Warning => {
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-          | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-      }
-      LogLevel::Error => vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
-      LogLevel::None => vk::DebugUtilsMessageSeverityFlagsEXT::empty(),
-    };
-    self
   }
 }

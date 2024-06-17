@@ -9,3 +9,9 @@ pub(crate) enum QueueFamilyMissingError {
   #[error("No transfer queue family found")]
   Transfer,
 }
+
+#[derive(Error, Debug)]
+pub(crate) enum RendererInitError {
+  #[error("No surface formats found")]
+  FormatMissing,
+}

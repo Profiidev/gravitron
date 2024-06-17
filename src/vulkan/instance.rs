@@ -1,6 +1,8 @@
 use anyhow::Error;
 use ash::{khr, vk};
 
+use super::config::AppConfig;
+
 const REQUIRED_EXTENSION_NAMES: [*const i8; 1] = [khr::surface::NAME.as_ptr()];
 
 #[cfg(target_os = "linux")]
@@ -18,8 +20,8 @@ pub(crate) struct InstanceDevice {
 }
 
 impl InstanceDevice {
-  pub(crate) fn init(config: &mut InstanceDeviceConfig, entry: &ash::Entry) -> Result<Self, Error> {
-    let instance = InstanceDevice::init_instance(entry, config)?;
+  pub(crate) fn init(config: &mut InstanceDeviceConfig, entry: &ash::Entry, app_config: &AppConfig) -> Result<Self, Error> {
+    let instance = InstanceDevice::init_instance(entry, config, app_config)?;
     let (physical_device, _) = InstanceDevice::init_physical_device_and_properties(&instance)?;
 
     Ok(Self {
@@ -39,15 +41,16 @@ impl InstanceDevice {
   fn init_instance(
     entry: &ash::Entry,
     config: &mut InstanceDeviceConfig,
+    app_config: &AppConfig
   ) -> Result<ash::Instance, Error> {
-    let engine_name = std::ffi::CString::new("Vulkan Engine")?;
-    let app_name = std::ffi::CString::new("Test App")?;
+    let engine_name = std::ffi::CString::new("Vulkan Game Engine")?;
+    let app_name = std::ffi::CString::new(app_config.title.clone())?;
 
     let app_info = vk::ApplicationInfo::default()
       .application_name(&app_name)
       .engine_name(&engine_name)
-      .engine_version(vk::make_api_version(0, 0, 42, 0))
-      .application_version(vk::make_api_version(0, 0, 1, 0))
+      .engine_version(vk::make_api_version(0, 0, 1, 0))
+      .application_version(app_config.version)
       .api_version(vk::make_api_version(0, 1, 3, 278));
 
     let layer_name_ptrs: Vec<*const i8> = config

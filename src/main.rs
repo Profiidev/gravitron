@@ -1,6 +1,6 @@
 use ash::vk;
 use glam as g;
-use vulkan::Vulkan;
+use vulkan::{config::{EngineConfig, VulkanConfig}, Vulkan};
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
@@ -54,8 +54,11 @@ impl ApplicationHandler for App {
       .with_inner_size(Size::Logical(LogicalSize::new(800.0, 600.0)));
 
     let window = event_loop.create_window(window_attributes).unwrap();
-    let mut v = Vulkan::init(vulkan::VulkanConfig::default().set_debug(false).set_debug_log_level(utils::LogLevel::Verbose), &window).unwrap();
+
+    let engine_config = EngineConfig::default().set_debug(true).set_debug_log_level(utils::LogLevel::Verbose);
+    let mut v = Vulkan::init(VulkanConfig::default().set_engine_config(engine_config), &window).unwrap();
     v.destroy();
+    
     let mut aetna = Aetna::init(window).unwrap();
 
     let mut cube = Model::cube();

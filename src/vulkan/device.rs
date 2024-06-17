@@ -1,11 +1,12 @@
 use anyhow::Error;
 use ash::{khr, vk};
 
-use super::{error::QueueFamilyMissingError, surface::Surface, VulkanConfig};
+use super::{config::EngineConfig, error::QueueFamilyMissingError, surface::Surface};
 
 pub(crate) struct Device {
   device: ash::Device,
   queues: Queues,
+  queue_families: QueueFamilies,
 }
 
 impl Device {
@@ -13,15 +14,27 @@ impl Device {
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     surface: &Surface,
-    config: &VulkanConfig,
+    config: &EngineConfig,
   ) -> Result<Self, Error> {
     let queue_families = QueueFamilies::init(instance, physical_device, surface)?;
     let (device, queues) = Queues::init(instance, physical_device, &queue_families, config)?;
 
-    Ok(Self { device, queues })
+    Ok(Self {
+      device,
+      queues,
+      queue_families,
+    })
   }
 
-  pub(crate) fn destroy(&self) {
+  pub(crate) fn get_device(&self) -> &ash::Device {
+    &self.device
+  }
+
+  pub(crate) fn get_queue_families(&self) -> &QueueFamilies {
+    &self.queue_families
+  }
+
+  pub(crate) fn destroy(&mut self) {
     unsafe {
       self.device.destroy_device(None);
     }
@@ -87,6 +100,10 @@ impl QueueFamilies {
         && queue_family_index_compute != queue_family_index_transfer,
     })
   }
+
+  pub(crate) fn get_graphics_q_index(&self) -> u32 {
+    self.graphics_q_index
+  }
 }
 
 #[derive(Debug)]
@@ -101,7 +118,7 @@ impl Queues {
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     queue_families: &QueueFamilies,
-    config: &VulkanConfig,
+    config: &EngineConfig,
   ) -> Result<(ash::Device, Self), vk::Result> {
     let queue_priorities = [1.0];
     let queue_create_infos = [
