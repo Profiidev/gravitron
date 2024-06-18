@@ -1,7 +1,7 @@
 use anyhow::Error;
 use ash::{khr, vk};
 
-use super::config::AppConfig;
+use crate::config::app::AppConfig;
 
 const REQUIRED_EXTENSION_NAMES: [*const i8; 1] = [khr::surface::NAME.as_ptr()];
 
@@ -109,7 +109,7 @@ impl InstanceDevice {
 pub(crate) struct InstanceDeviceConfig<'a> {
   layer_names: Vec<&'a std::ffi::CStr>,
   extension_names: Vec<&'a std::ffi::CStr>,
-  instance_next: Vec<Box<dyn vk::ExtendsInstanceCreateInfo>>,
+  instance_next: Vec<Box<dyn vk::ExtendsInstanceCreateInfo + Send>>,
 }
 
 impl<'a> InstanceDeviceConfig<'a> {
@@ -137,14 +137,14 @@ impl<'a> InstanceDeviceConfig<'a> {
     self
   }
 
-  pub(crate) fn add_instance_next(mut self, next: Box<dyn vk::ExtendsInstanceCreateInfo>) -> Self {
+  pub(crate) fn add_instance_next(mut self, next: Box<dyn vk::ExtendsInstanceCreateInfo + Send>) -> Self {
     self.instance_next.push(next);
     self
   }
 
   pub(crate) fn add_instance_nexts(
     mut self,
-    nexts: Vec<Box<dyn vk::ExtendsInstanceCreateInfo>>,
+    nexts: Vec<Box<dyn vk::ExtendsInstanceCreateInfo + Send>>,
   ) -> Self {
     for next in nexts {
       self.instance_next.push(next);

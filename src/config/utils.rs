@@ -1,4 +1,4 @@
-pub(crate) enum LogLevel {
+pub enum LogLevel {
   Verbose,
   Info,
   Warning,

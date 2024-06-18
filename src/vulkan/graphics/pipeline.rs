@@ -1,6 +1,6 @@
 use ash::vk;
 
-use crate::vulkan::config::{
+use crate::config::vulkan::{
   ComputePipelineConfig, Descriptor, DescriptorSet, GraphicsPipelineConfig, PipelineType,
   ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
 };
@@ -93,6 +93,7 @@ impl PipelineManager {
   }
 
   pub(crate) fn destroy(&self, logical_device: &ash::Device) {
+    std::fs::create_dir_all("cache").unwrap();
     for pipeline in &self.pipelines {
       pipeline.destroy(logical_device);
     }
@@ -135,12 +136,12 @@ impl Pipeline {
         .add_variable(ShaderInputVariable::Float)
         .add_variable(ShaderInputVariable::Float),
     )
-    .add_descriptor_set(DescriptorSet::new().add_descriptor(Descriptor::new(
+    .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
       vk::DescriptorType::UNIFORM_BUFFER,
       1,
       vk::ShaderStageFlags::VERTEX,
     )))
-    .add_descriptor_set(DescriptorSet::new().add_descriptor(Descriptor::new(
+    .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
       vk::DescriptorType::STORAGE_BUFFER,
       1,
       vk::ShaderStageFlags::FRAGMENT,

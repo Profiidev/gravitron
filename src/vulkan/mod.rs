@@ -1,7 +1,6 @@
 use std::mem::ManuallyDrop;
 
 use anyhow::Error;
-use config::VulkanConfig;
 use debug::Debugger;
 use device::Device;
 use gpu_allocator::vulkan;
@@ -10,19 +9,21 @@ use instance::{InstanceDevice, InstanceDeviceConfig};
 use surface::Surface;
 use winit::window::Window;
 
+use crate::config::{app::AppConfig, vulkan::VulkanConfig};
+
 mod debug;
 mod device;
-pub(crate) mod error;
+pub mod error;
 mod graphics;
 mod instance;
 mod surface;
-pub(crate) mod config;
 
 pub(crate) struct Vulkan {
   #[allow(dead_code)]
   entry: ash::Entry,
   debugger: Option<Debugger>,
   instance: InstanceDevice,
+  window: Window,
   surface: Surface,
   device: Device,
   renderer: Renderer,
@@ -30,23 +31,23 @@ pub(crate) struct Vulkan {
 }
 
 impl Vulkan {
-  pub(crate) fn init(mut config: VulkanConfig, window: &Window) -> Result<Self, Error> {
+  pub(crate) fn init(mut config: VulkanConfig, app_config: &AppConfig, window: Window) -> Result<Self, Error> {
     let entry = unsafe { ash::Entry::load() }?;
 
-    let debugger_info = if config.engine.debug {
-      Some(Debugger::init_info(&mut config.engine))
+    let debugger_info = if config.renderer.debug {
+      Some(Debugger::init_info(&mut config.renderer))
     } else {
       None
     };
 
     let mut instance_config = InstanceDeviceConfig::default()
-      .add_layers(config.engine.layers.clone())
-      .add_extensions(config.engine.instance_extensions.clone())
-      .add_instance_nexts(std::mem::take(&mut config.engine.instance_next));
+      .add_layers(config.renderer.layers.clone())
+      .add_extensions(config.renderer.instance_extensions.clone())
+      .add_instance_nexts(std::mem::take(&mut config.renderer.instance_next));
 
-    let instance = InstanceDevice::init(&mut instance_config, &entry, &config.app)?;
+    let instance = InstanceDevice::init(&mut instance_config, &entry, app_config)?;
 
-    let debugger = if config.engine.debug {
+    let debugger = if config.renderer.debug {
       Some(Debugger::init(
         &entry,
         instance.get_instance(),
@@ -56,12 +57,12 @@ impl Vulkan {
       None
     };
 
-    let surface = Surface::init(&entry, instance.get_instance(), window)?;
+    let surface = Surface::init(&entry, instance.get_instance(), &window)?;
     let device = Device::init(
       instance.get_instance(),
       instance.get_physical_device(),
       &surface,
-      &config.engine,
+      &config.renderer,
     )?;
 
     let mut allocator = vulkan::Allocator::new(&vulkan::AllocatorCreateDesc {
@@ -73,17 +74,22 @@ impl Vulkan {
       allocation_sizes: Default::default(),
     })?;
 
-    let renderer = Renderer::init(&instance, &device, &mut allocator, &surface, &mut config)?;
+    let renderer = Renderer::init(&instance, &device, &mut allocator, &surface, &mut config, app_config)?;
 
     Ok(Vulkan {
       entry,
       debugger,
       instance,
+      window,
       surface,
       device,
       renderer,
       allocator: ManuallyDrop::new(allocator),
     })
+  }
+
+  pub(crate) fn request_redraw(&self) {
+    self.window.request_redraw();
   }
 
   pub(crate) fn destroy(&mut self) {

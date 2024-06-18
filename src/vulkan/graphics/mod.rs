@@ -3,8 +3,10 @@ use gpu_allocator::vulkan;
 use pipeline::PipelineManager;
 use swap_chain::SwapChain;
 
+use crate::config::{app::AppConfig, vulkan::VulkanConfig};
+
 use super::{
-  config::VulkanConfig, device::Device, error::RendererInitError, instance::InstanceDevice,
+  device::Device, error::RendererInitError, instance::InstanceDevice,
   surface::Surface,
 };
 
@@ -24,6 +26,7 @@ impl Renderer {
     allocator: &mut vulkan::Allocator,
     surface: &Surface,
     config: &mut VulkanConfig,
+    app_config: &AppConfig
   ) -> Result<Self, Error> {
     let format = surface
       .get_formats(instance.get_physical_device())?
@@ -38,7 +41,7 @@ impl Renderer {
       surface,
       device.get_queue_families(),
       allocator,
-      &config.app,
+      app_config,
     )?;
     swap_chain.create_frame_buffers(device.get_device(), render_pass)?;
     let pipeline = PipelineManager::init(

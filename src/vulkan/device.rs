@@ -1,7 +1,9 @@
 use anyhow::Error;
 use ash::{khr, vk};
 
-use super::{config::EngineConfig, error::QueueFamilyMissingError, surface::Surface};
+use crate::config::vulkan::RendererConfig;
+
+use super::{error::QueueFamilyMissingError, surface::Surface};
 
 pub(crate) struct Device {
   device: ash::Device,
@@ -14,7 +16,7 @@ impl Device {
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     surface: &Surface,
-    config: &EngineConfig,
+    config: &RendererConfig,
   ) -> Result<Self, Error> {
     let queue_families = QueueFamilies::init(instance, physical_device, surface)?;
     let (device, queues) = Queues::init(instance, physical_device, &queue_families, config)?;
@@ -118,7 +120,7 @@ impl Queues {
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     queue_families: &QueueFamilies,
-    config: &EngineConfig,
+    config: &RendererConfig,
   ) -> Result<(ash::Device, Self), vk::Result> {
     let queue_priorities = [1.0];
     let queue_create_infos = [

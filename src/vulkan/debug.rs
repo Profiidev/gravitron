@@ -4,7 +4,7 @@ use ash::{
   vk::{self, ExtendsInstanceCreateInfo},
 };
 
-use super::config::EngineConfig;
+use crate::config::vulkan::RendererConfig;
 
 const VALIDATION_LAYER: &std::ffi::CStr =
   unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0") };
@@ -24,7 +24,7 @@ impl Debugger {
     Ok(Self { debug_utils })
   }
 
-  pub(crate) fn init_info(vulkan_config: &mut EngineConfig) -> DebuggerInfo {
+  pub(crate) fn init_info(vulkan_config: &mut RendererConfig) -> DebuggerInfo {
     let is_info_level = vulkan_config.debug_log_level.contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
 
     let mut debugger_info = DebuggerInfo {
@@ -95,7 +95,7 @@ pub(crate) struct DebuggerInfo {
 }
 
 impl DebuggerInfo {
-  pub(crate) fn instance_next(&mut self) -> Vec<Box<dyn ExtendsInstanceCreateInfo>> {
+  pub(crate) fn instance_next(&mut self) -> Vec<Box<dyn ExtendsInstanceCreateInfo + Send>> {
     vec![Box::new(self.debug_utils)]
   }
 }
