@@ -1,5 +1,3 @@
-use std::thread;
-
 use anyhow::Error;
 use winit::{
   application::ApplicationHandler, dpi::{LogicalSize, Size}, event_loop::EventLoop
