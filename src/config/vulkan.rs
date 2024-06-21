@@ -9,7 +9,7 @@ pub struct VulkanConfig {
 }
 
 impl VulkanConfig {
-  pub fn set_engine_config(mut self, engine: RendererConfig<'static>) -> Self {
+  pub fn set_renderer_config(mut self, engine: RendererConfig<'static>) -> Self {
     self.renderer = engine;
     self
   }

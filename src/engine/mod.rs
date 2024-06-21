@@ -6,7 +6,8 @@ use crate::{config::EngineConfig, error::EngineBuildError, scene::Scene};
 
 mod manager;
 mod window;
-mod network;
+mod updater;
+mod renderer;
 
 pub struct Engine<S, M: Manager> {
   state: S,

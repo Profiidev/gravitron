@@ -1,21 +1,22 @@
 use game_object::GameObject;
 
 mod game_object;
+mod components;
 
 pub struct Scene {
-  name: String,
-  game_objects: Vec<Box<dyn GameObject>>,
+  id: u32,
+  game_objects: Vec<GameObject>,
 }
 
 impl Scene {
-  pub fn new(name: String) -> Self {
+  pub fn new() -> Self {
     Self {
-      name,
+      id: rand::random(),
       game_objects: Vec::new(),
     }
   }
 
-  pub fn add_game_object(mut self, game_object: Box<dyn GameObject>) -> Self {
+  pub fn add_game_object(mut self, game_object: GameObject) -> Self {
     self.game_objects.push(game_object);
     self
   }
@@ -30,5 +31,11 @@ impl Scene {
     for game_object in self.game_objects.iter_mut() {
       game_object.update();
     }
+  }
+}
+
+impl Default for Scene {
+  fn default() -> Self {
+    Self::new()
   }
 }
