@@ -12,18 +12,18 @@ impl MeshRenderer {
       material_id,
     }
   }
+
+  pub fn mesh_id(&self) -> u32 {
+    self.mesh_id
+  }
+
+  pub fn material_id(&self) -> u32 {
+    self.material_id
+  }
 }
 
 impl GameObjectComponent for MeshRenderer {
   fn init(&mut self) {
     println!("MeshRenderer init");
-  }
-
-  fn update(&mut self) {
-    println!("MeshRenderer update");
-  }
-
-  fn fixed_update(&mut self) {
-    println!("MeshRenderer fixed_update");
   }
 }

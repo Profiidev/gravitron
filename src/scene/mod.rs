@@ -1,11 +1,13 @@
 use game_object::GameObject;
 
-mod game_object;
-mod components;
+use crate::util::mutator::Mutator;
+
+pub mod game_object;
+pub mod components;
 
 pub struct Scene {
   id: u32,
-  game_objects: Vec<GameObject>,
+  game_objects: Vec<Mutator<GameObject>>,
 }
 
 impl Scene {
@@ -17,20 +19,24 @@ impl Scene {
   }
 
   pub fn add_game_object(mut self, game_object: GameObject) -> Self {
-    self.game_objects.push(game_object);
+    self.game_objects.push(Mutator::new(game_object));
     self
   }
 
   pub fn init(&mut self) {
-    for game_object in self.game_objects.iter_mut() {
-      game_object.init();
+    for game_object in self.game_objects.iter() {
+      game_object.get_mut().init();
     }
   }
 
   pub fn update(&mut self) {
-    for game_object in self.game_objects.iter_mut() {
-      game_object.update();
+    for game_object in self.game_objects.iter() {
+      game_object.get_mut().update();
     }
+  }
+
+  pub fn game_objects(&self) -> &Vec<Mutator<GameObject>> {
+    &self.game_objects
   }
 }
 
