@@ -1,0 +1,29 @@
+use crate::{systems::{IntoSystem, StoredSystem, System}, world::{UnsafeWorldCell, World}};
+
+#[derive(Default)]
+pub struct Scheduler {
+  meta_data: MetaData,
+  systems: Vec<StoredSystem>,
+}
+
+impl Scheduler {
+  pub fn new() -> Self {
+    Scheduler::default()
+  }
+
+  pub fn run(&mut self, world: &mut World) {
+    let world = UnsafeWorldCell::new(world);
+    for system in self.systems.iter_mut() {
+      system.run(world);
+    }
+  }
+
+  pub fn add_system<I, S: System + 'static>(&mut self, system: impl IntoSystem<I, System = S>) {
+    self.systems.push(Box::new(system.into_system()));
+  }
+}
+
+#[derive(Default)]
+struct MetaData {
+
+}
