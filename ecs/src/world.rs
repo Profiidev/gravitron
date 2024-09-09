@@ -1,14 +1,14 @@
 use std::{any::Any, marker::PhantomData, ptr};
 
 use crate::{
-  archetypes::Archetypes, components::Component, entity::{Entities, IntoEntity}, Id
+   components::Component, entity::IntoEntity, storage::Storage, Id
 };
 
 #[derive(Default)]
 pub struct World {
-  archetypes: Archetypes,
-  entities: Entities,
-  resources: Vec<Box<dyn Any>>
+  storage: Storage<'static>,
+  resources: Vec<Box<dyn Any>>,
+  t: Vec<Vec<Box<dyn Component>>>
 }
 
 impl World {
@@ -17,14 +17,7 @@ impl World {
   }
 
   pub fn add_entity(&mut self, entity: impl IntoEntity) -> Id {
-    let components = entity.into_entity();
-    let mut ids = Vec::new();
-    for component in &components {
-      ids.push(component.id());
-    }
-
-    let archetype = self.archetypes.get(ids);
-    self.entities.create(archetype, components)
+    self.storage.create_entity(entity.into_entity())
   }
 
   pub fn add_resource<R: 'static>(&mut self, res: R) {
@@ -54,8 +47,8 @@ impl World {
     None
   }
 
-  pub fn get_entities_mut(&mut self, archetypes: Vec<Id>) -> Vec<&mut Vec<Box<dyn Component>>> {
-    self.entities.get_entities_mut(archetypes)
+  pub fn get_entities_mut(&mut self, t: Vec<Id>) -> Vec<&mut Vec<Box<dyn Component>>> {
+    self.storage.get_all_entities_for_archetypes(t)
   }
 }
 
@@ -67,7 +60,7 @@ unsafe impl Send for UnsafeWorldCell<'_> {}
 unsafe impl Sync for UnsafeWorldCell<'_> {}
 
 impl<'w> UnsafeWorldCell<'w> {
-  pub fn new(world: &'w mut World) -> Self {
+  pub fn new(world: &mut World) -> Self {
     Self(ptr::from_mut(world), PhantomData)
   }
 

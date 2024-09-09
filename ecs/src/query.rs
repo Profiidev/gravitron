@@ -1,5 +1,7 @@
 use std::{collections::VecDeque, marker::PhantomData};
 
+use ecs_macros::all_tuples;
+
 use crate::{
   components::Component, systems::SystemParam, world::UnsafeWorldCell, Id,
 };
@@ -63,27 +65,39 @@ pub trait QueryParam<'a> {
   fn into_query(entity: &'a mut Vec<Box<dyn Component>>) -> Self::Item;
 }
 
-impl<'a, T1, T2> QueryParam<'a> for (T1, T2)
-where
-  T1: QueryParamItem<'a>,
-  T2: QueryParamItem<'a>,
-{
-  type Item = (T1::Item, T2::Item);
+macro_rules! impl_query_param {
+  ($one:ident) => {
+    impl_query_param!($one,);
+  };
+  ($first:ident, $($params:ident),*) => {
+    impl<'a, $first: QueryParamItem<'a>, $($params: QueryParamItem<'a>),*> QueryParam<'a> for ($first, $($params),*) {
+      type Item = ($first::Item, $($params::Item ,)*);
 
-  fn into_query(entity: &'a mut Vec<Box<dyn Component>>) -> Self::Item {
-    let mut t1 = None;
-    let mut t2 = None;
-    for comp in entity {
-      if comp.id() == T1::id() {
-        t1 = Some(T1::into_param(comp));
-      } else if comp.id() == T2::id() {
-        t2 = Some(T2::into_param(comp));
+      #[allow(non_snake_case)]
+      fn into_query(entity: &'a mut Vec<Box<dyn Component>>) -> Self::Item {
+        let mut $first = None;
+        $(
+          let mut $params = None;
+        )*
+
+        for comp in entity {
+          if comp.id() == $first::id() {
+            $first = Some($first::into_param(comp));
+          }
+          $(
+            else if comp.id() == $params::id() {
+              $params = Some($params::into_param(comp));
+            }
+          )*
+        }
+
+        ($first.unwrap(), $($params.unwrap()),*)
       }
     }
-
-    (t1.unwrap(), t2.unwrap())
-  }
+  };
 }
+
+all_tuples!(impl_query_param, 1, 16, F);
 
 pub trait QueryParamItem<'a> {
   type Item: 'a;
