@@ -2,7 +2,6 @@ use crate::{systems::{IntoSystem, StoredSystem, System}, world::{UnsafeWorldCell
 
 #[derive(Default)]
 pub struct Scheduler {
-  meta_data: MetaData,
   systems: Vec<StoredSystem>,
 }
 
@@ -23,7 +22,3 @@ impl Scheduler {
   }
 }
 
-#[derive(Default)]
-struct MetaData {
-
-}

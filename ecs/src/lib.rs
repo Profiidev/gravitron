@@ -1,4 +1,3 @@
-pub mod archetypes;
 pub mod components;
 pub mod entity;
 pub mod query;

@@ -8,7 +8,6 @@ use crate::{
 pub struct World {
   storage: Storage<'static>,
   resources: Vec<Box<dyn Any>>,
-  t: Vec<Vec<Box<dyn Component>>>
 }
 
 impl World {

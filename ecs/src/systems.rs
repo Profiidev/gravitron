@@ -107,7 +107,7 @@ impl<T: 'static> Deref for Res<'_, T> {
 impl<'res, T: 'static> SystemParam for Res<'res, T> {
   type Item<'new> = Res<'new, T>;
 
-  fn get_param<'w>(world: UnsafeWorldCell<'w>) -> Self::Item<'w> {
+  fn get_param(world: UnsafeWorldCell<'_>) -> Self::Item<'_> {
     let world = unsafe {
       world.world()
     };
