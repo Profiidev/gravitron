@@ -1,4 +1,5 @@
 pub mod components;
+pub mod commands;
 pub mod entity;
 pub mod query;
 pub mod systems;

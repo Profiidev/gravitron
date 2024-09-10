@@ -6,6 +6,12 @@ pub trait IntoEntity {
   fn into_entity(self) -> Vec<Box<dyn Component>>;
 }
 
+impl<F0: Component + 'static> IntoEntity for F0 {
+  fn into_entity(self) -> Vec<Box<dyn Component>> {
+    vec![Box::new(self)]
+  }
+}
+
 macro_rules! impl_into_entity {
   ($($params:ident),*) => {
     #[allow(non_snake_case)]

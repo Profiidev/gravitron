@@ -11,10 +11,11 @@ impl Scheduler {
   }
 
   pub fn run(&mut self, world: &mut World) {
-    let world = UnsafeWorldCell::new(world);
+    let world_cell = UnsafeWorldCell::new(world);
     for system in self.systems.iter_mut() {
-      system.run(world);
+      system.run(world_cell);
     }
+    world.execute_commands();
   }
 
   pub fn add_system<I, S: System + 'static>(&mut self, system: impl IntoSystem<I, System = S>) {

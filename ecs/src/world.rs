@@ -1,13 +1,14 @@
 use std::{any::Any, marker::PhantomData, ptr};
 
 use crate::{
-   components::Component, entity::IntoEntity, storage::Storage, Id
+   commands::Commands, components::Component, entity::IntoEntity, storage::Storage, Id
 };
 
 #[derive(Default)]
 pub struct World {
   storage: Storage<'static>,
   resources: Vec<Box<dyn Any>>,
+  commands: Commands
 }
 
 impl World {
@@ -15,7 +16,7 @@ impl World {
     World::default()
   }
 
-  pub fn add_entity(&mut self, entity: impl IntoEntity) -> Id {
+  pub fn create_entity(&mut self, entity: impl IntoEntity) -> Id {
     self.storage.create_entity(entity.into_entity())
   }
 
@@ -44,6 +45,14 @@ impl World {
     }
 
     None
+  }
+
+  pub fn get_commands_mut(&mut self) -> &mut Commands {
+    &mut self.commands
+  }
+
+  pub fn execute_commands(&mut self) {
+    self.commands.execute(&mut self.storage);
   }
 
   pub fn get_entities_mut(&mut self, t: Vec<Id>) -> Vec<&mut Vec<Box<dyn Component>>> {

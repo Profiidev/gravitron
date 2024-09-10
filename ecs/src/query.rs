@@ -26,7 +26,7 @@ impl<'a, Q: QueryParam<'a> + 'a> IntoIterator for Query<'a, Q> {
     };
 
     let mut res = VecDeque::new();
-    for entity in world.get_entities_mut(vec![1]) {
+    for entity in world.get_entities_mut(vec![0, 1]) {
       res.push_back(Q::into_query(entity));
     }
 
@@ -67,6 +67,23 @@ pub trait QueryParam<'a> {
 
 macro_rules! impl_query_param {
   ($one:ident) => {
+    impl<'a, $one: QueryParamItem<'a>> QueryParam<'a> for $one {
+      type Item = $one::Item;
+
+      #[allow(non_snake_case)]
+      fn into_query(entity: &'a mut Vec<Box<dyn Component>>) -> Self::Item {
+        let mut $one = None;
+
+        for comp in entity {
+          if comp.id() == $one::id() {
+            $one = Some($one::into_param(comp));
+          }
+        }
+
+        $one.unwrap()
+      }
+    }
+
     impl_query_param!($one,);
   };
   ($first:ident, $($params:ident),*) => {

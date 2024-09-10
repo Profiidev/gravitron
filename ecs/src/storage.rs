@@ -90,6 +90,21 @@ impl<'a> Storage<'a> {
     id
   }
 
+  pub fn remove_entity(&mut self, entity: EnitityId) {
+    let record = self.entity_index.remove(&entity).unwrap();
+    let archetype = unsafe { record.archetype.archetype_mut() };
+    
+    archetype.entity_ids.swap_remove(record.row);
+    archetype.rows.swap_remove(record.row);
+
+    if let Some(swaped) = archetype.entity_ids.get(record.row) {
+      let swaped_record = self.entity_index.get_mut(swaped).unwrap();
+      swaped_record.row = record.row;
+    }
+
+    self.entity_ids_free.push(entity);
+  }
+
   pub fn create_archetype(&mut self, type_: Type) {
     let archetype = Archetype {
       id: self.archetype_index.len() as ArchetypeId,
@@ -122,9 +137,19 @@ impl<'a> Storage<'a> {
     Some(&**component)
   }
 
+  pub fn has_comp(&self, entity: EnitityId, comp: ComponentId) -> bool {
+    let record = self.entity_index.get(&entity).unwrap();
+    let archetype = unsafe { record.archetype.archetype() };
+    archetype.type_.contains(&comp)
+  }
+
   pub fn add_comp(&mut self, entity: EnitityId, comp: Box<dyn Component>) {
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
+
+    if from.type_.contains(&comp.id()) {
+      return;
+    }
 
     let to = if let Some(to) = from.edges.get(&comp.id()) {
       unsafe { to.add.archetype_mut() }
@@ -171,6 +196,10 @@ impl<'a> Storage<'a> {
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
 
+    if !from.type_.contains(&comp) {
+      return;
+    }
+
     let to = if let Some(to) = from.edges.get(&comp) {
       unsafe { to.remove.archetype_mut() }
     } else {
@@ -214,17 +243,12 @@ impl<'a> Storage<'a> {
 
   pub fn get_all_entities_for_archetypes(&mut self, components: Vec<ComponentId>) -> Vec<&mut Vec<Box<dyn Component>>> {
     assert!(!components.is_empty());
-    let mut archetypes = Vec::new();
-    for archetype in &mut self.archetype_index.values_mut() {
-      if components.iter().all(|t| components.contains(t)) {
-        archetypes.push(archetype);
-      }
-    }
-
     let mut entities = Vec::new();
-    for archetype in archetypes {
-      for e in &mut archetype.rows {
-        entities.push(e);
+    for archetype in &mut self.archetype_index.values_mut() {
+      if components.iter().all(|t| archetype.type_.contains(t)) {
+        for e in &mut archetype.rows {
+          entities.push(e);
+        }
       }
     }
 

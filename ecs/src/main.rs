@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use ecs::{components::Component, query::Query, scheduler::Scheduler, storage::Storage, systems::{Res, ResMut}, world::World};
+use ecs::{commands::Commands, components::Component, query::Query, scheduler::Scheduler, storage::Storage, systems::{Res, ResMut}, world::World};
 use ecs_macros::Component;
 
 fn f1(t: Res<usize>, mut r: ResMut<f32>) {
@@ -25,9 +25,10 @@ fn f3(q: Query<(&Transform, &mut Transformw)>) {
   println!("System End");
 }
 
-fn f4(q: Query<(&Transform, &Transformw)>) {
+fn f4(q: Query<(&Transform, &Transformw)>, c: &mut Commands) {
   let (_, w) = q.into_iter().next().unwrap();
   println!("{}", w.x);
+  c.create_entity(Transform {x: 1.0})
 }
 
 #[derive(Component)]
@@ -41,6 +42,18 @@ struct Transformw {
 }
 
 fn main() {
+  bench();
+  let mut storage = Storage::default();
+
+  storage.create_entity(vec![Box::new(Transform {x: 0.0})]);
+
+  storage.add_comp(0, Box::new(Transform {x: 0.0}));
+
+  storage.remove_comp(0, 0);
+  storage.remove_comp(0, 0);
+}
+
+fn bench() {
   let mut storage = Storage::default();
 
   let x = 1000;
@@ -105,7 +118,7 @@ fn main() {
   println!("Create Entity");
   let start = Instant::now();
   for _ in 0..x {
-    world.add_entity((Transform { x: 1.0 }, Transformw { x: 2.0 }));
+    world.create_entity((Transform { x: 1.0 }, Transformw { x: 2.0 }));
   }
   println!("{:?}", start.elapsed());
   println!("{:?}", start.elapsed() / x);
