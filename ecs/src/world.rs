@@ -1,14 +1,14 @@
-use std::{any::Any, marker::PhantomData, ptr};
+use std::{any::Any, collections::HashMap, marker::PhantomData, ptr};
 
 use crate::{
-   commands::Commands, components::Component, entity::IntoEntity, storage::Storage, Id
+   commands::Commands, components::Component, entity::IntoEntity, storage::Storage, systems::SystemId, Id
 };
 
 #[derive(Default)]
 pub struct World {
   storage: Storage<'static>,
   resources: Vec<Box<dyn Any>>,
-  commands: Commands
+  commands: HashMap<SystemId, Commands>
 }
 
 impl World {
@@ -47,12 +47,14 @@ impl World {
     None
   }
 
-  pub fn get_commands_mut(&mut self) -> &mut Commands {
-    &mut self.commands
+  pub fn get_commands_mut(&mut self, id: SystemId) -> &mut Commands {
+    self.commands.entry(id).or_default()
   }
 
   pub fn execute_commands(&mut self) {
-    self.commands.execute(&mut self.storage);
+    for cmds in self.commands.values_mut() {
+      cmds.execute(&mut self.storage);
+    }
   }
 
   pub fn get_entities_mut(&mut self, t: Vec<Id>) -> Vec<&mut Vec<Box<dyn Component>>> {

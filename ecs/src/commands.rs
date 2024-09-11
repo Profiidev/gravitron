@@ -1,4 +1,4 @@
-use crate::{components::Component, entity::IntoEntity, storage::{ComponentId, EnitityId, Storage}, systems::SystemParam};
+use crate::{components::Component, entity::IntoEntity, storage::{ComponentId, EntityId, Storage}, systems::{metadata::SystemMeta, SystemId, SystemParam}};
 
 #[derive(Default)]
 pub struct Commands {
@@ -23,20 +23,20 @@ impl Commands {
     }));
   }
 
-  pub fn remove_entity(&mut self, entity: EnitityId) {
+  pub fn remove_entity(&mut self, entity: EntityId) {
     self.commands.push(Box::new(RemoveEntityCommand {
       id: entity
     }));
   }
 
-  pub fn add_comp(&mut self, entity: EnitityId, comp: impl Component) {
+  pub fn add_comp(&mut self, entity: EntityId, comp: impl Component) {
     self.commands.push(Box::new(AddComponentCommand {
       id: entity,
       comp: Some(Box::new(comp))
     }));
   }
 
-  pub fn remove_comp(&mut self, entity: EnitityId, comp: ComponentId) {
+  pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
     self.commands.push(Box::new(RemoveComponentCommand {
       id: entity,
       comp
@@ -47,8 +47,12 @@ impl Commands {
 impl SystemParam for &mut Commands {
   type Item<'new> = &'new mut Commands;
 
-  fn get_param(world: crate::world::UnsafeWorldCell<'_>) -> Self::Item<'_> {
-    unsafe { world.world_mut() }.get_commands_mut()
+  fn get_param(world: crate::world::UnsafeWorldCell<'_>, id: SystemId) -> Self::Item<'_> {
+    unsafe { world.world_mut() }.get_commands_mut(id)
+  }
+
+  fn check_metadata(meta: &mut SystemMeta) {
+    meta.add_cmds();
   }
 }
 
@@ -67,7 +71,7 @@ impl Command for CreateEntityCommand {
 }
 
 struct RemoveEntityCommand {
-  id: EnitityId
+  id: EntityId
 }
 
 impl Command for RemoveEntityCommand {
@@ -77,7 +81,7 @@ impl Command for RemoveEntityCommand {
 }
 
 struct AddComponentCommand {
-  id: EnitityId,
+  id: EntityId,
   comp: Option<Box<dyn Component>>
 }
 
@@ -88,7 +92,7 @@ impl Command for AddComponentCommand {
 }
 
 struct RemoveComponentCommand {
-  id: EnitityId,
+  id: EntityId,
   comp: ComponentId
 }
 

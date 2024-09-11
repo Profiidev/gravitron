@@ -3,7 +3,7 @@ use std::{collections::VecDeque, marker::PhantomData};
 use ecs_macros::all_tuples;
 
 use crate::{
-  components::Component, systems::SystemParam, world::UnsafeWorldCell, Id,
+  components::Component, systems::{metadata::{AccessType, QueryMeta, SystemMeta}, SystemId, SystemParam}, world::UnsafeWorldCell, Id,
 };
 
 pub struct Query<'a, Q: QueryParam<'a>> {
@@ -26,7 +26,7 @@ impl<'a, Q: QueryParam<'a> + 'a> IntoIterator for Query<'a, Q> {
     };
 
     let mut res = VecDeque::new();
-    for entity in world.get_entities_mut(vec![0, 1]) {
+    for entity in world.get_entities_mut(Q::get_comp_ids()) {
       res.push_back(Q::into_query(entity));
     }
 
@@ -51,11 +51,15 @@ where
 {
   type Item<'new> = Query<'new, Q>;
 
-  fn get_param(world: UnsafeWorldCell<'_>) -> Self::Item<'_> {
+  fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
     Query {
       world,
       marker: PhantomData
     }
+  }
+
+  fn check_metadata(meta: &mut SystemMeta) {
+    meta.add_query(Q::get_meta())
   }
 }
 
@@ -63,6 +67,8 @@ pub trait QueryParam<'a> {
   type Item: 'a;
 
   fn into_query(entity: &'a mut Vec<Box<dyn Component>>) -> Self::Item;
+  fn get_meta() -> QueryMeta;
+  fn get_comp_ids() -> Vec<Id>;
 }
 
 macro_rules! impl_query_param {
@@ -81,6 +87,18 @@ macro_rules! impl_query_param {
         }
 
         $one.unwrap()
+      }
+
+      fn get_meta() -> QueryMeta {
+        let mut meta = QueryMeta::new();
+
+        $one::check_metadata(&mut meta);
+
+        meta
+      }
+
+      fn get_comp_ids() -> Vec<Id> {
+        vec![$one::id()]
       }
     }
 
@@ -110,6 +128,21 @@ macro_rules! impl_query_param {
 
         ($first.unwrap(), $($params.unwrap()),*)
       }
+
+      fn get_meta() -> QueryMeta {
+        let mut meta = QueryMeta::new();
+
+        $first::check_metadata(&mut meta);
+        $(
+          $params::check_metadata(&mut meta);
+        )*
+
+        meta
+      }
+
+      fn get_comp_ids() -> Vec<Id> {
+        vec![$first::id(), $($params::id()),*]
+      }
     }
   };
 }
@@ -121,6 +154,7 @@ pub trait QueryParamItem<'a> {
 
   fn id() -> Id;
   fn into_param(comp: &'a mut Box<dyn Component>) -> Self::Item;
+  fn check_metadata(meta: &mut QueryMeta);
 }
 
 impl<'a, C: Component + 'static> QueryParamItem<'a> for &C {
@@ -133,6 +167,10 @@ impl<'a, C: Component + 'static> QueryParamItem<'a> for &C {
   fn into_param(comp: &'a mut Box<dyn Component>) -> Self::Item {
     comp.downcast_ref().unwrap()
   }
+
+  fn check_metadata(meta: &mut QueryMeta) {
+    meta.add_comp::<C>(AccessType::Read);
+  }
 }
 
 impl<'a, C: Component + 'static> QueryParamItem<'a> for &mut C {
@@ -144,5 +182,9 @@ impl<'a, C: Component + 'static> QueryParamItem<'a> for &mut C {
 
   fn into_param(comp: &'a mut Box<dyn Component>) -> Self::Item {
     comp.downcast_mut().unwrap()
+  }
+
+  fn check_metadata(meta: &mut QueryMeta) {
+    meta.add_comp::<C>(AccessType::Write);
   }
 }

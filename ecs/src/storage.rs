@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, ptr};
 use crate::{components::Component, Id};
 
 pub type ComponentId = Id;
-pub type EnitityId = Id;
+pub type EntityId = Id;
 pub type ArchetypeId = Id;
 
 type Type = Vec<ComponentId>;
@@ -27,7 +27,7 @@ struct ArchetypeRecord {
 struct Archetype<'a> {
   id: ArchetypeId,
   type_: Type,
-  entity_ids: Vec<EnitityId>,
+  entity_ids: Vec<EntityId>,
   rows: Vec<Row>,
   edges: HashMap<ComponentId, ArchetypeEdge<'a>>
 }
@@ -59,15 +59,15 @@ impl<'a> UnsafeArchetypeCell<'a> {
 
 #[derive(Default)]
 pub struct Storage<'a> {
-  entity_index: HashMap<EnitityId, Record<'a>>,
+  entity_index: HashMap<EntityId, Record<'a>>,
   archetype_index: HashMap<Type, Archetype<'a>>,
   component_index: HashMap<ComponentId, ArchetypeMap>,
-  entity_ids_free: Vec<EnitityId>,
+  entity_ids_free: Vec<EntityId>,
 }
 
 impl<'a> Storage<'a> {
-  pub fn create_entity(&mut self, mut comps: Vec<Box<dyn Component>>) -> EnitityId {
-    let id = self.entity_ids_free.pop().unwrap_or(self.entity_index.len() as EnitityId);
+  pub fn create_entity(&mut self, mut comps: Vec<Box<dyn Component>>) -> EntityId {
+    let id = self.entity_ids_free.pop().unwrap_or(self.entity_index.len() as EntityId);
 
     comps.sort_unstable_by_key(|c| c.id());
     let type_ = comps.iter().map(|c| c.id()).collect::<Type>();
@@ -90,7 +90,7 @@ impl<'a> Storage<'a> {
     id
   }
 
-  pub fn remove_entity(&mut self, entity: EnitityId) {
+  pub fn remove_entity(&mut self, entity: EntityId) {
     let record = self.entity_index.remove(&entity).unwrap();
     let archetype = unsafe { record.archetype.archetype_mut() };
     
@@ -124,7 +124,7 @@ impl<'a> Storage<'a> {
     self.archetype_index.insert(type_, archetype);
   }
 
-  pub fn get_comp(&self, entity: EnitityId, comp: ComponentId) -> Option<&dyn Component> {
+  pub fn get_comp(&self, entity: EntityId, comp: ComponentId) -> Option<&dyn Component> {
     let record = self.entity_index.get(&entity)?;
     let archetype = unsafe { record.archetype.archetype() };
 
@@ -137,13 +137,13 @@ impl<'a> Storage<'a> {
     Some(&**component)
   }
 
-  pub fn has_comp(&self, entity: EnitityId, comp: ComponentId) -> bool {
+  pub fn has_comp(&self, entity: EntityId, comp: ComponentId) -> bool {
     let record = self.entity_index.get(&entity).unwrap();
     let archetype = unsafe { record.archetype.archetype() };
     archetype.type_.contains(&comp)
   }
 
-  pub fn add_comp(&mut self, entity: EnitityId, comp: Box<dyn Component>) {
+  pub fn add_comp(&mut self, entity: EntityId, comp: Box<dyn Component>) {
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
 
@@ -192,7 +192,7 @@ impl<'a> Storage<'a> {
     }
   }
   
-  pub fn remove_comp(&mut self, entity: EnitityId, comp: ComponentId) {
+  pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
 

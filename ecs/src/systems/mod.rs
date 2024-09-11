@@ -3,15 +3,23 @@ use std::{
   cell::UnsafeCell,
   collections::HashMap,
   marker::PhantomData,
-  ops::{Deref, DerefMut},
+  ops::{Deref, DerefMut}, sync::atomic::{AtomicU64, Ordering},
 };
 
 use ecs_macros::all_tuples;
+use metadata::SystemMeta;
 
-use crate::world::UnsafeWorldCell;
+use crate::{world::UnsafeWorldCell, Id};
+
+pub mod metadata;
+
+static SYSTEM_ID: AtomicU64 = AtomicU64::new(0);
+
+pub type SystemId = Id;
 
 pub trait System {
   fn run(&mut self, world: UnsafeWorldCell<'_>);
+  fn get_meta(&self) -> &SystemMeta;
 }
 
 macro_rules! impl_system {
@@ -34,10 +42,14 @@ macro_rules! impl_system {
         }
 
         $(
-          let $params = $params::get_param(world);
+          let $params = $params::get_param(world, self.id);
         )*
 
         call_inner(&mut self.f, $($params),*)
+      }
+
+      fn get_meta(&self) -> &SystemMeta {
+        &self.meta
       }
     }
 
@@ -52,8 +64,19 @@ macro_rules! impl_system {
       type System = FunctionSystem<($($params ,)*), Self>;
 
       fn into_system(self) -> Self::System {
+        #[allow(unused_mut)]
+        let mut meta = SystemMeta::new();
+
+        $(
+          $params::check_metadata(&mut meta);
+        )*
+
+        let id = SYSTEM_ID.fetch_add(1, Ordering::SeqCst);
+
         FunctionSystem {
           f: self,
+          meta,
+          id,
           marker: Default::default()
         }
       }
@@ -65,6 +88,8 @@ all_tuples!(impl_system, 0, 16, F);
 
 pub struct FunctionSystem<Input, F> {
   f: F,
+  meta: SystemMeta,
+  id: SystemId,
   marker: PhantomData<fn() -> Input>,
 }
 
@@ -79,7 +104,8 @@ pub trait IntoSystem<Input> {
 pub trait SystemParam {
   type Item<'new>;
 
-  fn get_param(world: UnsafeWorldCell<'_>) -> Self::Item<'_>;
+  fn get_param(world: UnsafeWorldCell<'_>, id: SystemId) -> Self::Item<'_>;
+  fn check_metadata(meta: &mut SystemMeta);
 }
 
 pub type TypeMap = HashMap<TypeId, UnsafeCell<Box<dyn Any>>>;
@@ -107,7 +133,7 @@ impl<T: 'static> Deref for Res<'_, T> {
 impl<'res, T: 'static> SystemParam for Res<'res, T> {
   type Item<'new> = Res<'new, T>;
 
-  fn get_param(world: UnsafeWorldCell<'_>) -> Self::Item<'_> {
+  fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
     let world = unsafe {
       world.world()
     };
@@ -115,6 +141,10 @@ impl<'res, T: 'static> SystemParam for Res<'res, T> {
     Res {
       value: world.get_resource().expect("Resource not found")
     }
+  }
+
+  fn check_metadata(meta: &mut SystemMeta) {
+    meta.add_res::<T>(metadata::AccessType::Read);
   }
 }
 
@@ -139,7 +169,7 @@ impl<T: 'static> DerefMut for ResMut<'_, T> {
 impl<'res, T: 'static> SystemParam for ResMut<'res, T> {
   type Item<'new> = ResMut<'new, T>;
 
-  fn get_param(world: UnsafeWorldCell<'_>) -> Self::Item<'_> {
+  fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
     let world = unsafe {
       world.world_mut()
     };
@@ -147,5 +177,9 @@ impl<'res, T: 'static> SystemParam for ResMut<'res, T> {
     ResMut {
       value: world.get_resource_mut().expect("Resource not found")
     }
+  }
+
+  fn check_metadata(meta: &mut SystemMeta) {
+    meta.add_res::<T>(metadata::AccessType::Read);
   }
 }
