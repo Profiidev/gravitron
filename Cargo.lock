@@ -358,23 +358,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f25c0e292a7ca6d6498557ff1df68f32c99850012b6ea401cf8daf771f22ff53"
 
 [[package]]
-name = "ecs"
-version = "0.1.0"
-dependencies = [
- "downcast",
- "ecs_macros",
-]
-
-[[package]]
-name = "ecs_macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -446,14 +429,56 @@ checksum = "c28091a37a5d09b555cb6628fd954da299b536433834f5b8e59eba78e0cbbf8a"
 
 [[package]]
 name = "gpu-allocator"
-version = "0.26.0"
-source = "git+https://github.com/Traverse-Research/gpu-allocator?branch=main#4b5c0d4f17ddf7f1426de58ecd04a7dfc270b4ee"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c151a2a5ef800297b4e79efa4f4bec035c5f51d5ae587287c9b952bdf734cacd"
 dependencies = [
  "ash",
  "log",
  "presser",
  "thiserror",
  "windows",
+]
+
+[[package]]
+name = "gravitron"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ash",
+ "ash-window",
+ "glam",
+ "gpu-allocator",
+ "gravitron_ecs",
+ "gravitron_utils",
+ "rand",
+ "thiserror",
+ "vk-shader-macros",
+ "winit",
+]
+
+[[package]]
+name = "gravitron_ecs"
+version = "0.1.0"
+dependencies = [
+ "downcast",
+ "gravitron_ecs_macros",
+]
+
+[[package]]
+name = "gravitron_ecs_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "gravitron_utils"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
@@ -1168,13 +1193,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
 
 [[package]]
-name = "utils"
-version = "0.1.0"
-dependencies = [
- "thiserror",
-]
-
-[[package]]
 name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1190,23 +1208,6 @@ dependencies = [
  "quote",
  "shaderc",
  "syn",
-]
-
-[[package]]
-name = "vulkan_engine"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "ash",
- "ash-window",
- "ecs",
- "glam",
- "gpu-allocator",
- "rand",
- "thiserror",
- "utils",
- "vk-shader-macros",
- "winit",
 ]
 
 [[package]]
