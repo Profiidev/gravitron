@@ -1,7 +1,7 @@
 use std::time::Instant;
 
-use ecs::{components::Component, query::Query, scheduler::Scheduler, storage::Storage, systems::{Res, ResMut}, world::World};
-use ecs_macros::Component;
+use gravitron_ecs::{components::Component, query::Query, scheduler::Scheduler, storage::Storage, systems::{Res, ResMut}, world::World};
+use gravitron_ecs_macros::Component;
 
 fn f1(t: Res<usize>, mut r: ResMut<f32>) {
   *r += *t as f32;

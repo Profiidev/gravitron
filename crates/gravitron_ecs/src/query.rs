@@ -1,7 +1,7 @@
 use core::panic;
 use std::{collections::VecDeque, marker::PhantomData};
 
-use ecs_macros::all_tuples;
+use gravitron_ecs_macros::all_tuples;
 
 use crate::{
   components::Component, storage::EntityId, systems::{metadata::{AccessType, QueryMeta, SystemMeta}, SystemId, SystemParam}, world::UnsafeWorldCell, Id

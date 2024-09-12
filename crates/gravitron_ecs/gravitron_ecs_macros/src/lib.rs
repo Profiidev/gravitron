@@ -15,13 +15,13 @@ pub fn component(input: TokenStream) -> TokenStream {
   let id = COMPONENT_ID.fetch_add(1, Ordering::SeqCst);
 
   quote! {
-    impl ecs::components::Component for #name {
-      fn id(&self) -> ecs::Id {
-        #id as ecs::Id
+    impl gravitron_ecs::components::Component for #name {
+      fn id(&self) -> gravitron_ecs::Id {
+        #id as gravitron_ecs::Id
       }
 
-      fn sid() -> ecs::Id {
-        #id as ecs::Id
+      fn sid() -> gravitron_ecs::Id {
+        #id as gravitron_ecs::Id
       }
     }
   }

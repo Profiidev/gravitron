@@ -6,7 +6,7 @@ use std::{
   ops::{Deref, DerefMut}, sync::atomic::{AtomicU64, Ordering},
 };
 
-use ecs_macros::all_tuples;
+use gravitron_ecs_macros::all_tuples;
 use metadata::SystemMeta;
 
 use crate::{world::UnsafeWorldCell, Id};

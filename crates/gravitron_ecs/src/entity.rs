@@ -1,4 +1,4 @@
-use ecs_macros::all_tuples;
+use gravitron_ecs_macros::all_tuples;
 
 use crate::components::Component;
 
