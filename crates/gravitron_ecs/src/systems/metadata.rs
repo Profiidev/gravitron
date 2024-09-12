@@ -13,7 +13,8 @@ pub struct SystemMeta {
 #[derive(Default)]
 pub struct QueryMeta {
   comps: HashMap<ComponentId, AccessType>,
-  names: HashMap<ComponentId, String>
+  names: HashMap<ComponentId, String>,
+  id: bool
 }
 
 #[derive(PartialEq, Eq)]
@@ -81,5 +82,15 @@ impl QueryMeta {
         self.names.insert(C::sid(), type_name::<C>().to_string());
       }
     }
+  }
+
+  pub fn use_id(&mut self) {
+    if !self.comps.is_empty() {
+      panic!("System Access Error: Can only use EntityId in the first position");
+    }
+    if self.id {
+      panic!("System Access Error: Can only use EntityId once");
+    }
+    self.id = true;
   }
 }

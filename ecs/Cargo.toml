@@ -1,8 +1,0 @@
-[package]
-name = "ecs"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-ecs_macros = { path = "./ecs_macros" }
-downcast = "0.11.0"

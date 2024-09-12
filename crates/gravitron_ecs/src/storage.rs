@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData, ptr};
+use std::{collections::{HashMap, VecDeque}, marker::PhantomData, ptr};
 
 use crate::{components::Component, Id};
 
@@ -241,13 +241,13 @@ impl<'a> Storage<'a> {
     }
   }
 
-  pub fn get_all_entities_for_archetypes(&mut self, components: Vec<ComponentId>) -> Vec<&mut Vec<Box<dyn Component>>> {
+  pub fn get_all_entities_for_archetypes(&mut self, components: Vec<ComponentId>) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
     assert!(!components.is_empty());
-    let mut entities = Vec::new();
+    let mut entities = VecDeque::new();
     for archetype in &mut self.archetype_index.values_mut() {
       if components.iter().all(|t| archetype.type_.contains(t)) {
-        for e in &mut archetype.rows {
-          entities.push(e);
+        for (e, id) in archetype.rows.iter_mut().zip(archetype.entity_ids.iter()) {
+          entities.push_back((*id, e));
         }
       }
     }

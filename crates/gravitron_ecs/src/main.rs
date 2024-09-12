@@ -1,34 +1,17 @@
 use std::time::Instant;
 
-use ecs::{commands::Commands, components::Component, query::Query, scheduler::Scheduler, storage::Storage, systems::{Res, ResMut}, world::World};
+use ecs::{components::Component, query::Query, scheduler::Scheduler, storage::Storage, systems::{Res, ResMut}, world::World};
 use ecs_macros::Component;
 
 fn f1(t: Res<usize>, mut r: ResMut<f32>) {
   *r += *t as f32;
 }
 
-fn f2(r: Res<f32>) {
-  println!("{}", *r);
-}
-
 fn f3(q: Query<(&Transform, &mut Transformw)>) {
-  println!("System Start");
-  let start = Instant::now();
   let q = q.into_iter();
-  println!("{:?}", start.elapsed());
-  println!("Components queried");
-  let start = Instant::now();
-  for(e, w) in q {
+  for (e, w) in q {
     w.x += e.x;
   }
-  println!("{:?}", start.elapsed());
-  println!("System End");
-}
-
-fn f4(q: Query<(&Transform, &Transformw)>, c: &mut Commands) {
-  let (_, w) = q.into_iter().next().unwrap();
-  println!("{}", w.x);
-  c.create_entity(Transform {x: 1.0})
 }
 
 #[derive(Component)]
@@ -130,19 +113,13 @@ fn bench() {
   scheduler.add_system(f1);
   scheduler.add_system(f3);
 
-  let x = 10;
+  println!("Systems");
+  let x = 1000;
   let start = Instant::now();
   for _ in 0..x {
     scheduler.run(&mut world);
   }
   
-  let per = start.elapsed() / x;
-  let total = start.elapsed();
-
-  scheduler.add_system(f2);
-  scheduler.add_system(f4);
-  scheduler.run(&mut world);
-
-  println!("{:?}", per);
-  println!("{:?}", total);
+  println!("{:?}", start.elapsed() / x);
+  println!("{:?}", start.elapsed());
 }

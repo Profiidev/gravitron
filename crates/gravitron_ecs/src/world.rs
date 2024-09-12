@@ -1,7 +1,7 @@
-use std::{any::Any, collections::HashMap, marker::PhantomData, ptr};
+use std::{any::Any, collections::{HashMap, VecDeque}, marker::PhantomData, ptr};
 
 use crate::{
-   commands::Commands, components::Component, entity::IntoEntity, storage::Storage, systems::SystemId, Id
+   commands::Commands, components::Component, entity::IntoEntity, storage::{EntityId, Storage}, systems::SystemId, Id
 };
 
 #[derive(Default)]
@@ -57,7 +57,7 @@ impl World {
     }
   }
 
-  pub fn get_entities_mut(&mut self, t: Vec<Id>) -> Vec<&mut Vec<Box<dyn Component>>> {
+  pub fn get_entities_mut(&mut self, t: Vec<Id>) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
     self.storage.get_all_entities_for_archetypes(t)
   }
 }
