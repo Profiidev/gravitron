@@ -6,6 +6,8 @@ use winit::{
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
+#[cfg(target_os = "macos")]
+use winit::platform::macos::EventLoopBuilderExtMacOS;
 
 use crate::{
   config::{app::AppConfig, vulkan::VulkanConfig}, util::signal::Signal, vulkan::Vulkan
