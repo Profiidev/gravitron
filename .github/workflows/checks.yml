@@ -19,7 +19,14 @@ jobs:
 
       - uses: taiki-e/install-action@nextest
       - name: 'Build and test'
-        run: cargo nextest run --workspace --all-features
+        run: cargo nextest run --workspace --all-features --profile linux
+
+      - name: Upload Test Result File
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-linux
+          path: ${{ github.workspace }}/target/nextest/linux/junit-linux.xml
+          retention-days: 5
 
   build_and_test_windows:
     name: Build and Test (Windows)
@@ -41,4 +48,31 @@ jobs:
 
       - uses: taiki-e/install-action@nextest
       - name: 'Build and test'
-        run: cargo nextest run --workspace --all-features
+        run: cargo nextest run --workspace --all-features --profile windows
+
+      - name: Upload Test Result File
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-windows
+          path: ${{ github.workspace }}/target/nextest/windows/junit-windows.xml
+          retention-days: 5
+
+  comment_results:
+    permissions:
+      checks: write
+      pull-requests: write
+    name: Comment Results to PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Test Results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          merge-multiple: true
+          path: test-results
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: |
+            test-results/**/*.xml
