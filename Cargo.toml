@@ -15,7 +15,7 @@ allow-dirty = ["ci"]
 
 [package]
 name = "gravitron"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A GameEngine based on an ECS and Vulkan"
@@ -34,8 +34,8 @@ rand = "0.8.5"
 thiserror = "1.0.61"
 vk-shader-macros = "0.2.9"
 winit = { version = "0.30.0", features = ["wayland"] }
-gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.0" }
-gravitron_ecs = { path = "./crates/gravitron_ecs", version = "0.1.0" }
+gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.1" }
+gravitron_ecs = { path = "./crates/gravitron_ecs", version = "0.1.1" }
 
 [lib]
 

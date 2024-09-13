@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "gravitron"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "ash",
@@ -465,7 +465,7 @@ dependencies = [
 
 [[package]]
 name = "gravitron_ecs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "downcast",
  "gravitron_ecs_macros",
@@ -473,7 +473,7 @@ dependencies = [
 
 [[package]]
 name = "gravitron_ecs_macros"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -482,7 +482,7 @@ dependencies = [
 
 [[package]]
 name = "gravitron_utils"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "thiserror",
 ]
