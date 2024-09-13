@@ -49,3 +49,5 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ inputs.version }}
           crate-name: ${{ inputs.crate }}
+          git-user-name: "ProfiiDev"
+          git-user-email: "92174452+Profiidev@users.noreply.github.com"
