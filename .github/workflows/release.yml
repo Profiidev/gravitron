@@ -27,17 +27,26 @@ jobs:
       - uses: actions/checkout@v4
       - uses: chainguard-dev/actions/setup-gitsign@main
 
-      - name: cargo-release Cache
-        id: cargo_release_cache
-        uses: actions/cache@v4
+      - name: cargo-release restore Cache
+        id: cargo_release_cache_restore
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cargo/bin/cargo-release
           key: ${{ runner.os }}-cargo-release
       - run: cargo install cargo-release
-        if: steps.cargo_release_cache.outputs.cache-hit != 'true'
+        id: cargo_release_build
+        if: steps.cargo_release_cache_restore.outputs.cache-hit != 'true'
 
       - uses: cargo-bins/release-pr@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ inputs.version }}
           crate-name: ${{ inputs.crate }}
+
+      - name: cargo-release save Cache
+        id: cargo_release_cache_save
+        if: always() && (steps.cargo_release_build.outcome == 'success' || steps.cargo_release_build.outcome == 'skipped')
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cargo/bin/cargo-release
+          key: ${{ runner.os }}-cargo-release
