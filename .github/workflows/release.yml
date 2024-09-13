@@ -62,4 +62,4 @@ jobs:
               repo: context.repo.repo,
               workflow_id: 'checks.yml',
               ref: '${{ steps.release_pr.outputs.pr-branch }}',
-            )
+            })
