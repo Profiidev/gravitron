@@ -6,7 +6,6 @@ All notable changes to this project will be documented in this file.
 
 ### ⚙️ Miscellaneous Tasks
 
-- Release ([#2](https://github.com/Profiidev/gravitron/pull/2))
 - Release ([#17](https://github.com/Profiidev/gravitron/pull/17))
 
 

@@ -1,6 +1,6 @@
 [package]
 name = "gravitron_ecs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 keywords = ["ecs", "game", "gravitron"]
@@ -9,6 +9,6 @@ repository = "https://github.com/Profiidev/gravitron"
 description = "A simple and performant ECS for Gravitron"
 
 [dependencies]
-gravitron_ecs_macros = { path = "./gravitron_ecs_macros" , version = "0.1.0" }
+gravitron_ecs_macros = { path = "./gravitron_ecs_macros" , version = "0.1.1" }
 downcast = "0.11.0"
 
