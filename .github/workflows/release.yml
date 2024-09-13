@@ -24,12 +24,17 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: chainguard-dev/actions/setup-gitsign@main
-      - name: Install cargo-release
-        uses: taiki-e/install-action@v1
+
+      - name: cargo-release Cache
+        id: cargo_release_cache
+        uses: actions/cache@v4
         with:
-          tool: cargo-release
+          path: ~/.cargo/bin/cargo-release
+          key: ${{ runner.os }}-cargo-release
+      - run: cargo install cargo-release
+        if: steps.cargo_release_cache.outputs.cache-hit != 'true'
 
       - uses: cargo-bins/release-pr@v2
         with:
