@@ -62,8 +62,4 @@ jobs:
               repo: context.repo.repo,
               workflow_id: 'checks.yml',
               ref: '${{ steps.release_pr.outputs.pr-branch }}',
-              inputs: {
-                "workflow-input-1": "value-1",
-                "workflow-input-2": "value-2",
-              }
-            })
+            )
