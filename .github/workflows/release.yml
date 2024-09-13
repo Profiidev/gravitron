@@ -45,9 +45,25 @@ jobs:
         if: steps.rust_cache.outputs.cache-hit != 'true'
 
       - uses: cargo-bins/release-pr@v2.1.3
+        id: release_pr
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ inputs.version }}
           crate-name: ${{ inputs.crate }}
           git-user-name: "ProfiiDev"
           git-user-email: "92174452+Profiidev@users.noreply.github.com"
+
+      - name: Trigger Workflow
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'checks.yml',
+              ref: '${{ steps.release_pr.outputs.pr-branch }}',
+              inputs: {
+                "workflow-input-1": "value-1",
+                "workflow-input-2": "value-2",
+              }
+            })
