@@ -7,11 +7,10 @@ on:
         required: true
         type: choice
         options:
-          - widget
-          - gadget
-          - budget
-          - fidget
-          - nugget
+          - gravitron
+          - gravitron_ecs
+          - gravitron_ecs_macros
+          - gravitron_utils
       version:
         description: Version to release
         required: true
