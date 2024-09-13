@@ -4,7 +4,7 @@ use std::{collections::VecDeque, marker::PhantomData};
 use gravitron_ecs_macros::all_tuples;
 
 use crate::{
-  components::Component, storage::EntityId, systems::{metadata::{AccessType, QueryMeta, SystemMeta}, SystemId, SystemParam}, world::UnsafeWorldCell, Id
+  components::Component, systems::{metadata::{AccessType, QueryMeta, SystemMeta}, SystemParam}, world::UnsafeWorldCell, ComponentId, EntityId, SystemId
 };
 
 pub struct Query<'a, Q: QueryParam<'a>> {
@@ -66,7 +66,7 @@ pub trait QueryParam<'a> {
 
   fn into_query(entity: (EntityId, &'a mut Vec<Box<dyn Component>>)) -> Self::Item;
   fn get_meta() -> QueryMeta;
-  fn get_comp_ids() -> Vec<Id>;
+  fn get_comp_ids() -> Vec<ComponentId>;
 }
 
 macro_rules! impl_query_param {
@@ -99,7 +99,7 @@ macro_rules! impl_query_param {
         meta
       }
 
-      fn get_comp_ids() -> Vec<Id> {
+      fn get_comp_ids() -> Vec<ComponentId> {
         vec![$one::id()]
       }
     }
@@ -146,7 +146,7 @@ macro_rules! impl_query_param {
         meta
       }
 
-      fn get_comp_ids() -> Vec<Id> {
+      fn get_comp_ids() -> Vec<ComponentId> {
         vec![$first::id(), $($params::id()),*]
       }
     }
@@ -158,7 +158,7 @@ all_tuples!(impl_query_param, 1, 16, F);
 pub trait QueryParamItem<'a> {
   type Item: 'a;
 
-  fn id() -> Id;
+  fn id() -> ComponentId;
   fn into_param(input: ParamType<'a>) -> Self::Item;
   fn check_metadata(meta: &mut QueryMeta);
 }
@@ -187,7 +187,7 @@ impl<'a> ParamType<'a> {
 impl<'a, C: Component + 'static> QueryParamItem<'a> for &C {
   type Item = &'a C;
 
-  fn id() -> Id {
+  fn id() -> ComponentId {
     C::sid()
   }
 
@@ -203,7 +203,7 @@ impl<'a, C: Component + 'static> QueryParamItem<'a> for &C {
 impl<'a, C: Component + 'static> QueryParamItem<'a> for &mut C {
   type Item = &'a mut C;
 
-  fn id() -> Id {
+  fn id() -> ComponentId {
     C::sid()
   }
 
@@ -219,8 +219,8 @@ impl<'a, C: Component + 'static> QueryParamItem<'a> for &mut C {
 impl<'a> QueryParamItem<'a> for EntityId {
   type Item = EntityId;
 
-  fn id() -> Id {
-    EntityId::MAX
+  fn id() -> ComponentId {
+    ComponentId::MAX
   }
 
   fn into_param(input: ParamType<'a>) -> Self::Item {

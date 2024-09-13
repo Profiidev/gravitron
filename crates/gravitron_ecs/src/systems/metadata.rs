@@ -1,7 +1,7 @@
 use core::panic;
 use std::{any::{type_name, TypeId}, collections::HashMap};
 
-use crate::{components::Component, storage::ComponentId};
+use crate::{components::Component, ComponentId};
 
 #[derive(Default)]
 pub struct SystemMeta {

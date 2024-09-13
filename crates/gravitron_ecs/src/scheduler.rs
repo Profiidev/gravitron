@@ -6,10 +6,6 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-  pub fn new() -> Self {
-    Scheduler::default()
-  }
-
   pub fn run(&mut self, world: &mut World) {
     let world_cell = UnsafeWorldCell::new(world);
     for system in self.systems.iter_mut() {
