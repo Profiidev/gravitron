@@ -1,0 +1,4 @@
+allow-branch = ["master"]
+sign-commit = true
+sign-tag = true
+enable-all-features = true
