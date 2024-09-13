@@ -30,6 +30,7 @@ jobs:
       id-token: write # Enable OIDC
       pull-requests: write
       contents: write
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
