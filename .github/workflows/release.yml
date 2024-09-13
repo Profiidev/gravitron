@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: chainguard-dev/actions/setup-gitsign@main
 
-      - name: cargo-release restore Cache
+      - name: Cache cargo and rust files
         id: rust_cache
         uses: Swatinem/rust-cache@v2
         with:
