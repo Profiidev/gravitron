@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2024-09-13
+
+### 🧪 Testing
+
+- Ecs now has tests ([#21](https://github.com/Profiidev/gravitron/pull/21))
+
+
 ## [0.1.1] - 2024-09-13
 
 ### ⚙️ Miscellaneous Tasks
