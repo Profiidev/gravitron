@@ -1,4 +1,4 @@
-use crate::{components::Component, entity::IntoEntity, storage::{ComponentId, EntityId, Storage}, systems::{metadata::SystemMeta, SystemId, SystemParam}};
+use crate::{components::Component, entity::IntoEntity, ComponentId, EntityId, storage::Storage, systems::{metadata::SystemMeta, SystemParam}, SystemId};
 
 #[derive(Default)]
 pub struct Commands {
@@ -6,11 +6,7 @@ pub struct Commands {
 }
 
 impl Commands {
-  pub fn new() -> Self {
-    Commands::default()
-  }
-
-  pub fn execute(&mut self, storage: &mut Storage) {
+  pub(crate) fn execute(&mut self, storage: &mut Storage) {
     for cmd in &mut self.commands {
       cmd.execute(storage)
     }
@@ -102,3 +98,41 @@ impl Command for RemoveComponentCommand {
   }
 }
 
+#[cfg(test)]
+mod test {
+  use gravitron_ecs_macros::Component;
+  use super::Commands;
+  use crate as gravitron_ecs;
+
+  #[derive(Component)]
+  struct A {
+  }
+
+  #[test]
+  fn create_entity() {
+    let mut commands = Commands::default();
+
+    commands.create_entity(A {});
+  }
+
+  #[test]
+  fn remove_entity() {
+    let mut commands = Commands::default();
+
+    commands.remove_entity(0);
+  }
+
+  #[test]
+  fn add_comp() {
+    let mut commands = Commands::default();
+
+    commands.add_comp(0, A {});
+  }
+
+  #[test]
+  fn remove_comp() {
+    let mut commands = Commands::default();
+
+    commands.remove_comp(0, 0);
+  }
+}

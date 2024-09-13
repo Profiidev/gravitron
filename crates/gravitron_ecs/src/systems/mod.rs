@@ -1,7 +1,4 @@
 use std::{
-  any::{Any, TypeId},
-  cell::UnsafeCell,
-  collections::HashMap,
   marker::PhantomData,
   ops::{Deref, DerefMut}, sync::atomic::{AtomicU64, Ordering},
 };
@@ -9,13 +6,11 @@ use std::{
 use gravitron_ecs_macros::all_tuples;
 use metadata::SystemMeta;
 
-use crate::{world::UnsafeWorldCell, Id};
+use crate::{world::UnsafeWorldCell, SystemId};
 
-pub mod metadata;
+pub(crate) mod metadata;
 
 static SYSTEM_ID: AtomicU64 = AtomicU64::new(0);
-
-pub type SystemId = Id;
 
 pub trait System {
   fn run(&mut self, world: UnsafeWorldCell<'_>);
@@ -93,7 +88,7 @@ pub struct FunctionSystem<Input, F> {
   marker: PhantomData<fn() -> Input>,
 }
 
-pub type StoredSystem = Box<dyn System>;
+pub(crate) type StoredSystem = Box<dyn System>;
 
 pub trait IntoSystem<Input> {
   type System: System;
@@ -101,22 +96,12 @@ pub trait IntoSystem<Input> {
   fn into_system(self) -> Self::System;
 }
 
-pub trait SystemParam {
+pub(crate) trait SystemParam {
   type Item<'new>;
 
   fn get_param(world: UnsafeWorldCell<'_>, id: SystemId) -> Self::Item<'_>;
   fn check_metadata(meta: &mut SystemMeta);
 }
-
-pub type TypeMap = HashMap<TypeId, UnsafeCell<Box<dyn Any>>>;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Access {
-  Read,
-  Write,
-}
-
-pub type AccessMap = HashMap<TypeId, Access>;
 
 pub struct Res<'a, T: 'static> {
   value: &'a T,

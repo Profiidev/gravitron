@@ -1,7 +1,7 @@
 use std::{any::Any, collections::{HashMap, VecDeque}, marker::PhantomData, ptr};
 
 use crate::{
-   commands::Commands, components::Component, entity::IntoEntity, storage::{EntityId, Storage}, systems::SystemId, Id
+   commands::Commands, components::Component, entity::IntoEntity, storage::Storage, SystemId, ComponentId, EntityId
 };
 
 #[derive(Default)]
@@ -16,7 +16,7 @@ impl World {
     World::default()
   }
 
-  pub fn create_entity(&mut self, entity: impl IntoEntity) -> Id {
+  pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
     self.storage.create_entity(entity.into_entity())
   }
 
@@ -57,7 +57,7 @@ impl World {
     }
   }
 
-  pub fn get_entities_mut(&mut self, t: Vec<Id>) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
+  pub fn get_entities_mut(&mut self, t: Vec<ComponentId>) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
     self.storage.get_all_entities_for_archetypes(t)
   }
 }
@@ -83,3 +83,36 @@ impl<'w> UnsafeWorldCell<'w> {
   }
 }
 
+#[cfg(test)]
+mod test {
+  use super::World;
+
+  #[test]
+  fn resource() {
+    let mut world = World::new();
+
+    world.add_resource(0i32);
+
+    let res = world.get_resource::<i32>().unwrap();
+    assert_eq!(*res, 0);
+  }
+
+  #[test]
+  fn resource_mut() {
+    let mut world = World::new();
+
+    world.add_resource(0i32);
+
+    let res = world.get_resource_mut::<i32>().unwrap();
+    *res = 1;
+    assert_eq!(*res, 1);
+  }
+
+  #[test]
+  #[should_panic]
+  fn panic_resource() {
+    let world = World::new();
+
+    let _ = world.get_resource::<i32>().unwrap();
+  }
+}

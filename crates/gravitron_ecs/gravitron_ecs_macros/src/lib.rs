@@ -16,12 +16,12 @@ pub fn component(input: TokenStream) -> TokenStream {
 
   quote! {
     impl gravitron_ecs::components::Component for #name {
-      fn id(&self) -> gravitron_ecs::Id {
-        #id as gravitron_ecs::Id
+      fn id(&self) -> gravitron_ecs::ComponentId {
+        #id as gravitron_ecs::ComponentId
       }
 
-      fn sid() -> gravitron_ecs::Id {
-        #id as gravitron_ecs::Id
+      fn sid() -> gravitron_ecs::ComponentId {
+        #id as gravitron_ecs::ComponentId
       }
     }
   }

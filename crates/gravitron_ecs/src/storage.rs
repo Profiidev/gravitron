@@ -1,10 +1,6 @@
 use std::{collections::{HashMap, VecDeque}, marker::PhantomData, ptr};
 
-use crate::{components::Component, Id};
-
-pub type ComponentId = Id;
-pub type EntityId = Id;
-pub type ArchetypeId = Id;
+use crate::{components::Component, ArchetypeId, ComponentId, EntityId};
 
 type Type = Vec<ComponentId>;
 type ArchetypeMap = HashMap<ArchetypeId, ArchetypeRecord>;
@@ -116,7 +112,7 @@ impl<'a> Storage<'a> {
 
     for (i, c) in type_.iter().enumerate() {
       let ci = self.component_index.entry(*c).or_default();
-      ci.insert(*c, ArchetypeRecord {
+      ci.insert(archetype.id, ArchetypeRecord {
         column: i,
       });
     }
@@ -124,6 +120,7 @@ impl<'a> Storage<'a> {
     self.archetype_index.insert(type_, archetype);
   }
 
+  #[allow(unused)]
   pub fn get_comp(&self, entity: EntityId, comp: ComponentId) -> Option<&dyn Component> {
     let record = self.entity_index.get(&entity)?;
     let archetype = unsafe { record.archetype.archetype() };
@@ -137,6 +134,7 @@ impl<'a> Storage<'a> {
     Some(&**component)
   }
 
+  #[allow(unused)]
   pub fn has_comp(&self, entity: EntityId, comp: ComponentId) -> bool {
     let record = self.entity_index.get(&entity).unwrap();
     let archetype = unsafe { record.archetype.archetype() };
@@ -253,6 +251,70 @@ impl<'a> Storage<'a> {
     }
 
     entities
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use gravitron_ecs_macros::Component;
+  use super::Storage;
+  use crate::{self as gravitron_ecs, components::Component};
+
+  #[derive(Component)]
+  struct A {
+  }
+
+  #[test]
+  fn create_entity() {
+    let mut storage = Storage::default();
+
+    storage.create_entity(Vec::new());
+  }
+
+  #[test]
+  fn remove_entity() {
+    let mut storage = Storage::default();
+
+    let id = storage.create_entity(Vec::new());
+    storage.remove_entity(id);
+  }
+
+  #[test]
+  fn add_comp() {
+    let mut storage = Storage::default();
+
+    let id = storage.create_entity(Vec::new());
+    storage.add_comp(id, Box::new(A {}));
+  }
+
+  #[test]
+  fn remove_comp() {
+    let mut storage = Storage::default();
+
+    let id = storage.create_entity(Vec::new());
+    storage.add_comp(id, Box::new(A {}));
+    storage.remove_comp(id, A::sid());
+  }
+
+  #[test]
+  fn has_comp() {
+    let mut storage = Storage::default();
+
+    let id = storage.create_entity(Vec::new());
+    storage.add_comp(id, Box::new(A {}));
+
+    assert!(storage.has_comp(id, A::sid()));
+  }
+
+  #[test]
+  fn get_comp() {
+    let mut storage = Storage::default();
+
+    let id = storage.create_entity(Vec::new());
+    storage.add_comp(id, Box::new(A {}));
+
+    let comp = storage.get_comp(id, A::sid()).unwrap();
+    let _ = comp.downcast_ref::<A>().unwrap();
   }
 }
 
