@@ -7,14 +7,22 @@ on:
         required: true
         type: choice
         options:
-          - gravitron
-          - gravitron_ecs
-          - gravitron_ecs_macros
-          - gravitron_utils
+          - "gravitron"
+          - "gravitron_ecs"
+          - "gravitron_ecs_macros"
+          - "gravitron_utils"
       version:
         description: Version to release
         required: true
-        type: string
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - release
+          - alpha
+          - beta
+          - rc
 
 jobs:
   make-release-pr:
@@ -28,25 +36,16 @@ jobs:
       - uses: chainguard-dev/actions/setup-gitsign@main
 
       - name: cargo-release restore Cache
-        id: cargo_release_cache_restore
-        uses: actions/cache/restore@v4
+        id: rust_cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/bin/cargo-release
-          key: ${{ runner.os }}-cargo-release
+          cache-on-failure: true
       - run: cargo install cargo-release
         id: cargo_release_build
-        if: steps.cargo_release_cache_restore.outputs.cache-hit != 'true'
+        if: steps.rust_cache.outputs.cache-hit != 'true'
 
-      - uses: cargo-bins/release-pr@v2
+      - uses: cargo-bins/release-pr@v2.1.3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ inputs.version }}
           crate-name: ${{ inputs.crate }}
-
-      - name: cargo-release save Cache
-        id: cargo_release_cache_save
-        if: always() && (steps.cargo_release_build.outcome == 'success' || steps.cargo_release_build.outcome == 'skipped')
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.cargo/bin/cargo-release
-          key: ${{ runner.os }}-cargo-release
