@@ -1,6 +1,18 @@
 [workspace]
 members = ["crates/gravitron_ecs", "crates/gravitron_utils"]
 
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.22.1"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = []
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+allow-dirty = ["ci"]
+
 [package]
 name = "gravitron"
 version = "0.1.0"
@@ -26,4 +38,9 @@ gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.0" }
 gravitron_ecs = { path = "./crates/gravitron_ecs", version = "0.1.0" }
 
 [lib]
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
 
