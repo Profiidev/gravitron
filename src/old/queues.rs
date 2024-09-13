@@ -31,6 +31,8 @@ pub fn init_instance(
     khr::xlib_surface::NAME.as_ptr(),
     #[cfg(target_os = "windows")]
     khr::win32_surface::NAME.as_ptr(),
+    #[cfg(target_os = "macos")]
+    khr::macos_surface::NAME.as_ptr(),
     ext::debug_report::NAME.as_ptr(),
   ];
 
