@@ -53,13 +53,7 @@ jobs:
           git-user-name: "ProfiiDev"
           git-user-email: "92174452+Profiidev@users.noreply.github.com"
 
-      - name: Trigger Workflow
-        uses: actions/github-script@v6
-        with:
-          script: |
-            github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'checks.yml',
-              ref: '${{ steps.release_pr.outputs.pr-branch }}',
-            })
+      - run: gh workflow run checks.yml --ref ${{ steps.release_pr.outputs.pr-branch }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
