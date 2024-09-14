@@ -6,3 +6,6 @@ path = "junit-linux.xml"
 
 [profile.windows.junit]
 path = "junit-windows.xml"
+
+[profile.macos.junit]
+path = "junit-macos.xml"

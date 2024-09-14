@@ -29,7 +29,10 @@ impl Window {
     app_run: Signal,
     window_ready: Signal,
   ) -> Result<(), Error> {
-    let event_loop = EventLoop::builder().with_any_thread(true).build()?;
+    let mut event_loop = EventLoop::builder();
+    #[cfg(not(target_os = "macos"))]
+    let event_loop = event_loop.with_any_thread(true);
+    let event_loop = event_loop.build()?;
     event_loop.run_app(&mut Window {
       config,
       vulkan_config,

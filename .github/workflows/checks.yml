@@ -57,6 +57,30 @@ jobs:
           path: ${{ github.workspace }}/target/nextest/windows/junit-windows.xml
           retention-days: 5
 
+  build_and_test_macos:
+    name: Build and Test (Mac OS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo and rust files
+        id: rust_cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - uses: taiki-e/install-action@nextest
+      - name: 'Build and test'
+        run: cargo nextest run --workspace --all-features --profile macos
+
+      - name: Upload Test Result File
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-macos
+          path: ${{ github.workspace }}/target/nextest/macos/junit-macos.xml
+          retention-days: 5
+
   comment_results:
     permissions:
       checks: write
@@ -66,6 +90,7 @@ jobs:
     needs:
       - build_and_test_linux
       - build_and_test_windows
+      - build_and_test_macos
     steps:
       - name: Download Test Results
         uses: actions/download-artifact@v4

@@ -32,7 +32,7 @@ pub fn init_instance(
     #[cfg(target_os = "windows")]
     khr::win32_surface::NAME.as_ptr(),
     #[cfg(target_os = "macos")]
-    khr::macos_surface::NAME.as_ptr(),
+    ash::mvk::macos_surface::NAME.as_ptr(),
     ext::debug_report::NAME.as_ptr(),
   ];
 
