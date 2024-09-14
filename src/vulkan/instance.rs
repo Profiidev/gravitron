@@ -15,7 +15,7 @@ const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 2] = [
 const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 1] = [khr::win32_surface::NAME.as_ptr()];
 
 #[cfg(target_os = "macos")]
-const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 1] = [khr::macos_surface::NAME.as_ptr()];
+const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 1] = [ash::mvk::macos_surface::NAME.as_ptr()];
 
 pub(crate) struct InstanceDevice {
   instance: ash::Instance,
