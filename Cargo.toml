@@ -30,7 +30,7 @@ exclude = ["assets/", ".github/", "crates/"]
 keywords = ["game", "engine", "gravitron"]
 
 [dependencies]
-anyhow = "1.0.86"
+anyhow = "1.0.89"
 ash = "0.38.0"
 ash-window = "0.13.0"
 glam = "0.29.0"
