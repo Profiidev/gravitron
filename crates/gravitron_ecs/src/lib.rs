@@ -1,5 +1,5 @@
 use entity::IntoEntity;
-use scheduler::Scheduler;
+use scheduler::{Scheduler, SchedulerBuilder};
 use systems::{IntoSystem, System};
 use world::World;
 
@@ -24,25 +24,46 @@ pub struct ECS {
   world: World,
 }
 
+#[derive(Default)]
+pub struct ECSBuilder {
+  scheduler: SchedulerBuilder,
+  world: World
+}
+
 impl ECS {
-  pub fn new() -> Self {
-    Self::default()
+  pub fn builder() -> ECSBuilder {
+    ECSBuilder::new()
   }
 
   pub fn run(&mut self) {
     self.scheduler.run(&mut self.world);
   }
 
-  pub fn add_system<I, S: System + 'static>(&mut self, system: impl IntoSystem<I, System = S>) {
-    self.scheduler.add_system(system);
-  }
-
   pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
     self.world.create_entity(entity)
   }
+}
 
-  pub fn add_resource<R: 'static>(&mut self, res: R) {
+impl ECSBuilder {
+  pub fn new() -> Self {
+    Self::default()
+  }
+
+  pub fn add_system<I, S: System + 'static>(mut self, system: impl IntoSystem<I, System = S>) -> Self {
+    self.scheduler.add_system(system);
+    self
+  }
+
+  pub fn add_resource<R: 'static>(mut self, res: R) -> Self {
     self.world.add_resource(res);
+    self
+  }
+
+  pub fn build(self) -> ECS {
+    ECS {
+      scheduler: self.scheduler.build(),
+      world: self.world
+    }
   }
 }
 
@@ -66,8 +87,6 @@ use crate::{commands::Commands, query::Query, ECS};
 
   #[test]
   fn full() {
-    let mut ecs = ECS::new();
-
     fn system(q: Query<(&mut A, &B)>, cmds: &mut Commands) {
       for (a, b) in q {
         a.x += b.y;
@@ -75,7 +94,7 @@ use crate::{commands::Commands, query::Query, ECS};
       cmds.create_entity(B { y: 1 })
     }
 
-    ecs.add_system(system);
+    let mut ecs = ECS::builder().add_system(system).build();
 
     for i in 0..10 {
       ecs.create_entity(A { x: i });
@@ -89,37 +108,28 @@ use crate::{commands::Commands, query::Query, ECS};
   #[test]
   #[should_panic]
   fn wrong_query() {
-    let mut ecs = ECS::new();
-
     fn system(_: Query<(&mut A, &mut A, &B)>) {
 
     }
-
-    ecs.add_system(system);
+    ECS::builder().add_system(system);
   }
 
   #[test]
   #[should_panic]
   fn wrong_res() {
-    let mut ecs = ECS::new();
-
     fn system(_: Res<i32>, _: ResMut<i32>) {
 
     }
-
-    ecs.add_system(system);
+    ECS::builder().add_system(system);
   }
 
   #[test]
   #[should_panic]
   fn wrong_cmds() {
-    let mut ecs = ECS::new();
-
     fn system(_: &mut Commands, _: &mut Commands) {
 
     }
-
-    ecs.add_system(system);
+    ECS::builder().add_system(system);
   }
 }
 
