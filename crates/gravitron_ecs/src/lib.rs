@@ -38,10 +38,6 @@ impl ECS {
   pub fn run(&mut self) {
     self.scheduler.run(&mut self.world);
   }
-
-  pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
-    self.world.create_entity(entity)
-  }
 }
 
 impl ECSBuilder {
@@ -57,6 +53,10 @@ impl ECSBuilder {
   pub fn add_resource<R: 'static>(mut self, res: R) -> Self {
     self.world.add_resource(res);
     self
+  }
+
+  pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
+    self.world.create_entity(entity)
   }
 
   pub fn build(self) -> ECS {
@@ -94,11 +94,13 @@ use crate::{commands::Commands, query::Query, ECS};
       cmds.create_entity(B { y: 1 })
     }
 
-    let mut ecs = ECS::builder().add_system(system).build();
+    let mut ecs = ECS::builder().add_system(system);
 
     for i in 0..10 {
       ecs.create_entity(A { x: i });
     }
+
+    let mut ecs = ecs.build();
 
     for _ in 0..10 {
       ecs.run();
