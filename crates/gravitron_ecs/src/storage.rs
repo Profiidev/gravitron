@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, VecDeque}, marker::PhantomData, ptr};
+use std::{collections::{HashMap, VecDeque}, marker::PhantomData, ptr, sync::{Arc, Mutex}};
 
 use crate::{components::Component, ArchetypeId, ComponentId, EntityId};
 
@@ -59,12 +59,25 @@ pub struct Storage<'a> {
   archetype_index: HashMap<Type, Archetype<'a>>,
   component_index: HashMap<ComponentId, ArchetypeMap>,
   entity_ids_free: Vec<EntityId>,
+  top_id: EntityId,
+  reserve_lock: Arc<Mutex<()>>,
 }
 
 impl<'a> Storage<'a> {
-  pub fn create_entity(&mut self, mut comps: Vec<Box<dyn Component>>) -> EntityId {
-    let id = self.entity_ids_free.pop().unwrap_or(self.entity_index.len() as EntityId);
+  pub fn create_entity(&mut self, comps: Vec<Box<dyn Component>>) -> EntityId {
+    let id = if let Some(id) = self.entity_ids_free.pop() {
+      id
+    } else {
+      let tmp = self.top_id;
+      self.top_id += 1;
+      tmp
+    };
 
+    self.create_entity_with_id(comps, id);
+    id
+  }
+
+  pub fn create_entity_with_id(&mut self, mut comps: Vec<Box<dyn Component>>, id: EntityId) {
     comps.sort_unstable_by_key(|c| c.id());
     let type_ = comps.iter().map(|c| c.id()).collect::<Type>();
 
@@ -82,8 +95,19 @@ impl<'a> Storage<'a> {
       archetype: UnsafeArchetypeCell::new(archetype),
       row: archetype.rows.len() - 1
     });
+  }
 
-    id
+  pub fn reserve_entity_id(&mut self) -> EntityId {
+    //lock
+    let _lock = self.reserve_lock.lock().unwrap();
+
+    if let Some(id) = self.entity_ids_free.pop() {
+      id
+    } else {
+      let tmp = self.top_id;
+      self.top_id += 1;
+      tmp
+    }
   }
 
   pub fn remove_entity(&mut self, entity: EntityId) {
