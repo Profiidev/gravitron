@@ -16,6 +16,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          shared-key: "build_and_test_linux"
 
       - uses: taiki-e/install-action@nextest
       - name: 'Build and test'
@@ -45,6 +46,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          shared-key: "build_and_test_windows"
 
       - uses: taiki-e/install-action@nextest
       - name: 'Build and test'
@@ -69,6 +71,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          shared-key: "build_and_test_macos"
 
       - uses: taiki-e/install-action@nextest
       - name: 'Build and test'

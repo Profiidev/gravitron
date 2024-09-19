@@ -1,11 +1,18 @@
-use crate::{components::Component, entity::IntoEntity, ComponentId, EntityId, storage::Storage, systems::{metadata::SystemMeta, SystemParam}, SystemId};
+use crate::{components::Component, entity::IntoEntity, storage::Storage, systems::{metadata::SystemMeta, SystemParam}, world::UnsafeWorldCell, ComponentId, EntityId, SystemId};
 
-#[derive(Default)]
 pub struct Commands {
-  commands: Vec<Box<dyn Command>>
+  commands: Vec<Box<dyn Command>>,
+  world: UnsafeWorldCell<'static>,
 }
 
 impl Commands {
+  pub(crate) fn create(world: UnsafeWorldCell<'static>) -> Self {
+    Commands {
+      world,
+      commands: Vec::new()
+    }
+  }
+
   pub(crate) fn execute(&mut self, storage: &mut Storage) {
     for cmd in &mut self.commands {
       cmd.execute(storage)
@@ -14,8 +21,11 @@ impl Commands {
   }
 
   pub fn create_entity(&mut self, entity: impl IntoEntity) {
+    let id = unsafe { self.world.world_mut() }.reserve_entity_id();
+
     self.commands.push(Box::new(CreateEntityCommand {
-      comps: Some(entity.into_entity())
+      comps: Some(entity.into_entity()),
+      id
     }));
   }
 
@@ -57,12 +67,13 @@ trait Command {
 }
 
 struct CreateEntityCommand {
-  comps: Option<Vec<Box<dyn Component>>>
+  comps: Option<Vec<Box<dyn Component>>>,
+  id: EntityId
 }
 
 impl Command for CreateEntityCommand {
   fn execute(&mut self, storage: &mut Storage) {
-    storage.create_entity(std::mem::take(&mut self.comps).unwrap());
+    storage.create_entity_with_id(std::mem::take(&mut self.comps).unwrap(), self.id);
   }
 }
 
@@ -102,7 +113,7 @@ impl Command for RemoveComponentCommand {
 mod test {
   use gravitron_ecs_macros::Component;
   use super::Commands;
-  use crate as gravitron_ecs;
+  use crate::{self as gravitron_ecs, world::{UnsafeWorldCell, World}};
 
   #[derive(Component)]
   struct A {
@@ -110,28 +121,32 @@ mod test {
 
   #[test]
   fn create_entity() {
-    let mut commands = Commands::default();
+    let mut world = World::default();
+    let mut commands = Commands::create(UnsafeWorldCell::new(&mut world));
 
     commands.create_entity(A {});
   }
 
   #[test]
   fn remove_entity() {
-    let mut commands = Commands::default();
+    let mut world = World::default();
+    let mut commands = Commands::create(UnsafeWorldCell::new(&mut world));
 
     commands.remove_entity(0);
   }
 
   #[test]
   fn add_comp() {
-    let mut commands = Commands::default();
+    let mut world = World::default();
+    let mut commands = Commands::create(UnsafeWorldCell::new(&mut world));
 
     commands.add_comp(0, A {});
   }
 
   #[test]
   fn remove_comp() {
-    let mut commands = Commands::default();
+    let mut world = World::default();
+    let mut commands = Commands::create(UnsafeWorldCell::new(&mut world));
 
     commands.remove_comp(0, 0);
   }

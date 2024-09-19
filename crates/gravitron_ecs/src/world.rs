@@ -48,7 +48,9 @@ impl World {
   }
 
   pub fn get_commands_mut(&mut self, id: SystemId) -> &mut Commands {
-    self.commands.entry(id).or_default()
+    let world = UnsafeWorldCell::new(self);
+    let commands = Commands::create(world);
+    self.commands.entry(id).or_insert(commands)
   }
 
   pub fn execute_commands(&mut self) {
@@ -59,6 +61,10 @@ impl World {
 
   pub fn get_entities_mut(&mut self, t: Vec<ComponentId>) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
     self.storage.get_all_entities_for_archetypes(t)
+  }
+
+  pub fn reserve_entity_id(&mut self) -> EntityId {
+    self.storage.reserve_entity_id()
   }
 }
 
@@ -85,7 +91,9 @@ impl<'w> UnsafeWorldCell<'w> {
 
 #[cfg(test)]
 mod test {
-  use super::World;
+  use std::{collections::HashSet, sync::Arc, thread::spawn};
+
+use super::{UnsafeWorldCell, World};
 
   #[test]
   fn resource() {
@@ -114,5 +122,39 @@ mod test {
     let world = World::new();
 
     let _ = world.get_resource::<i32>().unwrap();
+  }
+
+  #[test]
+  fn reserve_id() {
+    let iterations = 200;
+
+    let mut world = World::default();
+    let cell = UnsafeWorldCell::new(&mut world);
+    let arc = Arc::new(cell);
+
+    let mut threads = Vec::new();
+    for _ in 0..iterations {
+      let arc = arc.clone();
+      threads.push(spawn(move || {
+        let cell = *arc;
+        let world = unsafe { cell.world_mut() };
+        let mut ids = Vec::new();
+
+        for _ in 0..iterations {
+          ids.push(world.reserve_entity_id());
+        }
+
+        ids
+      }));
+    }
+
+    let mut ids = Vec::new();
+    for thread in threads {
+      ids.extend(thread.join().unwrap());
+    }
+
+    //check if all are unique
+    let mut uniq = HashSet::new();
+    assert!(ids.into_iter().all(move |x| uniq.insert(x)))
   }
 }
