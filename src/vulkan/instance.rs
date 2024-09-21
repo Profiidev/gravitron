@@ -23,7 +23,11 @@ pub(crate) struct InstanceDevice {
 }
 
 impl InstanceDevice {
-  pub(crate) fn init(config: &mut InstanceDeviceConfig, entry: &ash::Entry, app_config: &AppConfig) -> Result<Self, Error> {
+  pub(crate) fn init(
+    config: &mut InstanceDeviceConfig,
+    entry: &ash::Entry,
+    app_config: &AppConfig,
+  ) -> Result<Self, Error> {
     let instance = InstanceDevice::init_instance(entry, config, app_config)?;
     let (physical_device, _) = InstanceDevice::init_physical_device_and_properties(&instance)?;
 
@@ -44,7 +48,7 @@ impl InstanceDevice {
   fn init_instance(
     entry: &ash::Entry,
     config: &mut InstanceDeviceConfig,
-    app_config: &AppConfig
+    app_config: &AppConfig,
   ) -> Result<ash::Instance, Error> {
     let engine_name = std::ffi::CString::new("Vulkan Game Engine")?;
     let app_name = std::ffi::CString::new(app_config.title.clone())?;
@@ -140,7 +144,10 @@ impl<'a> InstanceDeviceConfig<'a> {
     self
   }
 
-  pub(crate) fn add_instance_next(mut self, next: Box<dyn vk::ExtendsInstanceCreateInfo + Send>) -> Self {
+  pub(crate) fn add_instance_next(
+    mut self,
+    next: Box<dyn vk::ExtendsInstanceCreateInfo + Send>,
+  ) -> Self {
     self.instance_next.push(next);
     self
   }

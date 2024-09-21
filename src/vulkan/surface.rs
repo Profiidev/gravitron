@@ -1,5 +1,5 @@
 use anyhow::Error;
-use ash::{vk, khr};
+use ash::{khr, vk};
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 pub(crate) struct Surface {
@@ -35,7 +35,7 @@ impl Surface {
         .get_physical_device_surface_capabilities(physical_device, self.surface)
     }
   }
-  
+
   fn get_present_modes(
     &self,
     physical_device: vk::PhysicalDevice,
@@ -46,7 +46,7 @@ impl Surface {
         .get_physical_device_surface_present_modes(physical_device, self.surface)
     }
   }
-  
+
   pub(crate) fn get_formats(
     &self,
     physical_device: vk::PhysicalDevice,

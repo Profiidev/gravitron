@@ -1,4 +1,7 @@
-use std::{sync::{Arc, Condvar, Mutex}, time::Duration};
+use std::{
+  sync::{Arc, Condvar, Mutex},
+  time::Duration,
+};
 
 #[derive(Clone)]
 pub struct Signal {
@@ -22,6 +25,8 @@ impl Signal {
   pub fn wait(&self) {
     let (lock, cvar) = &*self.value;
     let started = lock.lock().unwrap();
-    let _ = cvar.wait_timeout_while(started, Duration::from_micros(0), |&mut started| !started).unwrap();
+    let _ = cvar
+      .wait_timeout_while(started, Duration::from_micros(0), |&mut started| !started)
+      .unwrap();
   }
 }

@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::{scene::{components::mesh_renderer::MeshRenderer, game_object::GameObject, Scene}, util::mutator::Mutator};
+use crate::{
+  scene::{components::mesh_renderer::MeshRenderer, game_object::GameObject, Scene},
+  util::mutator::Mutator,
+};
 
 pub struct Renderer {
   tracked_game_objects: Vec<Mutator<GameObject>>,
@@ -31,7 +34,7 @@ impl Renderer {
       let game_object = game_object.get();
       let mesh_renderer = game_object.get_component::<MeshRenderer>();
       if let Some(mesh_renderer) = mesh_renderer {
-        to_render.push((mesh_renderer.mesh_id(), mesh_renderer.material_id())); 
+        to_render.push((mesh_renderer.mesh_id(), mesh_renderer.material_id()));
       }
     }
 

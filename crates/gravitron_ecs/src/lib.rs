@@ -3,14 +3,14 @@ use scheduler::{Scheduler, SchedulerBuilder};
 use systems::{IntoSystem, System};
 use world::World;
 
-pub mod components;
 pub mod commands;
+pub mod components;
 pub(crate) mod entity;
 pub mod query;
-pub mod systems;
-pub(crate) mod world;
 pub(crate) mod scheduler;
 pub(crate) mod storage;
+pub mod systems;
+pub(crate) mod world;
 
 pub type Id = u64;
 pub type ComponentId = Id;
@@ -27,7 +27,7 @@ pub struct ECS {
 #[derive(Default)]
 pub struct ECSBuilder {
   scheduler: SchedulerBuilder,
-  world: World
+  world: World,
 }
 
 impl ECS {
@@ -45,7 +45,10 @@ impl ECSBuilder {
     Self::default()
   }
 
-  pub fn add_system<I, S: System + 'static>(mut self, system: impl IntoSystem<I, System = S>) -> Self {
+  pub fn add_system<I, S: System + 'static>(
+    mut self,
+    system: impl IntoSystem<I, System = S>,
+  ) -> Self {
     self.scheduler.add_system(system);
     self
   }
@@ -62,7 +65,7 @@ impl ECSBuilder {
   pub fn build(self) -> ECS {
     ECS {
       scheduler: self.scheduler.build(),
-      world: self.world
+      world: self.world,
     }
   }
 }
@@ -71,18 +74,18 @@ impl ECSBuilder {
 mod test {
   use gravitron_ecs_macros::Component;
 
-use crate::systems::{Res, ResMut};
-use crate::{commands::Commands, query::Query, ECS};
   use crate as gravitron_ecs;
+  use crate::systems::{Res, ResMut};
+  use crate::{commands::Commands, query::Query, ECS};
 
   #[derive(Component)]
   struct A {
-    x: usize
+    x: usize,
   }
 
   #[derive(Component)]
   struct B {
-    y: usize
+    y: usize,
   }
 
   #[test]
@@ -110,28 +113,21 @@ use crate::{commands::Commands, query::Query, ECS};
   #[test]
   #[should_panic]
   fn wrong_query() {
-    fn system(_: Query<(&mut A, &mut A, &B)>) {
-
-    }
+    fn system(_: Query<(&mut A, &mut A, &B)>) {}
     ECS::builder().add_system(system);
   }
 
   #[test]
   #[should_panic]
   fn wrong_res() {
-    fn system(_: Res<i32>, _: ResMut<i32>) {
-
-    }
+    fn system(_: Res<i32>, _: ResMut<i32>) {}
     ECS::builder().add_system(system);
   }
 
   #[test]
   #[should_panic]
   fn wrong_cmds() {
-    fn system(_: &mut Commands, _: &mut Commands) {
-
-    }
+    fn system(_: &mut Commands, _: &mut Commands) {}
     ECS::builder().add_system(system);
   }
 }
-

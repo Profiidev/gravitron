@@ -1,4 +1,7 @@
-use crate::{systems::{IntoSystem, StoredSystem, System}, world::{UnsafeWorldCell, World}};
+use crate::{
+  systems::{IntoSystem, StoredSystem, System},
+  world::{UnsafeWorldCell, World},
+};
 
 #[derive(Default)]
 pub struct Scheduler {

@@ -1,7 +1,10 @@
 use ash::{khr, vk};
 use gpu_allocator::vulkan;
 
-use crate::{config::app::AppConfig, vulkan::{device::QueueFamilies, surface::Surface}};
+use crate::{
+  config::app::AppConfig,
+  vulkan::{device::QueueFamilies, surface::Surface},
+};
 
 pub(crate) struct SwapChain {
   loader: khr::swapchain::Device,

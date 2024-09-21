@@ -1,14 +1,20 @@
-use std::{any::Any, collections::{HashMap, VecDeque}, marker::PhantomData, ptr};
+use std::{
+  any::Any,
+  collections::{HashMap, VecDeque},
+  marker::PhantomData,
+  ptr,
+};
 
 use crate::{
-   commands::Commands, components::Component, entity::IntoEntity, storage::Storage, SystemId, ComponentId, EntityId
+  commands::Commands, components::Component, entity::IntoEntity, storage::Storage, ComponentId,
+  EntityId, SystemId,
 };
 
 #[derive(Default)]
 pub struct World {
   storage: Storage<'static>,
   resources: Vec<Box<dyn Any>>,
-  commands: HashMap<SystemId, Commands>
+  commands: HashMap<SystemId, Commands>,
 }
 
 impl World {
@@ -59,7 +65,10 @@ impl World {
     }
   }
 
-  pub fn get_entities_mut(&mut self, t: Vec<ComponentId>) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
+  pub fn get_entities_mut(
+    &mut self,
+    t: Vec<ComponentId>,
+  ) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
     self.storage.get_all_entities_for_archetypes(t)
   }
 
@@ -93,7 +102,7 @@ impl<'w> UnsafeWorldCell<'w> {
 mod test {
   use std::{collections::HashSet, sync::Arc, thread::spawn};
 
-use super::{UnsafeWorldCell, World};
+  use super::{UnsafeWorldCell, World};
 
   #[test]
   fn resource() {

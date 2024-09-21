@@ -5,10 +5,7 @@ use swap_chain::SwapChain;
 
 use crate::config::{app::AppConfig, vulkan::VulkanConfig};
 
-use super::{
-  device::Device, error::RendererInitError, instance::InstanceDevice,
-  surface::Surface,
-};
+use super::{device::Device, error::RendererInitError, instance::InstanceDevice, surface::Surface};
 
 mod pipeline;
 mod swap_chain;
@@ -26,7 +23,7 @@ impl Renderer {
     allocator: &mut vulkan::Allocator,
     surface: &Surface,
     config: &mut VulkanConfig,
-    app_config: &AppConfig
+    app_config: &AppConfig,
   ) -> Result<Self, Error> {
     let format = surface
       .get_formats(instance.get_physical_device())?

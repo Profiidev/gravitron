@@ -1,6 +1,4 @@
-pub struct Updater {
-
-}
+pub struct Updater {}
 
 impl Updater {
   pub fn new() -> Self {

@@ -162,7 +162,8 @@ impl Pipeline {
       .module(shader_module)
       .name(&main_function_name);
 
-    let descriptor_layouts = Self::get_descriptor_set_layouts(&pipeline.descriptor_sets, logical_device)?;
+    let descriptor_layouts =
+      Self::get_descriptor_set_layouts(&pipeline.descriptor_sets, logical_device)?;
 
     let pipeline_layout_create_info =
       vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
@@ -335,7 +336,8 @@ impl Pipeline {
     let color_blend_info =
       vk::PipelineColorBlendStateCreateInfo::default().attachments(&color_blend_attachment);
 
-    let descriptor_layouts = Self::get_descriptor_set_layouts(&pipeline.descriptor_sets, logical_device)?;
+    let descriptor_layouts =
+      Self::get_descriptor_set_layouts(&pipeline.descriptor_sets, logical_device)?;
 
     let pipeline_layout_create_info =
       vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
@@ -411,7 +413,10 @@ impl Pipeline {
     Ok(descriptor_layouts)
   }
 
-  fn create_shader_cache(logical_device: &ash::Device, name: &str) -> Result<vk::PipelineCache, vk::Result> {
+  fn create_shader_cache(
+    logical_device: &ash::Device,
+    name: &str,
+  ) -> Result<vk::PipelineCache, vk::Result> {
     let initial_data = if let Ok(data) = std::fs::read(format!("cache/{}.bin", name)) {
       data
     } else {

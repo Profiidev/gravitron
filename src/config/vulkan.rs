@@ -86,11 +86,7 @@ pub struct GraphicsPipelineConfig {
 }
 
 impl GraphicsPipelineConfig {
-  pub fn new(
-    name: String,
-    topology: vk::PrimitiveTopology,
-    viewport_size: (u32, u32),
-  ) -> Self {
+  pub fn new(name: String, topology: vk::PrimitiveTopology, viewport_size: (u32, u32)) -> Self {
     Self {
       name,
       shaders: Vec::new(),

@@ -97,4 +97,3 @@ fn choose_ident_tuples(ident_tuples: &[TokenStream2], i: usize) -> TokenStream2 
   let ident_tuples = &ident_tuples[..i];
   quote! { #(#ident_tuples),* }
 }
-
