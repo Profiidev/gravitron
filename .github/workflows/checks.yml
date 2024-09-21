@@ -81,6 +81,7 @@ jobs:
       - name: Run linters
         uses: profiidev/rust-lint-action@v0.1.2
         with:
+          github_token: ${{ secrets.RELEASE_PLZ_TOKEN }}
           auto_fix: true
           rustfmt: true
           clippy: true
