@@ -1,6 +1,6 @@
 pub mod app;
-pub mod vulkan;
 pub mod utils;
+pub mod vulkan;
 
 #[derive(Default)]
 pub struct EngineConfig {

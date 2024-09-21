@@ -5,9 +5,9 @@ use manager::{ClientManager, Manager, ServerManager};
 use crate::{config::EngineConfig, error::EngineBuildError, scene::Scene};
 
 mod manager;
-mod window;
-mod updater;
 mod renderer;
+mod updater;
+mod window;
 
 pub struct Engine<S, M: Manager> {
   state: S,
@@ -19,7 +19,7 @@ pub struct EngineBuilder<S, M: Manager> {
   state: Option<S>,
   scene: Option<Scene>,
   config: Option<EngineConfig>,
-  manager: PhantomData<M>
+  manager: PhantomData<M>,
 }
 
 impl<S, M: Manager> Engine<S, M> {
@@ -34,7 +34,7 @@ impl<S> Engine<S, ClientManager> {
       state: None,
       scene: None,
       config: None,
-      manager: PhantomData
+      manager: PhantomData,
     }
   }
 }
@@ -45,7 +45,7 @@ impl<S> Engine<S, ServerManager> {
       state: None,
       scene: None,
       config: None,
-      manager: PhantomData
+      manager: PhantomData,
     }
   }
 }
@@ -70,7 +70,7 @@ impl<S, M: Manager> EngineBuilder<S, M> {
     Ok(Engine {
       state: self.state.ok_or(EngineBuildError::StateMissing)?,
       scene: self.scene.ok_or(EngineBuildError::SceneMissing)?,
-      manager: M::init(self.config.unwrap_or_default())
+      manager: M::init(self.config.unwrap_or_default()),
     })
   }
 }

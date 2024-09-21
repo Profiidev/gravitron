@@ -25,4 +25,3 @@ macro_rules! impl_into_entity {
 }
 
 all_tuples!(impl_into_entity, 1, 16, F);
-

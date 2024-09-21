@@ -2,8 +2,8 @@ use game_object::GameObject;
 
 use crate::util::mutator::Mutator;
 
-pub mod game_object;
 pub mod components;
+pub mod game_object;
 
 pub struct Scene {
   id: u32,

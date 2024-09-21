@@ -1,4 +1,9 @@
-use std::{collections::{HashMap, VecDeque}, marker::PhantomData, ptr, sync::{Arc, Mutex}};
+use std::{
+  collections::{HashMap, VecDeque},
+  marker::PhantomData,
+  ptr,
+  sync::{Arc, Mutex},
+};
 
 use crate::{components::Component, ArchetypeId, ComponentId, EntityId};
 
@@ -25,7 +30,7 @@ struct Archetype<'a> {
   type_: Type,
   entity_ids: Vec<EntityId>,
   rows: Vec<Row>,
-  edges: HashMap<ComponentId, ArchetypeEdge<'a>>
+  edges: HashMap<ComponentId, ArchetypeEdge<'a>>,
 }
 
 #[derive(Clone, Copy)]
@@ -91,10 +96,13 @@ impl<'a> Storage<'a> {
     archetype.entity_ids.push(id);
     archetype.rows.push(comps);
 
-    self.entity_index.insert(id, Record {
-      archetype: UnsafeArchetypeCell::new(archetype),
-      row: archetype.rows.len() - 1
-    });
+    self.entity_index.insert(
+      id,
+      Record {
+        archetype: UnsafeArchetypeCell::new(archetype),
+        row: archetype.rows.len() - 1,
+      },
+    );
   }
 
   pub fn reserve_entity_id(&mut self) -> EntityId {
@@ -113,7 +121,7 @@ impl<'a> Storage<'a> {
   pub fn remove_entity(&mut self, entity: EntityId) {
     let record = self.entity_index.remove(&entity).unwrap();
     let archetype = unsafe { record.archetype.archetype_mut() };
-    
+
     archetype.entity_ids.swap_remove(record.row);
     archetype.rows.swap_remove(record.row);
 
@@ -131,14 +139,12 @@ impl<'a> Storage<'a> {
       type_: type_.clone(),
       entity_ids: Vec::new(),
       rows: Vec::new(),
-      edges: HashMap::new()
+      edges: HashMap::new(),
     };
 
     for (i, c) in type_.iter().enumerate() {
       let ci = self.component_index.entry(*c).or_default();
-      ci.insert(archetype.id, ArchetypeRecord {
-        column: i,
-      });
+      ci.insert(archetype.id, ArchetypeRecord { column: i });
     }
 
     self.archetype_index.insert(type_, archetype);
@@ -179,7 +185,7 @@ impl<'a> Storage<'a> {
       let mut type_ = from.type_.clone();
       type_.push(comp.id());
       type_.sort_unstable();
-      
+
       let to = if let Some(to) = self.archetype_index.get_mut(&type_) {
         to
       } else {
@@ -187,19 +193,22 @@ impl<'a> Storage<'a> {
         self.archetype_index.get_mut(&type_).unwrap()
       };
 
-      from.edges.insert(to.id, ArchetypeEdge {
-        add: UnsafeArchetypeCell::new(to),
-        remove: UnsafeArchetypeCell::null()
-      });
+      from.edges.insert(
+        to.id,
+        ArchetypeEdge {
+          add: UnsafeArchetypeCell::new(to),
+          remove: UnsafeArchetypeCell::null(),
+        },
+      );
 
       to
     };
-    
+
     let record = self.entity_index.get_mut(&entity).unwrap();
     let new_comp = to.type_.iter().position(|&c| c == comp.id()).unwrap();
 
     to.entity_ids.push(from.entity_ids.swap_remove(record.row));
-    
+
     let mut entity = from.rows.swap_remove(record.row);
     entity.insert(new_comp, comp);
     to.rows.push(entity);
@@ -213,7 +222,7 @@ impl<'a> Storage<'a> {
       swaped_record.row = old_row;
     }
   }
-  
+
   pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
@@ -228,7 +237,7 @@ impl<'a> Storage<'a> {
       let mut type_ = from.type_.clone();
       type_.retain(|t| t != &comp);
       type_.sort_unstable();
-      
+
       let to = if let Some(to) = self.archetype_index.get_mut(&type_) {
         to
       } else {
@@ -236,10 +245,13 @@ impl<'a> Storage<'a> {
         self.archetype_index.get_mut(&type_).unwrap()
       };
 
-      from.edges.insert(to.id, ArchetypeEdge {
-        remove: UnsafeArchetypeCell::new(to),
-        add: UnsafeArchetypeCell::null()
-      });
+      from.edges.insert(
+        to.id,
+        ArchetypeEdge {
+          remove: UnsafeArchetypeCell::new(to),
+          add: UnsafeArchetypeCell::null(),
+        },
+      );
 
       to
     };
@@ -248,7 +260,7 @@ impl<'a> Storage<'a> {
     let removed_comp = from.type_.iter().position(|&c| c == comp).unwrap();
 
     to.entity_ids.push(from.entity_ids.swap_remove(record.row));
-    
+
     let mut entity = from.rows.swap_remove(record.row);
     entity.remove(removed_comp);
     to.rows.push(entity);
@@ -263,7 +275,10 @@ impl<'a> Storage<'a> {
     }
   }
 
-  pub fn get_all_entities_for_archetypes(&mut self, components: Vec<ComponentId>) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
+  pub fn get_all_entities_for_archetypes(
+    &mut self,
+    components: Vec<ComponentId>,
+  ) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
     assert!(!components.is_empty());
     let mut entities = VecDeque::new();
     for archetype in &mut self.archetype_index.values_mut() {
@@ -280,13 +295,12 @@ impl<'a> Storage<'a> {
 
 #[cfg(test)]
 mod test {
-  use gravitron_ecs_macros::Component;
   use super::Storage;
   use crate::{self as gravitron_ecs, components::Component};
+  use gravitron_ecs_macros::Component;
 
   #[derive(Component)]
-  struct A {
-  }
+  struct A {}
 
   #[test]
   fn create_entity() {
@@ -341,4 +355,3 @@ mod test {
     let _ = comp.downcast_ref::<A>().unwrap();
   }
 }
-

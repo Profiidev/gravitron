@@ -1,16 +1,20 @@
 use anyhow::Error;
-use winit::{
-  application::ApplicationHandler, dpi::{LogicalSize, Size}, event_loop::EventLoop
-};
+#[cfg(target_os = "macos")]
+use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "linux")]
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
-#[cfg(target_os = "macos")]
-use winit::platform::macos::EventLoopBuilderExtMacOS;
+use winit::{
+  application::ApplicationHandler,
+  dpi::{LogicalSize, Size},
+  event_loop::EventLoop,
+};
 
 use crate::{
-  config::{app::AppConfig, vulkan::VulkanConfig}, util::signal::Signal, vulkan::Vulkan
+  config::{app::AppConfig, vulkan::VulkanConfig},
+  util::signal::Signal,
+  vulkan::Vulkan,
 };
 
 pub struct Window {
@@ -80,8 +84,7 @@ impl ApplicationHandler for Window {
           v.destroy();
         }
       }
-      winit::event::WindowEvent::RedrawRequested => {
-      }
+      winit::event::WindowEvent::RedrawRequested => {}
       _ => {}
     }
   }

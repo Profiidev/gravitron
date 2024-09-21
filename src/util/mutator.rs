@@ -2,13 +2,13 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct Mutator<T> {
-  data: Arc<RwLock<T>>
+  data: Arc<RwLock<T>>,
 }
 
 impl<T> Mutator<T> {
   pub fn new(data: T) -> Self {
     Mutator {
-      data: Arc::new(RwLock::new(data))
+      data: Arc::new(RwLock::new(data)),
     }
   }
 

@@ -123,20 +123,22 @@ impl Queues {
     config: &RendererConfig,
   ) -> Result<(ash::Device, Self), vk::Result> {
     let queue_priorities = [1.0];
-    let mut queue_create_infos = vec![
-      vk::DeviceQueueCreateInfo::default()
-        .queue_family_index(queue_families.graphics_q_index)
-        .queue_priorities(&queue_priorities),
-    ];
+    let mut queue_create_infos = vec![vk::DeviceQueueCreateInfo::default()
+      .queue_family_index(queue_families.graphics_q_index)
+      .queue_priorities(&queue_priorities)];
     if queue_families.compute_unique {
-      queue_create_infos.push(vk::DeviceQueueCreateInfo::default()
-        .queue_family_index(queue_families.compute_q_index)
-        .queue_priorities(&queue_priorities));
+      queue_create_infos.push(
+        vk::DeviceQueueCreateInfo::default()
+          .queue_family_index(queue_families.compute_q_index)
+          .queue_priorities(&queue_priorities),
+      );
     }
     if queue_families.transfer_unique {
-      queue_create_infos.push(vk::DeviceQueueCreateInfo::default()
-        .queue_family_index(queue_families.transfer_q_index)
-        .queue_priorities(&queue_priorities));
+      queue_create_infos.push(
+        vk::DeviceQueueCreateInfo::default()
+          .queue_family_index(queue_families.transfer_q_index)
+          .queue_priorities(&queue_priorities),
+      );
     }
     let mut device_extension_name_ptrs = vec![khr::swapchain::NAME.as_ptr()];
     device_extension_name_ptrs.extend(config.device_extensions.iter().map(|ext| ext.as_ptr()));

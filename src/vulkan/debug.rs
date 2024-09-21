@@ -25,7 +25,9 @@ impl Debugger {
   }
 
   pub(crate) fn init_info(vulkan_config: &mut RendererConfig) -> DebuggerInfo {
-    let is_info_level = vulkan_config.debug_log_level.contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
+    let is_info_level = vulkan_config
+      .debug_log_level
+      .contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
 
     let mut debugger_info = DebuggerInfo {
       debug_utils: vk::DebugUtilsMessengerCreateInfoEXT::default()
@@ -36,7 +38,11 @@ impl Debugger {
             | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
         )
         .pfn_user_callback(Some(vulkan_debug_utils_callback))
-        .user_data(if is_info_level { 1 as *mut _ } else { std::ptr::null_mut() }),
+        .user_data(if is_info_level {
+          1 as *mut _
+        } else {
+          std::ptr::null_mut()
+        }),
     };
 
     vulkan_config.layers.push(VALIDATION_LAYER);

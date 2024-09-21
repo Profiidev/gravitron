@@ -1,2 +1,2 @@
-pub mod signal;
 pub mod mutator;
+pub mod signal;

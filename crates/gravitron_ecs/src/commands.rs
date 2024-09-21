@@ -1,4 +1,11 @@
-use crate::{components::Component, entity::IntoEntity, storage::Storage, systems::{metadata::SystemMeta, SystemParam}, world::UnsafeWorldCell, ComponentId, EntityId, SystemId};
+use crate::{
+  components::Component,
+  entity::IntoEntity,
+  storage::Storage,
+  systems::{metadata::SystemMeta, SystemParam},
+  world::UnsafeWorldCell,
+  ComponentId, EntityId, SystemId,
+};
 
 pub struct Commands {
   commands: Vec<Box<dyn Command>>,
@@ -9,7 +16,7 @@ impl Commands {
   pub(crate) fn create(world: UnsafeWorldCell<'static>) -> Self {
     Commands {
       world,
-      commands: Vec::new()
+      commands: Vec::new(),
     }
   }
 
@@ -25,28 +32,27 @@ impl Commands {
 
     self.commands.push(Box::new(CreateEntityCommand {
       comps: Some(entity.into_entity()),
-      id
+      id,
     }));
   }
 
   pub fn remove_entity(&mut self, entity: EntityId) {
-    self.commands.push(Box::new(RemoveEntityCommand {
-      id: entity
-    }));
+    self
+      .commands
+      .push(Box::new(RemoveEntityCommand { id: entity }));
   }
 
   pub fn add_comp(&mut self, entity: EntityId, comp: impl Component) {
     self.commands.push(Box::new(AddComponentCommand {
       id: entity,
-      comp: Some(Box::new(comp))
+      comp: Some(Box::new(comp)),
     }));
   }
 
   pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
-    self.commands.push(Box::new(RemoveComponentCommand {
-      id: entity,
-      comp
-    }));
+    self
+      .commands
+      .push(Box::new(RemoveComponentCommand { id: entity, comp }));
   }
 }
 
@@ -68,7 +74,7 @@ trait Command {
 
 struct CreateEntityCommand {
   comps: Option<Vec<Box<dyn Component>>>,
-  id: EntityId
+  id: EntityId,
 }
 
 impl Command for CreateEntityCommand {
@@ -78,7 +84,7 @@ impl Command for CreateEntityCommand {
 }
 
 struct RemoveEntityCommand {
-  id: EntityId
+  id: EntityId,
 }
 
 impl Command for RemoveEntityCommand {
@@ -89,7 +95,7 @@ impl Command for RemoveEntityCommand {
 
 struct AddComponentCommand {
   id: EntityId,
-  comp: Option<Box<dyn Component>>
+  comp: Option<Box<dyn Component>>,
 }
 
 impl Command for AddComponentCommand {
@@ -100,7 +106,7 @@ impl Command for AddComponentCommand {
 
 struct RemoveComponentCommand {
   id: EntityId,
-  comp: ComponentId
+  comp: ComponentId,
 }
 
 impl Command for RemoveComponentCommand {
@@ -111,13 +117,15 @@ impl Command for RemoveComponentCommand {
 
 #[cfg(test)]
 mod test {
-  use gravitron_ecs_macros::Component;
   use super::Commands;
-  use crate::{self as gravitron_ecs, world::{UnsafeWorldCell, World}};
+  use crate::{
+    self as gravitron_ecs,
+    world::{UnsafeWorldCell, World},
+  };
+  use gravitron_ecs_macros::Component;
 
   #[derive(Component)]
-  struct A {
-  }
+  struct A {}
 
   #[test]
   fn create_entity() {

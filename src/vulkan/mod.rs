@@ -31,7 +31,11 @@ pub(crate) struct Vulkan {
 }
 
 impl Vulkan {
-  pub(crate) fn init(mut config: VulkanConfig, app_config: &AppConfig, window: Window) -> Result<Self, Error> {
+  pub(crate) fn init(
+    mut config: VulkanConfig,
+    app_config: &AppConfig,
+    window: Window,
+  ) -> Result<Self, Error> {
     let entry = unsafe { ash::Entry::load() }?;
 
     let debugger_info = if config.renderer.debug {
@@ -74,7 +78,14 @@ impl Vulkan {
       allocation_sizes: Default::default(),
     })?;
 
-    let renderer = Renderer::init(&instance, &device, &mut allocator, &surface, &mut config, app_config)?;
+    let renderer = Renderer::init(
+      &instance,
+      &device,
+      &mut allocator,
+      &surface,
+      &mut config,
+      app_config,
+    )?;
 
     Ok(Vulkan {
       entry,
@@ -93,7 +104,9 @@ impl Vulkan {
   }
 
   pub(crate) fn destroy(&mut self) {
-    self.renderer.destroy(self.device.get_device(), &mut self.allocator);
+    self
+      .renderer
+      .destroy(self.device.get_device(), &mut self.allocator);
     unsafe {
       ManuallyDrop::drop(&mut self.allocator);
     }

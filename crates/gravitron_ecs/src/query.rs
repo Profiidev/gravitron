@@ -4,17 +4,23 @@ use std::{collections::VecDeque, marker::PhantomData};
 use gravitron_ecs_macros::all_tuples;
 
 use crate::{
-  components::Component, systems::{metadata::{AccessType, QueryMeta, SystemMeta}, SystemParam}, world::UnsafeWorldCell, ComponentId, EntityId, SystemId
+  components::Component,
+  systems::{
+    metadata::{AccessType, QueryMeta, SystemMeta},
+    SystemParam,
+  },
+  world::UnsafeWorldCell,
+  ComponentId, EntityId, SystemId,
 };
 
 pub struct Query<'a, Q: QueryParam<'a>> {
   world: UnsafeWorldCell<'a>,
-  marker: PhantomData<Q>
+  marker: PhantomData<Q>,
 }
 
 pub struct QueryIter<'a, Q: QueryParam<'a>> {
   entities: VecDeque<(EntityId, &'a mut Vec<Box<dyn Component>>)>,
-  marker: PhantomData<&'a Q>
+  marker: PhantomData<&'a Q>,
 }
 
 impl<'a, Q: QueryParam<'a> + 'a> IntoIterator for Query<'a, Q> {
@@ -22,15 +28,13 @@ impl<'a, Q: QueryParam<'a> + 'a> IntoIterator for Query<'a, Q> {
   type IntoIter = QueryIter<'a, Q>;
 
   fn into_iter(self) -> Self::IntoIter {
-    let world = unsafe {
-      self.world.world_mut()
-    };
+    let world = unsafe { self.world.world_mut() };
 
     let entities = world.get_entities_mut(Q::get_comp_ids());
 
     QueryIter {
       entities,
-      marker: PhantomData
+      marker: PhantomData,
     }
   }
 }
@@ -52,7 +56,7 @@ where
   fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
     Query {
       world,
-      marker: PhantomData
+      marker: PhantomData,
     }
   }
 
@@ -165,21 +169,21 @@ pub trait QueryParamItem<'a> {
 
 pub enum ParamType<'a> {
   Comp(&'a mut Box<dyn Component>),
-  Id(EntityId)
+  Id(EntityId),
 }
 
 impl<'a> ParamType<'a> {
   fn comp(self) -> &'a mut Box<dyn Component> {
     match self {
       ParamType::Id(_) => panic!("Param not of type id"),
-      ParamType::Comp(comp) => comp
+      ParamType::Comp(comp) => comp,
     }
   }
 
   fn id(self) -> EntityId {
     match self {
       ParamType::Id(id) => id,
-      ParamType::Comp(_) => panic!("Param not of type comp")
+      ParamType::Comp(_) => panic!("Param not of type comp"),
     }
   }
 }
@@ -231,4 +235,3 @@ impl<'a> QueryParamItem<'a> for EntityId {
     meta.use_id();
   }
 }
-

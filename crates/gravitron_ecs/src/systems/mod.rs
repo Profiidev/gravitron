@@ -1,6 +1,7 @@
 use std::{
   marker::PhantomData,
-  ops::{Deref, DerefMut}, sync::atomic::{AtomicU64, Ordering},
+  ops::{Deref, DerefMut},
+  sync::atomic::{AtomicU64, Ordering},
 };
 
 use gravitron_ecs_macros::all_tuples;
@@ -119,12 +120,10 @@ impl<'res, T: 'static> SystemParam for Res<'res, T> {
   type Item<'new> = Res<'new, T>;
 
   fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
-    let world = unsafe {
-      world.world()
-    };
+    let world = unsafe { world.world() };
 
     Res {
-      value: world.get_resource().expect("Resource not found")
+      value: world.get_resource().expect("Resource not found"),
     }
   }
 
@@ -155,12 +154,10 @@ impl<'res, T: 'static> SystemParam for ResMut<'res, T> {
   type Item<'new> = ResMut<'new, T>;
 
   fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
-    let world = unsafe {
-      world.world_mut()
-    };
+    let world = unsafe { world.world_mut() };
 
     ResMut {
-      value: world.get_resource_mut().expect("Resource not found")
+      value: world.get_resource_mut().expect("Resource not found"),
     }
   }
 
