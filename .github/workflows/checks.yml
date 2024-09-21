@@ -79,7 +79,7 @@ jobs:
           shared-key: "build_and_test_linux"
 
       - name: Run linters
-        uses: profiidev/rust-lint-action@0.1.0
+        uses: profiidev/rust-lint-action@v0.1.2
         with:
           auto_fix: true
           rustfmt: true
