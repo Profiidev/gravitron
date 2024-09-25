@@ -126,8 +126,8 @@ impl QueryMeta {
 
 #[cfg(test)]
 mod test {
-  use gravitron_ecs_macros::Component;
   use crate as gravitron_ecs;
+  use gravitron_ecs_macros::Component;
 
   use super::{AccessType, QueryMeta, SystemMeta};
 
@@ -250,7 +250,7 @@ mod test {
     meta_2.add_query(query);
 
     meta_2.add_res::<i32>(AccessType::Read);
-  
+
     assert!(!meta.overlaps(&meta_2));
 
     meta_2.add_res::<u32>(AccessType::Write);
