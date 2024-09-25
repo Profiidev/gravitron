@@ -12,13 +12,14 @@ pub(crate) mod storage;
 pub mod systems;
 pub(crate) mod world;
 
+pub use gravitron_ecs_macros::Component;
+
 pub type Id = u64;
 pub type ComponentId = Id;
 pub type EntityId = Id;
 type ArchetypeId = Id;
 type SystemId = Id;
 
-#[derive(Default)]
 pub struct ECS {
   scheduler: Scheduler,
   world: World,
@@ -28,6 +29,7 @@ pub struct ECS {
 pub struct ECSBuilder {
   scheduler: SchedulerBuilder,
   world: World,
+  sync_system_exec: bool,
 }
 
 impl ECS {
@@ -43,6 +45,11 @@ impl ECS {
 impl ECSBuilder {
   pub fn new() -> Self {
     Self::default()
+  }
+
+  pub fn sync_system_exec(mut self, value: bool) -> Self {
+    self.sync_system_exec = value;
+    self
   }
 
   pub fn add_system<I, S: System + 'static>(
@@ -64,7 +71,7 @@ impl ECSBuilder {
 
   pub fn build(self) -> ECS {
     ECS {
-      scheduler: self.scheduler.build(),
+      scheduler: self.scheduler.build(self.sync_system_exec),
       world: self.world,
     }
   }

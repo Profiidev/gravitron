@@ -469,6 +469,7 @@ version = "0.1.2"
 dependencies = [
  "downcast",
  "gravitron_ecs_macros",
+ "gravitron_utils",
 ]
 
 [[package]]
@@ -483,9 +484,6 @@ dependencies = [
 [[package]]
 name = "gravitron_utils"
 version = "0.1.1"
-dependencies = [
- "thiserror",
-]
 
 [[package]]
 name = "hashbrown"

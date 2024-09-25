@@ -13,7 +13,7 @@ pub(crate) mod metadata;
 
 static SYSTEM_ID: AtomicU64 = AtomicU64::new(0);
 
-pub trait System {
+pub trait System: Send {
   fn run(&mut self, world: UnsafeWorldCell<'_>);
   fn get_meta(&self) -> &SystemMeta;
 }
@@ -22,7 +22,7 @@ macro_rules! impl_system {
   ($($params:ident),*) => {
     #[allow(unused_variables)]
     #[allow(non_snake_case)]
-    impl<F: FnMut($($params),*), $($params : SystemParam),*> System for FunctionSystem<($($params ,)*), F>
+    impl<F: FnMut($($params),*) + Send, $($params : SystemParam),*> System for FunctionSystem<($($params ,)*), F>
     where
       for<'a, 'b> &'a mut F:
         FnMut($($params),*) +
@@ -51,7 +51,7 @@ macro_rules! impl_system {
 
     #[allow(unused_variables)]
     #[allow(non_snake_case)]
-    impl<F: FnMut($($params),*), $($params : SystemParam),*> IntoSystem<($($params ,)*)> for F
+    impl<F: FnMut($($params),*) + Send, $($params : SystemParam),*> IntoSystem<($($params ,)*)> for F
     where
       for<'a, 'b> &'a mut F:
         FnMut($($params),*) +

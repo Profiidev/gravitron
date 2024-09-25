@@ -7,8 +7,10 @@ keywords = ["ecs", "game", "gravitron"]
 categories = ["game-engines", "data-structures"]
 repository = "https://github.com/Profiidev/gravitron"
 description = "A simple and performant ECS for Gravitron"
+exclude = ["CHANGELOG.md"]
+readme = "README.md"
 
 [dependencies]
 gravitron_ecs_macros = { path = "./gravitron_ecs_macros" , version = "0.1.2" }
+gravitron_utils = { path = "../gravitron_utils" , version = "0.1.1" }
 downcast = "0.11.0"
-
