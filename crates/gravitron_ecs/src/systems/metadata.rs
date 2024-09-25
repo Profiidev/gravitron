@@ -74,6 +74,23 @@ impl SystemMeta {
       self.cmds = true;
     }
   }
+
+  pub fn overlaps(&self, other: &SystemMeta) -> bool {
+    let mut overlap = false;
+    for (comp, access) in &self.querys.comps {
+      if let Some(other_access) = other.querys.comps.get(comp) {
+        overlap = *access == AccessType::Write || *other_access == AccessType::Write;
+      }
+    }
+
+    for (id, access) in &self.res {
+      if let Some(other_access) = other.res.get(id) {
+        overlap = *access == AccessType::Write || *other_access == AccessType::Write;
+      }
+    }
+
+    overlap
+  }
 }
 
 impl QueryMeta {
