@@ -8,4 +8,3 @@ repository = "https://github.com/Profiidev/gravitron"
 description = "Gravitron's Utils"
 
 [dependencies]
-thiserror = "1.0.64"
