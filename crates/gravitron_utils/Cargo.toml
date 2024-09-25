@@ -6,5 +6,6 @@ license = "MIT OR Apache-2.0"
 keywords = ["game", "gravitron"]
 repository = "https://github.com/Profiidev/gravitron"
 description = "Gravitron's Utils"
+exclude = ["CHANGELOG.md"]
 
 [dependencies]

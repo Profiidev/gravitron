@@ -27,8 +27,9 @@ license = "MIT OR Apache-2.0"
 description = "A GameEngine based on an ECS and Vulkan"
 repository = "https://github.com/Profiidev/gravitron"
 categories = ["game-engines", "graphics", "gui", "rendering"]
-exclude = ["assets/", ".github/", "crates/", "Cargo.lock"]
+exclude = ["assets/", ".github/", "crates/", "Cargo.lock", "nextest.toml", "CHANGELOG.md", "cliff.toml", "release-plz.toml", "rustfmt.toml"]
 keywords = ["game", "engine", "gravitron"]
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.89"
