@@ -20,7 +20,7 @@ pub struct QueryMeta {
   id: bool,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum AccessType {
   Write,
   Read,
@@ -79,13 +79,13 @@ impl SystemMeta {
     let mut overlap = false;
     for (comp, access) in &self.querys.comps {
       if let Some(other_access) = other.querys.comps.get(comp) {
-        overlap = *access == AccessType::Write || *other_access == AccessType::Write;
+        overlap = *access == AccessType::Write || *other_access == AccessType::Write || overlap;
       }
     }
 
     for (id, access) in &self.res {
       if let Some(other_access) = other.res.get(id) {
-        overlap = *access == AccessType::Write || *other_access == AccessType::Write;
+        overlap = *access == AccessType::Write || *other_access == AccessType::Write || overlap;
       }
     }
 
@@ -121,5 +121,203 @@ impl QueryMeta {
       panic!("System Access Error: Can only use EntityId once");
     }
     self.id = true;
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use gravitron_ecs_macros::Component;
+  use crate as gravitron_ecs;
+
+  use super::{AccessType, QueryMeta, SystemMeta};
+
+  #[derive(Component)]
+  struct A;
+
+  #[derive(Component)]
+  struct B;
+
+  #[test]
+  fn meta_res() {
+    let mut meta = SystemMeta::new();
+
+    meta.add_res::<i32>(AccessType::Read);
+    meta.add_res::<u32>(AccessType::Write);
+    meta.add_res::<String>(AccessType::Write);
+  }
+
+  #[test]
+  #[should_panic]
+  fn meta_res_panic_rr() {
+    let mut meta = SystemMeta::new();
+
+    meta.add_res::<i32>(AccessType::Read);
+    meta.add_res::<i32>(AccessType::Read);
+  }
+
+  #[test]
+  #[should_panic]
+  fn meta_res_panic_rw() {
+    let mut meta = SystemMeta::new();
+
+    meta.add_res::<i32>(AccessType::Read);
+    meta.add_res::<i32>(AccessType::Write);
+  }
+
+  #[test]
+  #[should_panic]
+  fn meta_res_panic_ww() {
+    let mut meta = SystemMeta::new();
+
+    meta.add_res::<i32>(AccessType::Write);
+    meta.add_res::<i32>(AccessType::Write);
+  }
+
+  #[test]
+  fn meta_query() {
+    let mut meta = SystemMeta::new();
+
+    let mut query = QueryMeta::new();
+    query.add_comp::<A>(AccessType::Read);
+    query.add_comp::<B>(AccessType::Write);
+    meta.add_query(query);
+
+    let mut query = QueryMeta::new();
+    query.add_comp::<A>(AccessType::Read);
+    meta.add_query(query);
+  }
+
+  #[test]
+  #[should_panic]
+  fn meta_query_panic_wr() {
+    let mut meta = SystemMeta::new();
+
+    let mut query = QueryMeta::new();
+    query.add_comp::<A>(AccessType::Write);
+    query.add_comp::<B>(AccessType::Read);
+    meta.add_query(query);
+
+    let mut query = QueryMeta::new();
+    query.add_comp::<A>(AccessType::Read);
+    meta.add_query(query);
+  }
+
+  #[test]
+  #[should_panic]
+  fn meta_query_panic_ww() {
+    let mut meta = SystemMeta::new();
+
+    let mut query = QueryMeta::new();
+    query.add_comp::<A>(AccessType::Write);
+    query.add_comp::<B>(AccessType::Read);
+    meta.add_query(query);
+
+    let mut query = QueryMeta::new();
+    query.add_comp::<A>(AccessType::Write);
+    meta.add_query(query);
+  }
+
+  #[test]
+  fn query_cmds() {
+    let mut meta = SystemMeta::new();
+    meta.add_cmds();
+  }
+
+  #[test]
+  #[should_panic]
+  fn query_cmds_panic() {
+    let mut meta = SystemMeta::new();
+    meta.add_cmds();
+    meta.add_cmds();
+  }
+
+  #[test]
+  fn query_overlap() {
+    let mut meta = SystemMeta::new();
+
+    let mut query = QueryMeta::new();
+    query.add_comp::<A>(AccessType::Write);
+    query.add_comp::<B>(AccessType::Read);
+    meta.add_query(query);
+
+    meta.add_res::<i32>(AccessType::Read);
+    meta.add_res::<u32>(AccessType::Write);
+
+    let mut meta_2 = SystemMeta::new();
+
+    let mut query = QueryMeta::new();
+    query.add_comp::<B>(AccessType::Read);
+    meta_2.add_query(query);
+
+    meta_2.add_res::<i32>(AccessType::Read);
+  
+    assert!(!meta.overlaps(&meta_2));
+
+    meta_2.add_res::<u32>(AccessType::Write);
+
+    assert!(meta.overlaps(&meta_2));
+
+    let mut meta_2 = SystemMeta::new();
+
+    let mut query = QueryMeta::new();
+    query.add_comp::<B>(AccessType::Read);
+    query.add_comp::<A>(AccessType::Write);
+    meta_2.add_query(query);
+
+    assert!(meta.overlaps(&meta_2));
+  }
+
+  #[test]
+  fn query_comp() {
+    let mut query = QueryMeta::new();
+
+    query.use_id();
+    query.add_comp::<A>(AccessType::Read);
+    query.add_comp::<B>(AccessType::Write);
+  }
+
+  #[test]
+  #[should_panic]
+  fn query_comp_rr() {
+    let mut query = QueryMeta::new();
+
+    query.add_comp::<A>(AccessType::Read);
+    query.add_comp::<A>(AccessType::Read);
+  }
+
+  #[test]
+  #[should_panic]
+  fn query_comp_rw() {
+    let mut query = QueryMeta::new();
+
+    query.add_comp::<A>(AccessType::Read);
+    query.add_comp::<A>(AccessType::Write);
+  }
+
+  #[test]
+  #[should_panic]
+  fn query_comp_ww() {
+    let mut query = QueryMeta::new();
+
+    query.add_comp::<A>(AccessType::Write);
+    query.add_comp::<A>(AccessType::Write);
+  }
+
+  #[test]
+  #[should_panic]
+  fn query_id_not_first() {
+    let mut query = QueryMeta::new();
+
+    query.add_comp::<A>(AccessType::Write);
+    query.use_id();
+  }
+
+  #[test]
+  #[should_panic]
+  fn query_id_dupe() {
+    let mut query = QueryMeta::new();
+
+    query.use_id();
+    query.use_id();
   }
 }

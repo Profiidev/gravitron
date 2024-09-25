@@ -157,6 +157,7 @@ mod test {
 
     validate_coloring(&graph, &colored);
     assert_eq!(colored.colors.len(), 3);
+    assert_eq!(colored.colors.len(), colored.num_colors());
   }
 
   fn validate_coloring(graph: &Graph, colored: &ColoredGraph) {
