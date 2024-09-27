@@ -49,7 +49,11 @@ impl Commands {
   }
 
   pub fn add_comp(&mut self, entity: EntityId, comp: impl Component) {
-    trace!("Registering Add Component Command for Entity {} with Component {}", entity, comp.id());
+    trace!(
+      "Registering Add Component Command for Entity {} with Component {}",
+      entity,
+      comp.id()
+    );
 
     self.commands.push(Box::new(AddComponentCommand {
       id: entity,
@@ -58,7 +62,11 @@ impl Commands {
   }
 
   pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
-    trace!("Registering Remove Component Command for Entity {} with Component {}", entity, comp);
+    trace!(
+      "Registering Remove Component Command for Entity {} with Component {}",
+      entity,
+      comp
+    );
 
     self
       .commands
@@ -114,7 +122,11 @@ struct AddComponentCommand {
 
 impl Command for AddComponentCommand {
   fn execute(&mut self, storage: &mut Storage) {
-    trace!("Executing Add Component Command for Entity {} with Component {}", self.id, self.comp.as_ref().unwrap().id());
+    trace!(
+      "Executing Add Component Command for Entity {} with Component {}",
+      self.id,
+      self.comp.as_ref().unwrap().id()
+    );
 
     storage.add_comp(self.id, std::mem::take(&mut self.comp).unwrap());
   }
@@ -127,7 +139,11 @@ struct RemoveComponentCommand {
 
 impl Command for RemoveComponentCommand {
   fn execute(&mut self, storage: &mut Storage) {
-    trace!("Executing Remove Component Command for Entity {} with Component {}", self.id, self.comp);
+    trace!(
+      "Executing Remove Component Command for Entity {} with Component {}",
+      self.id,
+      self.comp
+    );
 
     storage.remove_comp(self.id, self.comp);
   }
