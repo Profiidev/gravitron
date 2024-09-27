@@ -470,6 +470,7 @@ dependencies = [
  "downcast",
  "gravitron_ecs_macros",
  "gravitron_utils",
+ "log",
 ]
 
 [[package]]
@@ -484,6 +485,9 @@ dependencies = [
 [[package]]
 name = "gravitron_utils"
 version = "0.1.1"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "hashbrown"

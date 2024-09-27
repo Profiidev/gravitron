@@ -6,6 +6,7 @@ use std::{
 
 use graph::Graph;
 use gravitron_utils::thread::ThreadPool;
+use log::{debug, trace};
 
 use crate::{
   systems::{IntoSystem, StoredSystem, System},
@@ -28,7 +29,9 @@ pub struct SchedulerBuilder {
 
 impl Scheduler {
   pub fn run(&mut self, world: &mut World) {
-    for stage in self.systems.iter_mut() {
+    for (i, stage) in self.systems.iter_mut().enumerate() {
+      trace!("Executing System Stage {}", i);
+
       let running = Arc::new(AtomicUsize::new(stage.len()));
       for system in stage {
         let world_cell = UnsafeWorldCell::new(world);
@@ -54,18 +57,24 @@ impl SchedulerBuilder {
 
   pub fn build(self, sync_system_exec: bool) -> Scheduler {
     let stages = if sync_system_exec {
+      debug!("Initializing Scheduler for sync Execution");
+
       let mut stages = Vec::new();
       for system in self.systems {
         stages.push(vec![system]);
       }
       stages
     } else {
+      debug!("Initializing Scheduler for async Execution");
+
       let meta_data = self
         .systems
         .iter()
         .map(|s| s.get_meta())
         .collect::<Vec<_>>();
       let graph: Graph = meta_data.into();
+
+      debug!("Optimizing System Stages");
       let colored = graph.color();
 
       let mut stages = (0..colored.num_colors())
@@ -79,6 +88,7 @@ impl SchedulerBuilder {
     };
 
     let longest = stages.iter().map(|s| s.len()).max().unwrap();
+    debug!("Scheduler initialized");
 
     Scheduler {
       systems: stages,

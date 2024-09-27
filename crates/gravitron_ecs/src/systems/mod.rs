@@ -4,6 +4,8 @@ use std::{
   sync::atomic::{AtomicU64, Ordering},
 };
 
+use log::trace;
+
 use gravitron_ecs_macros::all_tuples;
 use metadata::SystemMeta;
 
@@ -29,6 +31,7 @@ macro_rules! impl_system {
         FnMut($(<$params as SystemParam>::Item<'b>),*)
     {
       fn run(&mut self, world: UnsafeWorldCell<'_>) {
+        trace!("Executing System {}", self.id);
         #[allow(clippy::too_many_arguments)]
         fn call_inner<$($params),*>(
           mut f: impl FnMut($($params),*),
