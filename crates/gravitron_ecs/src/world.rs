@@ -5,6 +5,8 @@ use std::{
   ptr,
 };
 
+use log::{debug, trace};
+
 use crate::{
   commands::Commands, components::Component, entity::IntoEntity, storage::Storage, ComponentId,
   EntityId, SystemId,
@@ -19,6 +21,7 @@ pub struct World {
 
 impl World {
   pub fn new() -> Self {
+    debug!("Creating World");
     World::default()
   }
 
@@ -27,6 +30,7 @@ impl World {
   }
 
   pub fn add_resource<R: 'static>(&mut self, res: R) {
+    debug!("Adding Resource {}", std::any::type_name::<R>());
     if self.get_resource::<R>().is_some() {
       return;
     }
@@ -34,6 +38,8 @@ impl World {
   }
 
   pub fn get_resource<R: 'static>(&self) -> Option<&R> {
+    trace!("Getting Resource {}", std::any::type_name::<R>());
+
     for r in self.resources.iter() {
       if let Some(r) = r.downcast_ref::<R>() {
         return Some(r);
@@ -44,6 +50,8 @@ impl World {
   }
 
   pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
+    trace!("Getting Resource mutably {}", std::any::type_name::<R>());
+
     for r in self.resources.iter_mut() {
       if let Some(r) = r.downcast_mut::<R>() {
         return Some(r);
@@ -54,12 +62,16 @@ impl World {
   }
 
   pub fn get_commands_mut(&mut self, id: SystemId) -> &mut Commands {
+    trace!("Getting Commands");
+
     let world = UnsafeWorldCell::new(self);
     let commands = Commands::create(world);
     self.commands.entry(id).or_insert(commands)
   }
 
   pub fn execute_commands(&mut self) {
+    trace!("Executing Commands");
+
     for cmds in self.commands.values_mut() {
       cmds.execute(&mut self.storage);
     }
