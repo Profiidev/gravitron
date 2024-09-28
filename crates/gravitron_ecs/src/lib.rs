@@ -47,22 +47,19 @@ impl ECSBuilder {
     Self::default()
   }
 
-  pub fn sync_system_exec(mut self, value: bool) -> Self {
+  pub fn sync_system_exec(&mut self, value: bool) {
     self.sync_system_exec = value;
-    self
   }
 
   pub fn add_system<I, S: System + 'static>(
-    mut self,
+    &mut self,
     system: impl IntoSystem<I, System = S>,
-  ) -> Self {
+  ) {
     self.scheduler.add_system(system);
-    self
   }
 
-  pub fn add_resource<R: 'static>(mut self, res: R) -> Self {
+  pub fn add_resource<R: 'static>(&mut self, res: R) {
     self.world.add_resource(res);
-    self
   }
 
   pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
@@ -104,7 +101,8 @@ mod test {
       cmds.create_entity(B { y: 1 })
     }
 
-    let mut ecs = ECS::builder().add_system(system);
+    let mut ecs = ECS::builder();
+    ecs.add_system(system);
 
     for i in 0..10 {
       ecs.create_entity(A { x: i });
