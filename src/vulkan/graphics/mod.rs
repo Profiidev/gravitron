@@ -1,4 +1,5 @@
 use anyhow::Error;
+use ash::vk;
 use gpu_allocator::vulkan;
 use pipeline::PipelineManager;
 use pools::Pools;
@@ -12,7 +13,7 @@ mod pipeline;
 mod pools;
 mod swap_chain;
 
-pub(crate) struct Renderer {
+pub struct Renderer {
   render_pass: ash::vk::RenderPass,
   swap_chain: SwapChain,
   pipeline: PipelineManager,
@@ -20,7 +21,7 @@ pub(crate) struct Renderer {
 }
 
 impl Renderer {
-  pub(crate) fn init(
+  pub fn init(
     instance: &InstanceDevice,
     device: &Device,
     allocator: &mut vulkan::Allocator,
@@ -37,11 +38,9 @@ impl Renderer {
       .format;
     let render_pass = pipeline::init_render_pass(device.get_device(), format)?;
     let swap_chain = SwapChain::init(
-      instance.get_instance(),
-      instance.get_physical_device(),
-      device.get_device(),
+      instance,
+      device,
       surface,
-      device.get_queue_families(),
       allocator,
       app_config,
       &mut pools,
@@ -62,16 +61,26 @@ impl Renderer {
     })
   }
 
-  pub(crate) fn destroy(
-    &mut self,
-    logical_device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
-  ) {
-    self.pipeline.destroy(logical_device);
-    self.swap_chain.destroy(logical_device, allocator);
+  pub fn destroy(&mut self, logical_device: &ash::Device, allocator: &mut vulkan::Allocator) {
     unsafe {
-      logical_device.destroy_render_pass(self.render_pass, None);
       self.pools.cleanup(logical_device);
     }
+    self.pipeline.destroy(logical_device);
+    unsafe {
+      logical_device.destroy_render_pass(self.render_pass, None);
+    }
+    self.swap_chain.destroy(logical_device, allocator);
+  }
+
+  pub fn get_swapchain(&self) -> &SwapChain {
+    &self.swap_chain
+  }
+
+  pub fn get_swapchain_mut(&mut self) -> &mut SwapChain {
+    &mut self.swap_chain
+  }
+
+  pub fn testing(&self, device: &ash::Device) -> Result<(), vk::Result> {
+    self.swap_chain.testing(device, self.render_pass)
   }
 }

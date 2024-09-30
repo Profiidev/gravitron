@@ -18,7 +18,7 @@ mod graphics;
 mod instance;
 mod surface;
 
-pub(crate) struct Vulkan {
+pub struct Vulkan {
   #[allow(dead_code)]
   entry: ash::Entry,
   debugger: Option<Debugger>,
@@ -31,7 +31,7 @@ pub(crate) struct Vulkan {
 }
 
 impl Vulkan {
-  pub(crate) fn init(
+  pub fn init(
     mut config: VulkanConfig,
     app_config: &AppConfig,
     window: Window,
@@ -99,12 +99,23 @@ impl Vulkan {
     })
   }
 
-  pub(crate) fn wait_for_draw_start(&self) {
+  pub fn wait_for_draw_start(&self) {
     let device = self.device.get_device();
-    unsafe {}
+    self.renderer.get_swapchain().wait_for_draw_start(device);
   }
 
-  pub(crate) fn destroy(&mut self) {
+  pub fn draw_frame(&mut self) {
+    self.renderer.get_swapchain_mut().draw_frame(&self.device);
+  }
+
+  pub fn testing(&self) {
+    self
+      .renderer
+      .testing(self.device.get_device())
+      .expect("Command Buffer Error");
+  }
+
+  pub fn destroy(&mut self) {
     self
       .renderer
       .destroy(self.device.get_device(), &mut self.allocator);

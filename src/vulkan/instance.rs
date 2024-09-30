@@ -17,13 +17,13 @@ const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 1] = [khr::win32_surface::N
 #[cfg(target_os = "macos")]
 const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 1] = [ash::mvk::macos_surface::NAME.as_ptr()];
 
-pub(crate) struct InstanceDevice {
+pub struct InstanceDevice {
   instance: ash::Instance,
   physical_device: vk::PhysicalDevice,
 }
 
 impl InstanceDevice {
-  pub(crate) fn init(
+  pub fn init(
     config: &mut InstanceDeviceConfig,
     entry: &ash::Entry,
     app_config: &AppConfig,
@@ -37,11 +37,11 @@ impl InstanceDevice {
     })
   }
 
-  pub(crate) fn get_instance(&self) -> &ash::Instance {
+  pub fn get_instance(&self) -> &ash::Instance {
     &self.instance
   }
 
-  pub(crate) fn get_physical_device(&self) -> vk::PhysicalDevice {
+  pub fn get_physical_device(&self) -> vk::PhysicalDevice {
     self.physical_device
   }
 
@@ -105,7 +105,7 @@ impl InstanceDevice {
     Ok(physical_device.unwrap())
   }
 
-  pub(crate) fn destroy(&self) {
+  pub fn destroy(&self) {
     unsafe {
       self.instance.destroy_instance(None);
     }
@@ -113,46 +113,43 @@ impl InstanceDevice {
 }
 
 #[derive(Default)]
-pub(crate) struct InstanceDeviceConfig<'a> {
+pub struct InstanceDeviceConfig<'a> {
   layer_names: Vec<&'a std::ffi::CStr>,
   extension_names: Vec<&'a std::ffi::CStr>,
   instance_next: Vec<Box<dyn vk::ExtendsInstanceCreateInfo + Send>>,
 }
 
 impl<'a> InstanceDeviceConfig<'a> {
-  pub(crate) fn add_layer(mut self, layer: &'a std::ffi::CStr) -> Self {
+  pub fn add_layer(mut self, layer: &'a std::ffi::CStr) -> Self {
     self.layer_names.push(layer);
     self
   }
 
-  pub(crate) fn add_layers(mut self, layers: Vec<&'a std::ffi::CStr>) -> Self {
+  pub fn add_layers(mut self, layers: Vec<&'a std::ffi::CStr>) -> Self {
     for layer in layers {
       self.layer_names.push(layer);
     }
     self
   }
 
-  pub(crate) fn add_extension(mut self, extension: &'a std::ffi::CStr) -> Self {
+  pub fn add_extension(mut self, extension: &'a std::ffi::CStr) -> Self {
     self.extension_names.push(extension);
     self
   }
 
-  pub(crate) fn add_extensions(mut self, extensions: Vec<&'a std::ffi::CStr>) -> Self {
+  pub fn add_extensions(mut self, extensions: Vec<&'a std::ffi::CStr>) -> Self {
     for extension in extensions {
       self.extension_names.push(extension);
     }
     self
   }
 
-  pub(crate) fn add_instance_next(
-    mut self,
-    next: Box<dyn vk::ExtendsInstanceCreateInfo + Send>,
-  ) -> Self {
+  pub fn add_instance_next(mut self, next: Box<dyn vk::ExtendsInstanceCreateInfo + Send>) -> Self {
     self.instance_next.push(next);
     self
   }
 
-  pub(crate) fn add_instance_nexts(
+  pub fn add_instance_nexts(
     mut self,
     nexts: Vec<Box<dyn vk::ExtendsInstanceCreateInfo + Send>>,
   ) -> Self {

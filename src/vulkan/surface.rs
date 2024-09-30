@@ -2,13 +2,13 @@ use anyhow::Error;
 use ash::{khr, vk};
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-pub(crate) struct Surface {
+pub struct Surface {
   surface_loader: khr::surface::Instance,
   surface: vk::SurfaceKHR,
 }
 
 impl Surface {
-  pub(crate) fn init(
+  pub fn init(
     entry: &ash::Entry,
     instance: &ash::Instance,
     window: &winit::window::Window,
@@ -25,7 +25,7 @@ impl Surface {
     })
   }
 
-  pub(crate) fn get_capabilities(
+  pub fn get_capabilities(
     &self,
     physical_device: vk::PhysicalDevice,
   ) -> Result<vk::SurfaceCapabilitiesKHR, vk::Result> {
@@ -36,7 +36,7 @@ impl Surface {
     }
   }
 
-  fn get_present_modes(
+  pub fn get_present_modes(
     &self,
     physical_device: vk::PhysicalDevice,
   ) -> Result<Vec<vk::PresentModeKHR>, vk::Result> {
@@ -47,7 +47,7 @@ impl Surface {
     }
   }
 
-  pub(crate) fn get_formats(
+  pub fn get_formats(
     &self,
     physical_device: vk::PhysicalDevice,
   ) -> Result<Vec<vk::SurfaceFormatKHR>, vk::Result> {
@@ -58,7 +58,7 @@ impl Surface {
     }
   }
 
-  pub(crate) fn get_support(
+  pub fn get_support(
     &self,
     physical_device: vk::PhysicalDevice,
     queue_family_index: u32,
@@ -72,11 +72,11 @@ impl Surface {
     }
   }
 
-  pub(crate) fn get_surface(&self) -> vk::SurfaceKHR {
+  pub fn get_surface(&self) -> vk::SurfaceKHR {
     self.surface
   }
 
-  pub(crate) fn destroy(&self) {
+  pub fn destroy(&self) {
     unsafe {
       self.surface_loader.destroy_surface(self.surface, None);
     }

@@ -10,12 +10,12 @@ use crate::config::vulkan::RendererConfig;
 const VALIDATION_LAYER: &std::ffi::CStr =
   unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0") };
 
-pub(crate) struct Debugger {
+pub struct Debugger {
   debug_utils: DebugUtils,
 }
 
 impl Debugger {
-  pub(crate) fn init(
+  pub fn init(
     entry: &ash::Entry,
     instance: &ash::Instance,
     debugger_info: DebuggerInfo,
@@ -25,7 +25,7 @@ impl Debugger {
     Ok(Self { debug_utils })
   }
 
-  pub(crate) fn init_info(vulkan_config: &mut RendererConfig) -> DebuggerInfo {
+  pub fn init_info(vulkan_config: &mut RendererConfig) -> DebuggerInfo {
     let debug_log_level = get_log_flags();
     let is_info_level = debug_log_level.contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
 
@@ -65,18 +65,18 @@ impl Debugger {
     debugger_info
   }
 
-  pub(crate) fn destroy(&mut self) {
+  pub fn destroy(&mut self) {
     self.debug_utils.destroy();
   }
 }
 
-pub(crate) struct DebugUtils {
+pub struct DebugUtils {
   loader: ext::debug_utils::Instance,
   messenger: vk::DebugUtilsMessengerEXT,
 }
 
 impl DebugUtils {
-  pub(crate) fn init(
+  pub fn init(
     entry: &ash::Entry,
     instance: &ash::Instance,
     debug_create_info: &vk::DebugUtilsMessengerCreateInfoEXT,
@@ -86,7 +86,7 @@ impl DebugUtils {
     Ok(Self { loader, messenger })
   }
 
-  pub(crate) fn destroy(&mut self) {
+  pub fn destroy(&mut self) {
     unsafe {
       self
         .loader
@@ -96,12 +96,12 @@ impl DebugUtils {
 }
 
 #[derive(Debug)]
-pub(crate) struct DebuggerInfo {
+pub struct DebuggerInfo {
   debug_utils: vk::DebugUtilsMessengerCreateInfoEXT<'static>,
 }
 
 impl DebuggerInfo {
-  pub(crate) fn instance_next(&mut self) -> Vec<Box<dyn ExtendsInstanceCreateInfo + Send>> {
+  pub fn instance_next(&mut self) -> Vec<Box<dyn ExtendsInstanceCreateInfo + Send>> {
     vec![Box::new(self.debug_utils)]
   }
 }

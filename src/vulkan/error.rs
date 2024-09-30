@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub(crate) enum QueueFamilyMissingError {
+pub enum QueueFamilyMissingError {
   #[error("No graphics queue family found")]
   Graphics,
   #[error("No compute queue family found")]
@@ -11,7 +11,7 @@ pub(crate) enum QueueFamilyMissingError {
 }
 
 #[derive(Error, Debug)]
-pub(crate) enum RendererInitError {
+pub enum RendererInitError {
   #[error("No surface formats found")]
   FormatMissing,
 }

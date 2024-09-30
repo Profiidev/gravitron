@@ -3,12 +3,12 @@ use gpu_allocator::vulkan;
 
 use crate::{
   config::app::AppConfig,
-  vulkan::{device::QueueFamilies, surface::Surface},
+  vulkan::{device::Device, instance::InstanceDevice, surface::Surface},
 };
 
 use super::pools::{CommandBufferType, Pools};
 
-pub(crate) struct SwapChain {
+pub struct SwapChain {
   loader: khr::swapchain::Device,
   swapchain: vk::SwapchainKHR,
   images: Vec<vk::Image>,
@@ -28,17 +28,18 @@ pub(crate) struct SwapChain {
 }
 
 impl SwapChain {
-  pub(crate) fn init(
-    instance: &ash::Instance,
-    physical_device: vk::PhysicalDevice,
-    logical_device: &ash::Device,
+  pub fn init(
+    instance_device: &InstanceDevice,
+    device: &Device,
     surfaces: &Surface,
-    queue_families: &QueueFamilies,
     allocator: &mut vulkan::Allocator,
     config: &AppConfig,
     pools: &mut Pools,
     render_pass: vk::RenderPass,
   ) -> Result<Self, vk::Result> {
+    let physical_device = instance_device.get_physical_device();
+    let logical_device = device.get_device();
+
     let surface_capabilities = surfaces.get_capabilities(physical_device)?;
     //let surface_present_modes = surfaces.get_present_modes(physical_device)?;
     let surface_format = *surfaces.get_formats(physical_device)?.first().unwrap();
@@ -49,7 +50,7 @@ impl SwapChain {
       extent.height = config.height;
     }
 
-    let queue_families = [queue_families.get_graphics_q_index()];
+    let queue_families = [device.get_queue_families().get_graphics_q_index()];
     let image_count =
       if surface_capabilities.min_image_count <= surface_capabilities.max_image_count {
         3.max(surface_capabilities.min_image_count)
@@ -57,6 +58,16 @@ impl SwapChain {
       } else {
         surface_capabilities.min_image_count
       };
+
+    let present_mode = if surfaces
+      .get_present_modes(physical_device)?
+      .contains(&vk::PresentModeKHR::MAILBOX)
+    {
+      vk::PresentModeKHR::MAILBOX
+    } else {
+      vk::PresentModeKHR::FIFO
+    };
+
     let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
       .surface(surfaces.get_surface())
       .min_image_count(image_count)
@@ -69,9 +80,10 @@ impl SwapChain {
       .queue_family_indices(&queue_families)
       .pre_transform(surface_capabilities.current_transform)
       .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-      .present_mode(vk::PresentModeKHR::FIFO);
+      .present_mode(present_mode);
 
-    let swapchain_loader = khr::swapchain::Device::new(instance, logical_device);
+    let swapchain_loader =
+      khr::swapchain::Device::new(instance_device.get_instance(), logical_device);
     let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) }?;
 
     let swapchain_images = unsafe { swapchain_loader.get_swapchain_images(swapchain) }?;
@@ -199,15 +211,11 @@ impl SwapChain {
     })
   }
 
-  pub(crate) fn get_extent(&self) -> vk::Extent2D {
+  pub fn get_extent(&self) -> vk::Extent2D {
     self.extent
   }
 
-  pub(crate) fn destroy(
-    &mut self,
-    logical_device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
-  ) {
+  pub fn destroy(&mut self, logical_device: &ash::Device, allocator: &mut vulkan::Allocator) {
     unsafe {
       logical_device.destroy_image_view(self.depth_image_view, None);
       logical_device.destroy_image(self.depth_image, None);
@@ -234,14 +242,6 @@ impl SwapChain {
     }
   }
 
-  pub(crate) fn create_frame_buffers(
-    &mut self,
-    logical_device: &ash::Device,
-    render_pass: vk::RenderPass,
-  ) -> Result<(), vk::Result> {
-    Ok(())
-  }
-
   pub fn wait_for_draw_start(&self, device: &ash::Device) {
     unsafe {
       device
@@ -250,11 +250,61 @@ impl SwapChain {
           true,
           u64::MAX,
         )
-        .expect("Unable to wait for fences")
+        .expect("Unable to wait for fences");
+
+      device
+        .reset_fences(&[self.may_begin_drawing[self.current_image]])
+        .expect("Unable to reset Fence");
     }
   }
 
-  pub fn draw_frame(&self, device: &ash::Device) {
+  pub fn testing(
+    &self,
+    device: &ash::Device,
+    render_pass: vk::RenderPass,
+  ) -> Result<(), vk::Result> {
+    let buffer = self.command_buffer[self.current_image];
+    let buffer_begin_info = vk::CommandBufferBeginInfo::default();
+    unsafe {
+      device.begin_command_buffer(buffer, &buffer_begin_info)?;
+    }
+
+    let clear_values = [
+      vk::ClearValue {
+        color: vk::ClearColorValue {
+          float32: [0.0, 0.0, 0.0, 1.0],
+        },
+      },
+      vk::ClearValue {
+        depth_stencil: vk::ClearDepthStencilValue {
+          depth: 1.0,
+          stencil: 0,
+        },
+      },
+    ];
+    let render_pass_begin_info = vk::RenderPassBeginInfo::default()
+      .render_pass(render_pass)
+      .framebuffer(self.frame_buffers[self.current_image])
+      .render_area(vk::Rect2D {
+        offset: vk::Offset2D { x: 0, y: 0 },
+        extent: self.extent,
+      })
+      .clear_values(&clear_values);
+
+    unsafe {
+      device.cmd_begin_render_pass(buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+
+      device.cmd_end_render_pass(buffer);
+      device.end_command_buffer(buffer)?;
+    }
+
+    Ok(())
+  }
+
+  pub fn draw_frame(&mut self, device: &Device) {
+    let logical_device = device.get_device();
+    let graphics_queue = device.get_queues().graphics();
+
     let (image_index, _) = unsafe {
       self
         .loader
@@ -270,5 +320,37 @@ impl SwapChain {
     let semaphore_available = [self.image_available[self.current_image]];
     let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
     let semaphore_render_finished = [self.render_finished[self.current_image]];
+    let command_buffer = [self.command_buffer[self.current_image]];
+
+    let submit_info = [vk::SubmitInfo::default()
+      .wait_semaphores(&semaphore_available)
+      .wait_dst_stage_mask(&wait_stages)
+      .command_buffers(&command_buffer)
+      .signal_semaphores(&semaphore_render_finished)];
+
+    unsafe {
+      logical_device
+        .queue_submit(
+          graphics_queue,
+          &submit_info,
+          self.may_begin_drawing[self.current_image],
+        )
+        .expect("Unable to submit queue");
+    }
+
+    let swapchains = [self.swapchain];
+    let image_indices = [image_index];
+    let present_info = vk::PresentInfoKHR::default()
+      .wait_semaphores(&semaphore_render_finished)
+      .swapchains(&swapchains)
+      .image_indices(&image_indices);
+    unsafe {
+      self
+        .loader
+        .queue_present(graphics_queue, &present_info)
+        .expect("Unable to queue present");
+    }
+
+    self.current_image = (self.current_image + 1) % self.amount_of_images as usize;
   }
 }

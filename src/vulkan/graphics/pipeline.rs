@@ -5,7 +5,7 @@ use crate::config::vulkan::{
   ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
 };
 
-pub(crate) fn init_render_pass(
+pub fn init_render_pass(
   logical_device: &ash::Device,
   format: vk::Format,
 ) -> Result<vk::RenderPass, vk::Result> {
@@ -58,12 +58,12 @@ pub(crate) fn init_render_pass(
   unsafe { logical_device.create_render_pass(&render_pass_create_info, None) }
 }
 
-pub(crate) struct PipelineManager {
-  pub(crate) pipelines: Vec<Pipeline>,
+pub struct PipelineManager {
+  pub pipelines: Vec<Pipeline>,
 }
 
 impl PipelineManager {
-  pub(crate) fn init(
+  pub fn init(
     logical_device: &ash::Device,
     render_pass: vk::RenderPass,
     swap_chain_extent: &vk::Extent2D,
@@ -83,7 +83,9 @@ impl PipelineManager {
             config,
           )?);
         }
-        PipelineType::Compute(_) => {}
+        PipelineType::Compute(config) => {
+          vk_pipelines.push(Pipeline::init_compute_pipeline(logical_device, config)?);
+        }
       }
     }
 
@@ -92,7 +94,7 @@ impl PipelineManager {
     })
   }
 
-  pub(crate) fn destroy(&self, logical_device: &ash::Device) {
+  pub fn destroy(&self, logical_device: &ash::Device) {
     std::fs::create_dir_all("cache").unwrap();
     for pipeline in &self.pipelines {
       pipeline.destroy(logical_device);
@@ -100,7 +102,7 @@ impl PipelineManager {
   }
 }
 
-pub(crate) struct Pipeline {
+pub struct Pipeline {
   name: String,
   pub pipeline: vk::Pipeline,
   pub pipeline_layout: vk::PipelineLayout,
@@ -109,7 +111,7 @@ pub(crate) struct Pipeline {
 }
 
 impl Pipeline {
-  pub(crate) fn default_shader(extend: &vk::Extent2D) -> GraphicsPipelineConfig {
+  pub fn default_shader(extend: &vk::Extent2D) -> GraphicsPipelineConfig {
     GraphicsPipelineConfig::new(
       "default".to_string(),
       vk::PrimitiveTopology::TRIANGLE_LIST,
@@ -148,7 +150,7 @@ impl Pipeline {
     )))
   }
 
-  pub(crate) fn init_compute_pipeline(
+  pub fn init_compute_pipeline(
     logical_device: &ash::Device,
     pipeline: &ComputePipelineConfig,
   ) -> Result<Self, vk::Result> {
@@ -195,7 +197,7 @@ impl Pipeline {
     })
   }
 
-  pub(crate) fn init_graphics_pipeline(
+  pub fn init_graphics_pipeline(
     logical_device: &ash::Device,
     render_pass: vk::RenderPass,
     pipeline: &GraphicsPipelineConfig,
@@ -425,7 +427,7 @@ impl Pipeline {
     unsafe { logical_device.create_pipeline_cache(&pipeline_cache_create_info, None) }
   }
 
-  pub(crate) fn destroy(&self, logical_device: &ash::Device) {
+  pub fn destroy(&self, logical_device: &ash::Device) {
     unsafe {
       for layout in &self.descriptor_set_layouts {
         logical_device.destroy_descriptor_set_layout(*layout, None);
