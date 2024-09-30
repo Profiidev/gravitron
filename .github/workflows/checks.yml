@@ -69,6 +69,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_PLZ_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo and rust files
@@ -83,3 +85,4 @@ jobs:
         with:
           rustfmt: true
           clippy: true
+          auto_fix: true
