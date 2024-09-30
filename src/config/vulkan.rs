@@ -30,17 +30,11 @@ pub struct RendererConfig<'a> {
   pub instance_next: Vec<Box<dyn vk::ExtendsInstanceCreateInfo + Send>>,
   pub device_extensions: Vec<&'a std::ffi::CStr>,
   pub device_features: vk::PhysicalDeviceFeatures,
-  pub debug: bool,
 }
 
 impl<'a> RendererConfig<'a> {
   pub fn add_layer(mut self, layer: &'a std::ffi::CStr) -> Self {
     self.layers.push(layer);
-    self
-  }
-
-  pub fn set_debug(mut self, debug: bool) -> Self {
-    self.debug = debug;
     self
   }
 }

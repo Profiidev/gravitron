@@ -51,6 +51,7 @@ impl Gravitron {
 
 impl GravitronBuilder {
   pub fn new(config: EngineConfig) -> Self {
+    #[cfg(feature = "debug")]
     env_logger::init();
 
     GravitronBuilder {

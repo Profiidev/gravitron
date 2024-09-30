@@ -11,6 +11,7 @@ use winit::window::Window;
 
 use crate::config::{app::AppConfig, vulkan::VulkanConfig};
 
+#[cfg(feature = "debug")]
 mod debug;
 mod device;
 pub mod error;
@@ -21,7 +22,8 @@ mod surface;
 pub struct Vulkan {
   #[allow(dead_code)]
   entry: ash::Entry,
-  debugger: Option<Debugger>,
+  #[cfg(feature = "debug")]
+  debugger: Debugger,
   instance: InstanceDevice,
   window: Window,
   surface: Surface,
@@ -38,11 +40,8 @@ impl Vulkan {
   ) -> Result<Self, Error> {
     let entry = unsafe { ash::Entry::load() }?;
 
-    let debugger_info = if config.renderer.debug {
-      Some(Debugger::init_info(&mut config.renderer))
-    } else {
-      None
-    };
+    #[cfg(feature = "debug")]
+    let debugger_info = Debugger::init_info(&mut config.renderer);
 
     let mut instance_config = InstanceDeviceConfig::default()
       .add_layers(config.renderer.layers.clone())
@@ -51,15 +50,8 @@ impl Vulkan {
 
     let instance = InstanceDevice::init(&mut instance_config, &entry, app_config)?;
 
-    let debugger = if config.renderer.debug {
-      Some(Debugger::init(
-        &entry,
-        instance.get_instance(),
-        debugger_info.unwrap(),
-      )?)
-    } else {
-      None
-    };
+    #[cfg(feature = "debug")]
+    let debugger = Debugger::init(&entry, instance.get_instance(), debugger_info)?;
 
     let surface = Surface::init(&entry, instance.get_instance(), &window)?;
     let device = Device::init(
@@ -89,6 +81,7 @@ impl Vulkan {
 
     Ok(Vulkan {
       entry,
+      #[cfg(feature = "debug")]
       debugger,
       instance,
       window,
@@ -124,9 +117,10 @@ impl Vulkan {
     }
     self.device.destroy();
     self.surface.destroy();
-    if let Some(debugger) = &mut self.debugger {
-      debugger.destroy();
-    }
+
+    #[cfg(feature = "debug")]
+    self.debugger.destroy();
+
     self.instance.destroy();
   }
 }
