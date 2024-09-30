@@ -11,7 +11,6 @@ use super::pools::{CommandBufferType, Pools};
 pub struct SwapChain {
   loader: khr::swapchain::Device,
   swapchain: vk::SwapchainKHR,
-  images: Vec<vk::Image>,
   image_views: Vec<vk::ImageView>,
   depth_image: vk::Image,
   depth_image_allocation: vulkan::Allocation,
@@ -194,7 +193,6 @@ impl SwapChain {
     Ok(Self {
       loader: swapchain_loader,
       swapchain,
-      images: swapchain_images,
       image_views: swapchain_image_views,
       frame_buffers,
       //surface_format,

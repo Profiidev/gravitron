@@ -120,11 +120,6 @@ pub struct InstanceDeviceConfig<'a> {
 }
 
 impl<'a> InstanceDeviceConfig<'a> {
-  pub fn add_layer(mut self, layer: &'a std::ffi::CStr) -> Self {
-    self.layer_names.push(layer);
-    self
-  }
-
   pub fn add_layers(mut self, layers: Vec<&'a std::ffi::CStr>) -> Self {
     for layer in layers {
       self.layer_names.push(layer);
@@ -132,20 +127,10 @@ impl<'a> InstanceDeviceConfig<'a> {
     self
   }
 
-  pub fn add_extension(mut self, extension: &'a std::ffi::CStr) -> Self {
-    self.extension_names.push(extension);
-    self
-  }
-
   pub fn add_extensions(mut self, extensions: Vec<&'a std::ffi::CStr>) -> Self {
     for extension in extensions {
       self.extension_names.push(extension);
     }
-    self
-  }
-
-  pub fn add_instance_next(mut self, next: Box<dyn vk::ExtendsInstanceCreateInfo + Send>) -> Self {
-    self.instance_next.push(next);
     self
   }
 
