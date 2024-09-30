@@ -6,6 +6,8 @@ use crate::{
   vulkan::{device::QueueFamilies, surface::Surface},
 };
 
+use super::pools::{CommandBufferType, Pools};
+
 pub(crate) struct SwapChain {
   loader: khr::swapchain::Device,
   swapchain: vk::SwapchainKHR,
@@ -20,6 +22,7 @@ pub(crate) struct SwapChain {
   image_available: Vec<vk::Semaphore>,
   render_finished: Vec<vk::Semaphore>,
   may_begin_drawing: Vec<vk::Fence>,
+  command_buffer: Vec<vk::CommandBuffer>,
   amount_of_images: u32,
   current_image: usize,
 }
@@ -33,6 +36,8 @@ impl SwapChain {
     queue_families: &QueueFamilies,
     allocator: &mut vulkan::Allocator,
     config: &AppConfig,
+    pools: &mut Pools,
+    render_pass: vk::RenderPass,
   ) -> Result<Self, vk::Result> {
     let surface_capabilities = surfaces.get_capabilities(physical_device)?;
     //let surface_present_modes = surfaces.get_present_modes(physical_device)?;
@@ -64,7 +69,7 @@ impl SwapChain {
       .queue_family_indices(&queue_families)
       .pre_transform(surface_capabilities.current_transform)
       .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-      .present_mode(vk::PresentModeKHR::MAILBOX);
+      .present_mode(vk::PresentModeKHR::FIFO);
 
     let swapchain_loader = khr::swapchain::Device::new(instance, logical_device);
     let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) }?;
@@ -154,12 +159,32 @@ impl SwapChain {
       may_begin_drawing.push(fence);
     }
 
+    let mut frame_buffers = Vec::new();
+    for image_view in &swapchain_image_views {
+      let vi = [*image_view, depth_image_view];
+      let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
+        .render_pass(render_pass)
+        .attachments(&vi)
+        .width(extent.width)
+        .height(extent.height)
+        .layers(1);
+      let frame_buffer =
+        unsafe { logical_device.create_framebuffer(&frame_buffer_create_info, None) }?;
+      frame_buffers.push(frame_buffer);
+    }
+
+    let command_buffer = pools.create_command_buffers(
+      logical_device,
+      frame_buffers.len(),
+      CommandBufferType::Graphics,
+    )?;
+
     Ok(Self {
       loader: swapchain_loader,
       swapchain,
       images: swapchain_images,
       image_views: swapchain_image_views,
-      frame_buffers: Vec::new(),
+      frame_buffers,
       //surface_format,
       extent,
       image_available,
@@ -170,6 +195,7 @@ impl SwapChain {
       depth_image,
       depth_image_allocation,
       depth_image_view,
+      command_buffer,
     })
   }
 
@@ -213,18 +239,36 @@ impl SwapChain {
     logical_device: &ash::Device,
     render_pass: vk::RenderPass,
   ) -> Result<(), vk::Result> {
-    for image_view in &self.image_views {
-      let vi = [*image_view, self.depth_image_view];
-      let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
-        .render_pass(render_pass)
-        .attachments(&vi)
-        .width(self.extent.width)
-        .height(self.extent.height)
-        .layers(1);
-      let frame_buffer =
-        unsafe { logical_device.create_framebuffer(&frame_buffer_create_info, None) }?;
-      self.frame_buffers.push(frame_buffer);
-    }
     Ok(())
+  }
+
+  pub fn wait_for_draw_start(&self, device: &ash::Device) {
+    unsafe {
+      device
+        .wait_for_fences(
+          &[self.may_begin_drawing[self.current_image]],
+          true,
+          u64::MAX,
+        )
+        .expect("Unable to wait for fences")
+    }
+  }
+
+  pub fn draw_frame(&self, device: &ash::Device) {
+    let (image_index, _) = unsafe {
+      self
+        .loader
+        .acquire_next_image(
+          self.swapchain,
+          u64::MAX,
+          self.image_available[self.current_image],
+          vk::Fence::null(),
+        )
+        .expect("Unable to acquire next image")
+    };
+
+    let semaphore_available = [self.image_available[self.current_image]];
+    let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+    let semaphore_render_finished = [self.render_finished[self.current_image]];
   }
 }

@@ -106,6 +106,14 @@ impl QueueFamilies {
   pub(crate) fn get_graphics_q_index(&self) -> u32 {
     self.graphics_q_index
   }
+
+  pub(crate) fn get_transfer_q_index(&self) -> u32 {
+    self.transfer_q_index
+  }
+
+  pub(crate) fn get_compute_q_index(&self) -> u32 {
+    self.compute_q_index
+  }
 }
 
 #[derive(Debug)]

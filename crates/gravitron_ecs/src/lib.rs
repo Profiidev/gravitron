@@ -5,7 +5,7 @@ use world::World;
 
 pub mod commands;
 pub mod components;
-pub(crate) mod entity;
+pub mod entity;
 pub mod query;
 pub(crate) mod scheduler;
 pub(crate) mod storage;
@@ -51,10 +51,7 @@ impl ECSBuilder {
     self.sync_system_exec = value;
   }
 
-  pub fn add_system<I, S: System + 'static>(
-    &mut self,
-    system: impl IntoSystem<I, System = S>,
-  ) {
+  pub fn add_system<I, S: System + 'static>(&mut self, system: impl IntoSystem<I, System = S>) {
     self.scheduler.add_system(system);
   }
 

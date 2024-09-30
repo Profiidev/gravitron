@@ -3,6 +3,7 @@ use ash::{
   ext,
   vk::{self, ExtendsInstanceCreateInfo},
 };
+use log::LevelFilter;
 
 use crate::config::vulkan::RendererConfig;
 
@@ -25,13 +26,12 @@ impl Debugger {
   }
 
   pub(crate) fn init_info(vulkan_config: &mut RendererConfig) -> DebuggerInfo {
-    let is_info_level = vulkan_config
-      .debug_log_level
-      .contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
+    let debug_log_level = get_log_flags();
+    let is_info_level = debug_log_level.contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
 
     let mut debugger_info = DebuggerInfo {
       debug_utils: vk::DebugUtilsMessengerCreateInfoEXT::default()
-        .message_severity(vulkan_config.debug_log_level)
+        .message_severity(debug_log_level)
         .message_type(
           vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
             | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
@@ -121,13 +121,40 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
       let msg = msg
         .to_string()
         .replace("Validation Information: [ UNASSIGNED-DEBUG-PRINTF ]", "");
-      println!("[Debug][printf] {:?}", msg);
+      log::debug!("[printf] {:?}", msg);
     } else if !p_user_data.is_null() {
-      println!("[Debug][{}][{}] {:?}", severity, ty, message);
+      log::trace!("[{}] {:?}", ty, message)
     }
   } else {
-    println!("[Debug][{}][{}] {:?}", severity, ty, message);
+    match severity.as_str() {
+      "error" => log::error!("[{}] {:?}", ty, message),
+      "warning" => log::warn!("[{}] {:?}", ty, message),
+      "verbose" => log::debug!("[{}] {:?}", ty, message),
+      _ => (),
+    }
   }
 
   vk::FALSE
+}
+
+fn get_log_flags() -> vk::DebugUtilsMessageSeverityFlagsEXT {
+  let level = log::max_level();
+  match level {
+    LevelFilter::Debug | LevelFilter::Trace => {
+      vk::DebugUtilsMessageSeverityFlagsEXT::INFO
+        | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+        | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+        | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+    }
+    LevelFilter::Info => {
+      vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+        | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+        | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+    }
+    LevelFilter::Warn => {
+      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+    }
+    LevelFilter::Error => vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+    LevelFilter::Off => vk::DebugUtilsMessageSeverityFlagsEXT::empty(),
+  }
 }

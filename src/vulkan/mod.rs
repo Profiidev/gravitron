@@ -99,8 +99,9 @@ impl Vulkan {
     })
   }
 
-  pub(crate) fn request_redraw(&self) {
-    self.window.request_redraw();
+  pub(crate) fn wait_for_draw_start(&self) {
+    let device = self.device.get_device();
+    unsafe {}
   }
 
   pub(crate) fn destroy(&mut self) {

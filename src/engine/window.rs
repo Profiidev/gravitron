@@ -1,4 +1,6 @@
 use anyhow::Error;
+use gravitron_utils::thread::Signal;
+use log::debug;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "linux")]
@@ -11,36 +13,29 @@ use winit::{
   event_loop::EventLoop,
 };
 
-use crate::{
-  config::{app::AppConfig, vulkan::VulkanConfig},
-  util::signal::Signal,
-  vulkan::Vulkan,
-};
+use crate::{config::EngineConfig, vulkan::Vulkan};
 
 pub struct Window {
-  config: AppConfig,
-  vulkan_config: VulkanConfig,
-  instance: Option<Vulkan>,
+  config: EngineConfig,
   app_run: Signal,
-  window_ready: Signal,
+  window_ready: Signal<Vulkan>,
 }
 
 impl Window {
   //! Blocking
   pub fn init(
-    config: AppConfig,
-    vulkan_config: VulkanConfig,
+    config: EngineConfig,
     app_run: Signal,
-    window_ready: Signal,
+    window_ready: Signal<Vulkan>,
   ) -> Result<(), Error> {
     let mut event_loop = EventLoop::builder();
     #[cfg(not(target_os = "macos"))]
     let event_loop = event_loop.with_any_thread(true);
     let event_loop = event_loop.build()?;
+
+    debug!("Starting Event Loop");
     event_loop.run_app(&mut Window {
       config,
-      vulkan_config,
-      instance: None,
       app_run,
       window_ready,
     })?;
@@ -52,23 +47,25 @@ impl Window {
 impl ApplicationHandler for Window {
   fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
     let window_attributes = winit::window::WindowAttributes::default()
-      .with_title(self.config.title.clone())
+      .with_title(self.config.app.title.clone())
       .with_inner_size(Size::Logical(LogicalSize::new(
-        self.config.width as f64,
-        self.config.height as f64,
+        self.config.app.width as f64,
+        self.config.app.height as f64,
       )));
 
+    debug!("Creating Window");
     let window = event_loop.create_window(window_attributes).unwrap();
 
+    debug!("Creating Vulkan Instnace");
     let v = Vulkan::init(
-      std::mem::take(&mut self.vulkan_config),
-      &self.config,
+      std::mem::take(&mut self.config.vulkan),
+      &self.config.app,
       window,
     )
     .unwrap();
-    self.instance = Some(v);
 
-    self.window_ready.signal();
+    self.window_ready.send(v);
+    debug!("Waiting for Engine start");
     self.app_run.wait();
   }
 
@@ -80,9 +77,7 @@ impl ApplicationHandler for Window {
   ) {
     match event {
       winit::event::WindowEvent::CloseRequested => {
-        if let Some(mut v) = self.instance.take() {
-          v.destroy();
-        }
+        // !Destroy
       }
       winit::event::WindowEvent::RedrawRequested => {}
       _ => {}
@@ -90,8 +85,6 @@ impl ApplicationHandler for Window {
   }
 
   fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-    if let Some(v) = &self.instance {
-      v.request_redraw();
-    }
+    // !Redraw
   }
 }

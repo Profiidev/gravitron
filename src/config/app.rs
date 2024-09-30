@@ -3,6 +3,7 @@ pub struct AppConfig {
   pub version: u32,
   pub width: u32,
   pub height: u32,
+  pub fps: u32,
 }
 
 impl Default for AppConfig {
@@ -12,6 +13,7 @@ impl Default for AppConfig {
       version: 1,
       width: 800,
       height: 600,
+      fps: 60,
     }
   }
 }

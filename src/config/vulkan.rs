@@ -1,7 +1,5 @@
 use ash::vk;
 
-use super::utils::LogLevel;
-
 #[derive(Default)]
 pub struct VulkanConfig {
   pub renderer: RendererConfig<'static>,
@@ -33,7 +31,6 @@ pub struct RendererConfig<'a> {
   pub device_extensions: Vec<&'a std::ffi::CStr>,
   pub device_features: vk::PhysicalDeviceFeatures,
   pub debug: bool,
-  pub debug_log_level: vk::DebugUtilsMessageSeverityFlagsEXT,
 }
 
 impl<'a> RendererConfig<'a> {
@@ -44,29 +41,6 @@ impl<'a> RendererConfig<'a> {
 
   pub fn set_debug(mut self, debug: bool) -> Self {
     self.debug = debug;
-    self
-  }
-
-  pub fn set_debug_log_level(mut self, level: LogLevel) -> Self {
-    self.debug_log_level = match level {
-      LogLevel::Info => {
-        vk::DebugUtilsMessageSeverityFlagsEXT::INFO
-          | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-          | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-          | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-      }
-      LogLevel::Verbose => {
-        vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-          | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-          | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-      }
-      LogLevel::Warning => {
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-          | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-      }
-      LogLevel::Error => vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
-      LogLevel::None => vk::DebugUtilsMessageSeverityFlagsEXT::empty(),
-    };
     self
   }
 }
