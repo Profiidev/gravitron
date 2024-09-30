@@ -21,7 +21,6 @@ pub fn renderer(mut vulkan: ResMut<Vulkan>, to_render: Query<&mut MeshRenderer>)
   vulkan.draw_frame();
 
   // ! TEMPORARY
-  dbg!("Success");
   std::thread::sleep(std::time::Duration::from_secs(2));
   vulkan.destroy();
   std::process::exit(0);

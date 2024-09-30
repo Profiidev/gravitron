@@ -110,6 +110,14 @@ impl Vulkan {
   }
 
   pub fn destroy(&mut self) {
+    unsafe {
+      self
+        .device
+        .get_device()
+        .device_wait_idle()
+        .expect("Unable to wait for device idle");
+    }
+
     self
       .renderer
       .destroy(self.device.get_device(), &mut self.allocator);
