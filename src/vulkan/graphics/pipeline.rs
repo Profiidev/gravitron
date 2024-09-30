@@ -417,11 +417,7 @@ impl Pipeline {
     logical_device: &ash::Device,
     name: &str,
   ) -> Result<vk::PipelineCache, vk::Result> {
-    let initial_data = if let Ok(data) = std::fs::read(format!("cache/{}.bin", name)) {
-      data
-    } else {
-      vec![]
-    };
+    let initial_data = std::fs::read(format!("cache/{}.bin", name)).unwrap_or_default();
 
     let pipeline_cache_create_info =
       vk::PipelineCacheCreateInfo::default().initial_data(&initial_data);
