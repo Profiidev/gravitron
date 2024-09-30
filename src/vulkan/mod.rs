@@ -1,6 +1,7 @@
 use std::mem::ManuallyDrop;
 
 use anyhow::Error;
+#[cfg(feature = "debug")]
 use debug::Debugger;
 use device::Device;
 use gpu_allocator::vulkan;
