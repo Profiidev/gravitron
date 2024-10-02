@@ -6,7 +6,6 @@ use world::World;
 pub mod commands;
 pub mod components;
 pub mod entity;
-pub mod query;
 pub(crate) mod scheduler;
 pub(crate) mod storage;
 pub mod systems;
@@ -76,8 +75,8 @@ mod test {
   use gravitron_ecs_macros::Component;
 
   use crate as gravitron_ecs;
-  use crate::systems::{Res, ResMut};
-  use crate::{commands::Commands, query::Query, ECS};
+  use crate::systems::resources::{Res, ResMut};
+  use crate::{commands::Commands, systems::query::Query, ECS};
 
   #[derive(Component)]
   struct A {
