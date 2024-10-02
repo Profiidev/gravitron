@@ -31,7 +31,7 @@ impl World {
 
   pub fn set_resource<R: 'static>(&mut self, res: R) {
     trace!("Setting Resource {}", std::any::type_name::<R>());
-    
+
     self.resources.insert(TypeId::of::<R>(), Box::new(res));
   }
 
@@ -47,7 +47,7 @@ impl World {
     trace!("Getting Resource {}", std::any::type_name::<R>());
 
     if let Some(res) = self.resources.get(&TypeId::of::<R>()) {
-      return res.downcast_ref()
+      return res.downcast_ref();
     }
 
     None
@@ -57,7 +57,7 @@ impl World {
     trace!("Getting Resource mutably {}", std::any::type_name::<R>());
 
     if let Some(res) = self.resources.get_mut(&TypeId::of::<R>()) {
-      return res.downcast_mut()
+      return res.downcast_mut();
     }
 
     None

@@ -2,8 +2,10 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{world::UnsafeWorldCell, SystemId};
 
-use super::{metadata::{self, SystemMeta}, SystemParam};
-
+use super::{
+  metadata::{self, SystemMeta},
+  SystemParam,
+};
 
 pub struct Res<'a, T: 'static> {
   value: &'a T,
