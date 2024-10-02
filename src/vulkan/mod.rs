@@ -1,6 +1,7 @@
 use std::mem::ManuallyDrop;
 
 use anyhow::Error;
+#[cfg(feature = "debug")]
 use debug::Debugger;
 use device::Device;
 use gpu_allocator::vulkan;
@@ -11,6 +12,7 @@ use winit::window::Window;
 
 use crate::config::{app::AppConfig, vulkan::VulkanConfig};
 
+#[cfg(feature = "debug")]
 mod debug;
 mod device;
 pub mod error;
@@ -18,11 +20,13 @@ mod graphics;
 mod instance;
 mod surface;
 
-pub(crate) struct Vulkan {
+pub struct Vulkan {
   #[allow(dead_code)]
   entry: ash::Entry,
-  debugger: Option<Debugger>,
+  #[cfg(feature = "debug")]
+  debugger: Debugger,
   instance: InstanceDevice,
+  #[allow(dead_code)]
   window: Window,
   surface: Surface,
   device: Device,
@@ -31,18 +35,15 @@ pub(crate) struct Vulkan {
 }
 
 impl Vulkan {
-  pub(crate) fn init(
+  pub fn init(
     mut config: VulkanConfig,
     app_config: &AppConfig,
     window: Window,
   ) -> Result<Self, Error> {
     let entry = unsafe { ash::Entry::load() }?;
 
-    let debugger_info = if config.renderer.debug {
-      Some(Debugger::init_info(&mut config.renderer))
-    } else {
-      None
-    };
+    #[cfg(feature = "debug")]
+    let debugger_info = Debugger::init_info(&mut config.renderer);
 
     let mut instance_config = InstanceDeviceConfig::default()
       .add_layers(config.renderer.layers.clone())
@@ -51,15 +52,8 @@ impl Vulkan {
 
     let instance = InstanceDevice::init(&mut instance_config, &entry, app_config)?;
 
-    let debugger = if config.renderer.debug {
-      Some(Debugger::init(
-        &entry,
-        instance.get_instance(),
-        debugger_info.unwrap(),
-      )?)
-    } else {
-      None
-    };
+    #[cfg(feature = "debug")]
+    let debugger = Debugger::init(&entry, instance.get_instance(), debugger_info)?;
 
     let surface = Surface::init(&entry, instance.get_instance(), &window)?;
     let device = Device::init(
@@ -89,6 +83,7 @@ impl Vulkan {
 
     Ok(Vulkan {
       entry,
+      #[cfg(feature = "debug")]
       debugger,
       instance,
       window,
@@ -99,11 +94,31 @@ impl Vulkan {
     })
   }
 
-  pub(crate) fn request_redraw(&self) {
-    self.window.request_redraw();
+  pub fn wait_for_draw_start(&self) {
+    let device = self.device.get_device();
+    self.renderer.get_swapchain().wait_for_draw_start(device);
   }
 
-  pub(crate) fn destroy(&mut self) {
+  pub fn draw_frame(&mut self) {
+    self.renderer.get_swapchain_mut().draw_frame(&self.device);
+  }
+
+  pub fn record_command_buffer(&self) {
+    self
+      .renderer
+      .record_command_buffer(self.device.get_device())
+      .expect("Command Buffer Error");
+  }
+
+  pub fn destroy(&mut self) {
+    unsafe {
+      self
+        .device
+        .get_device()
+        .device_wait_idle()
+        .expect("Unable to wait for device idle");
+    }
+
     self
       .renderer
       .destroy(self.device.get_device(), &mut self.allocator);
@@ -112,9 +127,10 @@ impl Vulkan {
     }
     self.device.destroy();
     self.surface.destroy();
-    if let Some(debugger) = &mut self.debugger {
-      debugger.destroy();
-    }
+
+    #[cfg(feature = "debug")]
+    self.debugger.destroy();
+
     self.instance.destroy();
   }
 }

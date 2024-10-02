@@ -1,7 +1,5 @@
 use ash::vk;
 
-use super::utils::LogLevel;
-
 #[derive(Default)]
 pub struct VulkanConfig {
   pub renderer: RendererConfig<'static>,
@@ -32,41 +30,11 @@ pub struct RendererConfig<'a> {
   pub instance_next: Vec<Box<dyn vk::ExtendsInstanceCreateInfo + Send>>,
   pub device_extensions: Vec<&'a std::ffi::CStr>,
   pub device_features: vk::PhysicalDeviceFeatures,
-  pub debug: bool,
-  pub debug_log_level: vk::DebugUtilsMessageSeverityFlagsEXT,
 }
 
 impl<'a> RendererConfig<'a> {
   pub fn add_layer(mut self, layer: &'a std::ffi::CStr) -> Self {
     self.layers.push(layer);
-    self
-  }
-
-  pub fn set_debug(mut self, debug: bool) -> Self {
-    self.debug = debug;
-    self
-  }
-
-  pub fn set_debug_log_level(mut self, level: LogLevel) -> Self {
-    self.debug_log_level = match level {
-      LogLevel::Info => {
-        vk::DebugUtilsMessageSeverityFlagsEXT::INFO
-          | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-          | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-          | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-      }
-      LogLevel::Verbose => {
-        vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-          | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-          | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-      }
-      LogLevel::Warning => {
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-          | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-      }
-      LogLevel::Error => vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
-      LogLevel::None => vk::DebugUtilsMessageSeverityFlagsEXT::empty(),
-    };
     self
   }
 }
@@ -201,11 +169,25 @@ pub enum ShaderInputVariable {
 #[derive(Default)]
 pub struct DescriptorSet {
   pub descriptors: Vec<Descriptor>,
+  pub type_: vk::DescriptorType,
+}
+
+pub enum DescriptorType {
+  UniformBuffer,
+  StorageBuffer,
 }
 
 impl DescriptorSet {
   pub fn add_descriptor(mut self, layout: Descriptor) -> Self {
     self.descriptors.push(layout);
+    self
+  }
+
+  pub fn set_type(mut self, type_: DescriptorType) -> Self {
+    self.type_ = match type_ {
+      DescriptorType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
+      DescriptorType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
+    };
     self
   }
 }

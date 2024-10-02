@@ -1,5 +1,5 @@
 use std::{
-  any::Any,
+  any::{Any, TypeId},
   collections::{HashMap, VecDeque},
   marker::PhantomData,
   ptr,
@@ -15,7 +15,7 @@ use crate::{
 #[derive(Default)]
 pub struct World {
   storage: Storage<'static>,
-  resources: Vec<Box<dyn Any>>,
+  resources: HashMap<TypeId, Box<dyn Any>>,
   commands: HashMap<SystemId, Commands>,
 }
 
@@ -29,21 +29,25 @@ impl World {
     self.storage.create_entity(entity.into_entity())
   }
 
+  pub fn set_resource<R: 'static>(&mut self, res: R) {
+    trace!("Setting Resource {}", std::any::type_name::<R>());
+
+    self.resources.insert(TypeId::of::<R>(), Box::new(res));
+  }
+
   pub fn add_resource<R: 'static>(&mut self, res: R) {
     debug!("Adding Resource {}", std::any::type_name::<R>());
     if self.get_resource::<R>().is_some() {
       return;
     }
-    self.resources.push(Box::new(res));
+    self.resources.insert(TypeId::of::<R>(), Box::new(res));
   }
 
   pub fn get_resource<R: 'static>(&self) -> Option<&R> {
     trace!("Getting Resource {}", std::any::type_name::<R>());
 
-    for r in self.resources.iter() {
-      if let Some(r) = r.downcast_ref::<R>() {
-        return Some(r);
-      }
+    if let Some(res) = self.resources.get(&TypeId::of::<R>()) {
+      return res.downcast_ref();
     }
 
     None
@@ -52,10 +56,8 @@ impl World {
   pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
     trace!("Getting Resource mutably {}", std::any::type_name::<R>());
 
-    for r in self.resources.iter_mut() {
-      if let Some(r) = r.downcast_mut::<R>() {
-        return Some(r);
-      }
+    if let Some(res) = self.resources.get_mut(&TypeId::of::<R>()) {
+      return res.downcast_mut();
     }
 
     None

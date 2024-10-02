@@ -3,18 +3,19 @@ use ash::{
   ext,
   vk::{self, ExtendsInstanceCreateInfo},
 };
+use log::LevelFilter;
 
 use crate::config::vulkan::RendererConfig;
 
 const VALIDATION_LAYER: &std::ffi::CStr =
   unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0") };
 
-pub(crate) struct Debugger {
+pub struct Debugger {
   debug_utils: DebugUtils,
 }
 
 impl Debugger {
-  pub(crate) fn init(
+  pub fn init(
     entry: &ash::Entry,
     instance: &ash::Instance,
     debugger_info: DebuggerInfo,
@@ -24,14 +25,13 @@ impl Debugger {
     Ok(Self { debug_utils })
   }
 
-  pub(crate) fn init_info(vulkan_config: &mut RendererConfig) -> DebuggerInfo {
-    let is_info_level = vulkan_config
-      .debug_log_level
-      .contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
+  pub fn init_info(vulkan_config: &mut RendererConfig) -> DebuggerInfo {
+    let debug_log_level = get_log_flags();
+    let is_info_level = debug_log_level.contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
 
     let mut debugger_info = DebuggerInfo {
       debug_utils: vk::DebugUtilsMessengerCreateInfoEXT::default()
-        .message_severity(vulkan_config.debug_log_level)
+        .message_severity(debug_log_level)
         .message_type(
           vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
             | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
@@ -65,18 +65,18 @@ impl Debugger {
     debugger_info
   }
 
-  pub(crate) fn destroy(&mut self) {
+  pub fn destroy(&mut self) {
     self.debug_utils.destroy();
   }
 }
 
-pub(crate) struct DebugUtils {
+pub struct DebugUtils {
   loader: ext::debug_utils::Instance,
   messenger: vk::DebugUtilsMessengerEXT,
 }
 
 impl DebugUtils {
-  pub(crate) fn init(
+  pub fn init(
     entry: &ash::Entry,
     instance: &ash::Instance,
     debug_create_info: &vk::DebugUtilsMessengerCreateInfoEXT,
@@ -86,7 +86,7 @@ impl DebugUtils {
     Ok(Self { loader, messenger })
   }
 
-  pub(crate) fn destroy(&mut self) {
+  pub fn destroy(&mut self) {
     unsafe {
       self
         .loader
@@ -96,12 +96,12 @@ impl DebugUtils {
 }
 
 #[derive(Debug)]
-pub(crate) struct DebuggerInfo {
+pub struct DebuggerInfo {
   debug_utils: vk::DebugUtilsMessengerCreateInfoEXT<'static>,
 }
 
 impl DebuggerInfo {
-  pub(crate) fn instance_next(&mut self) -> Vec<Box<dyn ExtendsInstanceCreateInfo + Send>> {
+  pub fn instance_next(&mut self) -> Vec<Box<dyn ExtendsInstanceCreateInfo + Send>> {
     vec![Box::new(self.debug_utils)]
   }
 }
@@ -121,13 +121,40 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
       let msg = msg
         .to_string()
         .replace("Validation Information: [ UNASSIGNED-DEBUG-PRINTF ]", "");
-      println!("[Debug][printf] {:?}", msg);
+      log::debug!("[printf] {:?}", msg);
     } else if !p_user_data.is_null() {
-      println!("[Debug][{}][{}] {:?}", severity, ty, message);
+      log::trace!("[{}] {:?}", ty, message)
     }
   } else {
-    println!("[Debug][{}][{}] {:?}", severity, ty, message);
+    match severity.as_str() {
+      "error" => log::error!("[{}] {:?}", ty, message),
+      "warning" => log::warn!("[{}] {:?}", ty, message),
+      "verbose" => log::debug!("[{}] {:?}", ty, message),
+      _ => (),
+    }
   }
 
   vk::FALSE
+}
+
+fn get_log_flags() -> vk::DebugUtilsMessageSeverityFlagsEXT {
+  let level = log::max_level();
+  match level {
+    LevelFilter::Debug | LevelFilter::Trace => {
+      vk::DebugUtilsMessageSeverityFlagsEXT::INFO
+        | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+        | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+        | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+    }
+    LevelFilter::Info => {
+      vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+        | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+        | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+    }
+    LevelFilter::Warn => {
+      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+    }
+    LevelFilter::Error => vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+    LevelFilter::Off => vk::DebugUtilsMessageSeverityFlagsEXT::empty(),
+  }
 }

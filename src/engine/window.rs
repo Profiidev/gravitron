@@ -1,4 +1,8 @@
+use std::sync::mpsc::Sender;
+
 use anyhow::Error;
+use gravitron_utils::thread::Signal;
+use log::{debug, info};
 #[cfg(target_os = "macos")]
 use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "linux")]
@@ -11,38 +15,39 @@ use winit::{
   event_loop::EventLoop,
 };
 
-use crate::{
-  config::{app::AppConfig, vulkan::VulkanConfig},
-  util::signal::Signal,
-  vulkan::Vulkan,
-};
+use crate::{config::EngineConfig, vulkan::Vulkan};
+
+use super::WindowMessage;
 
 pub struct Window {
-  config: AppConfig,
-  vulkan_config: VulkanConfig,
-  instance: Option<Vulkan>,
+  config: EngineConfig,
   app_run: Signal,
-  window_ready: Signal,
+  window_ready: Signal<Vulkan>,
+  shutdown: Signal,
+  send: Sender<WindowMessage>,
 }
 
 impl Window {
   //! Blocking
   pub fn init(
-    config: AppConfig,
-    vulkan_config: VulkanConfig,
+    config: EngineConfig,
     app_run: Signal,
-    window_ready: Signal,
+    window_ready: Signal<Vulkan>,
+    shutdown: Signal,
+    send: Sender<WindowMessage>,
   ) -> Result<(), Error> {
     let mut event_loop = EventLoop::builder();
     #[cfg(not(target_os = "macos"))]
     let event_loop = event_loop.with_any_thread(true);
     let event_loop = event_loop.build()?;
+
+    debug!("Starting Event Loop");
     event_loop.run_app(&mut Window {
       config,
-      vulkan_config,
-      instance: None,
       app_run,
       window_ready,
+      shutdown,
+      send,
     })?;
 
     Ok(())
@@ -52,46 +57,55 @@ impl Window {
 impl ApplicationHandler for Window {
   fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
     let window_attributes = winit::window::WindowAttributes::default()
-      .with_title(self.config.title.clone())
+      .with_title(self.config.app.title.clone())
       .with_inner_size(Size::Logical(LogicalSize::new(
-        self.config.width as f64,
-        self.config.height as f64,
+        self.config.app.width as f64,
+        self.config.app.height as f64,
       )));
 
+    debug!("Creating Window");
     let window = event_loop.create_window(window_attributes).unwrap();
 
+    debug!("Creating Vulkan Instnace");
     let v = Vulkan::init(
-      std::mem::take(&mut self.vulkan_config),
-      &self.config,
+      std::mem::take(&mut self.config.vulkan),
+      &self.config.app,
       window,
     )
     .unwrap();
-    self.instance = Some(v);
 
-    self.window_ready.signal();
+    self.window_ready.send(v);
+    debug!("Waiting for Engine start");
     self.app_run.wait();
   }
 
   fn window_event(
     &mut self,
-    _event_loop: &winit::event_loop::ActiveEventLoop,
+    event_loop: &winit::event_loop::ActiveEventLoop,
     _window_id: winit::window::WindowId,
     event: winit::event::WindowEvent,
   ) {
+    debug!("Window Event");
     match event {
       winit::event::WindowEvent::CloseRequested => {
-        if let Some(mut v) = self.instance.take() {
-          v.destroy();
-        }
+        info!("Window sending exit request");
+        event_loop.exit();
+        self.send.send(WindowMessage::Exit).unwrap();
       }
-      winit::event::WindowEvent::RedrawRequested => {}
+      winit::event::WindowEvent::RedrawRequested => {
+        debug!("Redraw Request");
+      }
       _ => {}
     }
   }
 
-  fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-    if let Some(v) = &self.instance {
-      v.request_redraw();
+  fn new_events(
+    &mut self,
+    event_loop: &winit::event_loop::ActiveEventLoop,
+    _cause: winit::event::StartCause,
+  ) {
+    if self.shutdown.is_signaled() {
+      event_loop.exit();
     }
   }
 }

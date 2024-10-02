@@ -1,12 +1,11 @@
 use entity::IntoEntity;
 use scheduler::{Scheduler, SchedulerBuilder};
 use systems::{IntoSystem, System};
-use world::World;
+use world::{UnsafeWorldCell, World};
 
 pub mod commands;
 pub mod components;
-pub(crate) mod entity;
-pub mod query;
+pub mod entity;
 pub(crate) mod scheduler;
 pub(crate) mod storage;
 pub mod systems;
@@ -23,6 +22,7 @@ type SystemId = Id;
 pub struct ECS {
   scheduler: Scheduler,
   world: World,
+  pub world_cell: UnsafeWorldCell<'static>,
 }
 
 #[derive(Default)]
@@ -40,6 +40,18 @@ impl ECS {
   pub fn run(&mut self) {
     self.scheduler.run(&mut self.world);
   }
+
+  pub fn set_resource<R: 'static>(&mut self, res: R) {
+    self.world.set_resource(res);
+  }
+
+  pub fn get_resource<R: 'static>(&mut self) -> Option<&R> {
+    self.world.get_resource()
+  }
+
+  pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
+    self.world.get_resource_mut()
+  }
 }
 
 impl ECSBuilder {
@@ -47,32 +59,29 @@ impl ECSBuilder {
     Self::default()
   }
 
-  pub fn sync_system_exec(mut self, value: bool) -> Self {
+  pub fn sync_system_exec(&mut self, value: bool) {
     self.sync_system_exec = value;
-    self
   }
 
-  pub fn add_system<I, S: System + 'static>(
-    mut self,
-    system: impl IntoSystem<I, System = S>,
-  ) -> Self {
+  pub fn add_system<I, S: System + 'static>(&mut self, system: impl IntoSystem<I, System = S>) {
     self.scheduler.add_system(system);
-    self
   }
 
-  pub fn add_resource<R: 'static>(mut self, res: R) -> Self {
+  pub fn add_resource<R: 'static>(&mut self, res: R) {
     self.world.add_resource(res);
-    self
   }
 
   pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
     self.world.create_entity(entity)
   }
 
-  pub fn build(self) -> ECS {
+  pub fn build(mut self) -> ECS {
+    let world_cell = UnsafeWorldCell::new(&mut self.world);
+
     ECS {
       scheduler: self.scheduler.build(self.sync_system_exec),
       world: self.world,
+      world_cell,
     }
   }
 }
@@ -82,8 +91,8 @@ mod test {
   use gravitron_ecs_macros::Component;
 
   use crate as gravitron_ecs;
-  use crate::systems::{Res, ResMut};
-  use crate::{commands::Commands, query::Query, ECS};
+  use crate::systems::resources::{Res, ResMut};
+  use crate::{commands::Commands, systems::query::Query, ECS};
 
   #[derive(Component)]
   struct A {
@@ -104,7 +113,8 @@ mod test {
       cmds.create_entity(B { y: 1 })
     }
 
-    let mut ecs = ECS::builder().add_system(system);
+    let mut ecs = ECS::builder();
+    ecs.add_system(system);
 
     for i in 0..10 {
       ecs.create_entity(A { x: i });

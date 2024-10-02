@@ -5,14 +5,14 @@ use crate::config::vulkan::RendererConfig;
 
 use super::{error::QueueFamilyMissingError, surface::Surface};
 
-pub(crate) struct Device {
+pub struct Device {
   device: ash::Device,
   queues: Queues,
   queue_families: QueueFamilies,
 }
 
 impl Device {
-  pub(crate) fn init(
+  pub fn init(
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     surface: &Surface,
@@ -28,15 +28,19 @@ impl Device {
     })
   }
 
-  pub(crate) fn get_device(&self) -> &ash::Device {
+  pub fn get_device(&self) -> &ash::Device {
     &self.device
   }
 
-  pub(crate) fn get_queue_families(&self) -> &QueueFamilies {
+  pub fn get_queue_families(&self) -> &QueueFamilies {
     &self.queue_families
   }
 
-  pub(crate) fn destroy(&mut self) {
+  pub fn get_queues(&self) -> &Queues {
+    &self.queues
+  }
+
+  pub fn destroy(&mut self) {
     unsafe {
       self.device.destroy_device(None);
     }
@@ -44,7 +48,7 @@ impl Device {
 }
 
 #[derive(Debug)]
-pub(crate) struct QueueFamilies {
+pub struct QueueFamilies {
   graphics_q_index: u32,
   compute_q_index: u32,
   transfer_q_index: u32,
@@ -53,7 +57,7 @@ pub(crate) struct QueueFamilies {
 }
 
 impl QueueFamilies {
-  pub(crate) fn init(
+  pub fn init(
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     surface: &Surface,
@@ -103,20 +107,28 @@ impl QueueFamilies {
     })
   }
 
-  pub(crate) fn get_graphics_q_index(&self) -> u32 {
+  pub fn get_graphics_q_index(&self) -> u32 {
     self.graphics_q_index
+  }
+
+  pub fn get_transfer_q_index(&self) -> u32 {
+    self.transfer_q_index
+  }
+
+  pub fn get_compute_q_index(&self) -> u32 {
+    self.compute_q_index
   }
 }
 
 #[derive(Debug)]
-pub(crate) struct Queues {
+pub struct Queues {
   graphics: vk::Queue,
   compute: vk::Queue,
   transfer: vk::Queue,
 }
 
 impl Queues {
-  pub(crate) fn init(
+  pub fn init(
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     queue_families: &QueueFamilies,
@@ -167,5 +179,19 @@ impl Queues {
         transfer: transfer_queue,
       },
     ))
+  }
+
+  pub fn graphics(&self) -> vk::Queue {
+    self.graphics
+  }
+
+  #[allow(dead_code)]
+  pub fn compute(&self) -> vk::Queue {
+    self.compute
+  }
+
+  #[allow(dead_code)]
+  pub fn transfer(&self) -> vk::Queue {
+    self.transfer
   }
 }

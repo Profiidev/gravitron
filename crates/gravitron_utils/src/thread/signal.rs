@@ -1,13 +1,13 @@
 use std::sync::{Arc, Condvar, Mutex};
 
 #[derive(Clone)]
-pub struct Signal<T = bool> {
+pub struct Signal<T = ()> {
   value: Arc<(Mutex<Option<T>>, Condvar)>,
 }
 
 impl Signal {
   pub fn signal(&self) {
-    self.send(true);
+    self.send(());
   }
 }
 
@@ -36,6 +36,12 @@ impl<T> Signal<T> {
     let (lock, _) = &*self.value;
     let started = lock.lock().unwrap();
     started.is_some()
+  }
+
+  pub fn clone_inner(signal: &Signal<T>) -> Self {
+    Signal {
+      value: signal.value.clone(),
+    }
   }
 }
 
