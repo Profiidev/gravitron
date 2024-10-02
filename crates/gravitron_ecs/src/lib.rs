@@ -39,6 +39,18 @@ impl ECS {
   pub fn run(&mut self) {
     self.scheduler.run(&mut self.world);
   }
+
+  pub fn set_resource<R: 'static>(&mut self, res: R) {
+    self.world.set_resource(res);
+  }
+
+  pub fn get_resource<R: 'static>(&mut self) -> Option<&R> {
+    self.world.get_resource()
+  }
+
+  pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
+    self.world.get_resource_mut()
+  }
 }
 
 impl ECSBuilder {
