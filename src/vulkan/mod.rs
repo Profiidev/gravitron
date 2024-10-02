@@ -26,6 +26,7 @@ pub struct Vulkan {
   #[cfg(feature = "debug")]
   debugger: Debugger,
   instance: InstanceDevice,
+  #[allow(dead_code)]
   window: Window,
   surface: Surface,
   device: Device,
@@ -102,10 +103,10 @@ impl Vulkan {
     self.renderer.get_swapchain_mut().draw_frame(&self.device);
   }
 
-  pub fn testing(&self) {
+  pub fn record_command_buffer(&self) {
     self
       .renderer
-      .testing(self.device.get_device())
+      .record_command_buffer(self.device.get_device())
       .expect("Command Buffer Error");
   }
 

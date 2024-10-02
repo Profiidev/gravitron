@@ -1,5 +1,6 @@
 use std::{
-  thread::{self, JoinHandle},
+  sync::mpsc::{self, Receiver},
+  thread,
   time::{Duration, Instant},
 };
 
@@ -12,15 +13,18 @@ use gravitron_utils::thread::Signal;
 use log::info;
 use window::Window;
 
-use crate::{config::EngineConfig, systems::add_systems};
+use crate::{
+  config::EngineConfig,
+  ecs_resources::{resources::engine_commands::EngineCommands, systems::add_systems},
+};
 
 mod window;
 
 pub struct Gravitron {
   ecs: ECS,
   fps: u32,
-  window_handle: JoinHandle<()>,
   app_run: Signal,
+  rec: Receiver<WindowMessage>,
 }
 
 pub struct GravitronBuilder {
@@ -39,10 +43,22 @@ impl Gravitron {
     let time_per_frame = Duration::from_secs(1) / self.fps;
 
     self.app_run.signal();
+    let world = unsafe { self.ecs.world_cell.world_mut() };
 
     loop {
       if last_frame.elapsed() > time_per_frame {
         self.ecs.run();
+
+        let engine_commands = world.get_resource_mut::<EngineCommands>().unwrap();
+
+        for message in self.rec.try_iter() {
+          match message {
+            WindowMessage::Exit => engine_commands.shutdown(),
+          }
+        }
+
+        engine_commands.execute(&mut self.ecs);
+
         last_frame = Instant::now();
       }
     }
@@ -85,22 +101,41 @@ impl GravitronBuilder {
     let thread_window_ready = Signal::clone_inner(&window_ready);
     let thread_app_run = app_run.clone();
 
+    let (thread_send, rec) = mpsc::channel();
+    let shutdown = Signal::new();
+    let thread_shutdown = shutdown.clone();
+
     let fps = self.config.app.fps;
 
     let window_handle = thread::spawn(move || {
       info!("Creating Window");
-      Window::init(self.config, thread_app_run, thread_window_ready).unwrap();
+      Window::init(
+        self.config,
+        thread_app_run,
+        thread_window_ready,
+        thread_shutdown,
+        thread_send,
+      )
+      .unwrap();
     });
 
     add_systems(&mut self.ecs);
+
+    self
+      .ecs
+      .add_resource(EngineCommands::create(window_handle, shutdown));
 
     self.ecs.add_resource(window_ready.wait());
 
     Gravitron {
       ecs: self.ecs.build(),
       fps,
-      window_handle,
       app_run,
+      rec,
     }
   }
+}
+
+pub enum WindowMessage {
+  Exit,
 }

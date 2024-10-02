@@ -6,7 +6,10 @@ use crate::{
   vulkan::{device::Device, instance::InstanceDevice, surface::Surface},
 };
 
-use super::pools::{CommandBufferType, Pools};
+use super::{
+  pipeline::Pipeline,
+  pools::{CommandBufferType, Pools},
+};
 
 pub struct SwapChain {
   loader: khr::swapchain::Device,
@@ -256,10 +259,11 @@ impl SwapChain {
     }
   }
 
-  pub fn testing(
+  pub fn record_command_buffer(
     &self,
     device: &ash::Device,
     render_pass: vk::RenderPass,
+    pipeline: &Pipeline,
   ) -> Result<(), vk::Result> {
     let buffer = self.command_buffer[self.current_image];
     let buffer_begin_info = vk::CommandBufferBeginInfo::default();
@@ -291,6 +295,16 @@ impl SwapChain {
 
     unsafe {
       device.cmd_begin_render_pass(buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+      device.cmd_bind_pipeline(buffer, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline());
+
+      device.cmd_bind_descriptor_sets(
+        buffer,
+        vk::PipelineBindPoint::GRAPHICS,
+        pipeline.layout(),
+        0,
+        pipeline.descriptor_sets(),
+        &[],
+      );
 
       device.cmd_end_render_pass(buffer);
       device.end_command_buffer(buffer)?;

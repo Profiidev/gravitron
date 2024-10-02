@@ -169,11 +169,25 @@ pub enum ShaderInputVariable {
 #[derive(Default)]
 pub struct DescriptorSet {
   pub descriptors: Vec<Descriptor>,
+  pub type_: vk::DescriptorType,
+}
+
+pub enum DescriptorType {
+  UniformBuffer,
+  StorageBuffer,
 }
 
 impl DescriptorSet {
   pub fn add_descriptor(mut self, layout: Descriptor) -> Self {
     self.descriptors.push(layout);
+    self
+  }
+
+  pub fn set_type(mut self, type_: DescriptorType) -> Self {
+    self.type_ = match type_ {
+      DescriptorType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
+      DescriptorType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
+    };
     self
   }
 }

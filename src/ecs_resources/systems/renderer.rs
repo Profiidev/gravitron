@@ -1,9 +1,9 @@
 use log::trace;
 use std::time::Instant;
 
-use crate::ecs::{query::Query, systems::ResMut};
+use crate::ecs::{systems::query::Query, systems::resources::ResMut};
 
-use crate::components::renderer::MeshRenderer;
+use crate::ecs_resources::components::renderer::MeshRenderer;
 use crate::vulkan::Vulkan;
 
 pub fn renderer(mut vulkan: ResMut<Vulkan>, to_render: Query<&mut MeshRenderer>) {
@@ -11,7 +11,7 @@ pub fn renderer(mut vulkan: ResMut<Vulkan>, to_render: Query<&mut MeshRenderer>)
 
   let vulkan = &mut *vulkan;
   vulkan.wait_for_draw_start();
-  vulkan.testing();
+  vulkan.record_command_buffer();
 
   for e in to_render {
     println!("{:?}", e.x.elapsed());
@@ -19,9 +19,4 @@ pub fn renderer(mut vulkan: ResMut<Vulkan>, to_render: Query<&mut MeshRenderer>)
   }
 
   vulkan.draw_frame();
-
-  // ! TEMPORARY
-  std::thread::sleep(std::time::Duration::from_secs(2));
-  vulkan.destroy();
-  std::process::exit(0);
 }

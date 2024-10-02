@@ -1,6 +1,8 @@
 use std::time::Instant;
 
-use gravitron::{components::renderer::MeshRenderer, config::EngineConfig, engine::Gravitron};
+use gravitron::{
+  config::EngineConfig, ecs_resources::components::renderer::MeshRenderer, engine::Gravitron,
+};
 
 fn main() {
   let config = EngineConfig::default();

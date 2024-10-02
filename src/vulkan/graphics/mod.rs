@@ -80,7 +80,11 @@ impl Renderer {
     &mut self.swap_chain
   }
 
-  pub fn testing(&self, device: &ash::Device) -> Result<(), vk::Result> {
-    self.swap_chain.testing(device, self.render_pass)
+  pub fn record_command_buffer(&self, device: &ash::Device) -> Result<(), vk::Result> {
+    self.swap_chain.record_command_buffer(
+      device,
+      self.render_pass,
+      self.pipeline.get_pipeline("default").unwrap(),
+    )
   }
 }

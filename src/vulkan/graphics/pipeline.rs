@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ash::vk;
 
 use crate::config::vulkan::{
@@ -59,7 +61,8 @@ pub fn init_render_pass(
 }
 
 pub struct PipelineManager {
-  pub pipelines: Vec<Pipeline>,
+  pub pipelines: HashMap<String, Pipeline>,
+  descriptor_pool: vk::DescriptorPool,
 }
 
 impl PipelineManager {
@@ -73,40 +76,76 @@ impl PipelineManager {
       swap_chain_extent,
     )));
 
-    let mut vk_pipelines = vec![];
+    let mut descriptor_count = 0;
+    let mut pool_sizes = vec![];
+    for pipeline in &*pipelines {
+      match pipeline {
+        PipelineType::Graphics(c) => {
+          descriptor_count += c.descriptor_sets.len();
+          for descriptor in &c.descriptor_sets {
+            add_descriptor_set(&mut pool_sizes, descriptor);
+          }
+        }
+        PipelineType::Compute(c) => {
+          descriptor_count += c.descriptor_sets.len();
+          for descriptor in &c.descriptor_sets {
+            add_descriptor_set(&mut pool_sizes, descriptor);
+          }
+        }
+      }
+    }
+
+    let descriptor_pool_create_info = vk::DescriptorPoolCreateInfo::default()
+      .max_sets(descriptor_count as u32)
+      .pool_sizes(&pool_sizes);
+    let descriptor_pool =
+      unsafe { logical_device.create_descriptor_pool(&descriptor_pool_create_info, None)? };
+
+    let mut vk_pipelines = HashMap::new();
     for pipeline in pipelines {
       match pipeline {
         PipelineType::Graphics(config) => {
-          vk_pipelines.push(Pipeline::init_graphics_pipeline(
-            logical_device,
-            render_pass,
-            config,
-          )?);
+          vk_pipelines.insert(
+            config.name.clone(),
+            Pipeline::init_graphics_pipeline(logical_device, render_pass, config, descriptor_pool)?,
+          );
         }
         PipelineType::Compute(config) => {
-          vk_pipelines.push(Pipeline::init_compute_pipeline(logical_device, config)?);
+          vk_pipelines.insert(
+            config.name.clone(),
+            Pipeline::init_compute_pipeline(logical_device, config, descriptor_pool)?,
+          );
         }
       }
     }
 
     Ok(Self {
       pipelines: vk_pipelines,
+      descriptor_pool,
     })
   }
 
   pub fn destroy(&self, logical_device: &ash::Device) {
+    unsafe {
+      logical_device.destroy_descriptor_pool(self.descriptor_pool, None);
+    }
     std::fs::create_dir_all("cache").unwrap();
-    for pipeline in &self.pipelines {
+    for pipeline in self.pipelines.values() {
       pipeline.destroy(logical_device);
     }
+  }
+
+  pub fn get_pipeline(&self, name: &str) -> Option<&Pipeline> {
+    self.pipelines.get(name)
   }
 }
 
 pub struct Pipeline {
   name: String,
-  pub pipeline: vk::Pipeline,
-  pub pipeline_layout: vk::PipelineLayout,
-  pub descriptor_set_layouts: Vec<vk::DescriptorSetLayout>,
+  pipeline: vk::Pipeline,
+  pipeline_layout: vk::PipelineLayout,
+  descriptor_sets: Vec<vk::DescriptorSet>,
+  descriptor_set_layouts: Vec<vk::DescriptorSetLayout>,
   cache: vk::PipelineCache,
 }
 
@@ -153,6 +192,7 @@ impl Pipeline {
   pub fn init_compute_pipeline(
     logical_device: &ash::Device,
     pipeline: &ComputePipelineConfig,
+    descriptor_pool: vk::DescriptorPool,
   ) -> Result<Self, vk::Result> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
@@ -166,6 +206,12 @@ impl Pipeline {
 
     let descriptor_layouts =
       Self::get_descriptor_set_layouts(&pipeline.descriptor_sets, logical_device)?;
+
+    let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo::default()
+      .descriptor_pool(descriptor_pool)
+      .set_layouts(&descriptor_layouts);
+    let descriptor_sets =
+      unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info)? };
 
     let pipeline_layout_create_info =
       vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
@@ -192,6 +238,7 @@ impl Pipeline {
       name: pipeline.name.clone(),
       pipeline: vk_pipelines,
       pipeline_layout,
+      descriptor_sets,
       descriptor_set_layouts: descriptor_layouts,
       cache: pipeline_cache,
     })
@@ -201,6 +248,7 @@ impl Pipeline {
     logical_device: &ash::Device,
     render_pass: vk::RenderPass,
     pipeline: &GraphicsPipelineConfig,
+    descriptor_pool: vk::DescriptorPool,
   ) -> Result<Self, vk::Result> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
@@ -341,6 +389,12 @@ impl Pipeline {
     let descriptor_layouts =
       Self::get_descriptor_set_layouts(&pipeline.descriptor_sets, logical_device)?;
 
+    let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo::default()
+      .descriptor_pool(descriptor_pool)
+      .set_layouts(&descriptor_layouts);
+    let descriptor_sets =
+      unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info)? };
+
     let pipeline_layout_create_info =
       vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
     let pipeline_layout =
@@ -382,6 +436,7 @@ impl Pipeline {
       name: pipeline.name.clone(),
       pipeline: vk_pipelines,
       pipeline_layout,
+      descriptor_sets,
       descriptor_set_layouts: descriptor_layouts,
       cache: pipeline_cache,
     })
@@ -439,5 +494,29 @@ impl Pipeline {
       std::fs::write(format!("cache/{}.bin", self.name), pipeline_cache_data).unwrap();
       logical_device.destroy_pipeline_cache(self.cache, None);
     }
+  }
+
+  pub fn pipeline(&self) -> vk::Pipeline {
+    self.pipeline
+  }
+
+  pub fn layout(&self) -> vk::PipelineLayout {
+    self.pipeline_layout
+  }
+
+  pub fn descriptor_sets(&self) -> &[vk::DescriptorSet] {
+    &self.descriptor_sets
+  }
+}
+
+fn add_descriptor_set(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, desc: &DescriptorSet) {
+  if let Some(pool) = pool_sizes.iter_mut().find(|s| s.ty == desc.type_) {
+    pool.descriptor_count += 1;
+  } else {
+    pool_sizes.push(
+      vk::DescriptorPoolSize::default()
+        .ty(desc.type_)
+        .descriptor_count(1),
+    );
   }
 }

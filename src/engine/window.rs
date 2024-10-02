@@ -1,6 +1,8 @@
+use std::sync::mpsc::Sender;
+
 use anyhow::Error;
 use gravitron_utils::thread::Signal;
-use log::debug;
+use log::{debug, info};
 #[cfg(target_os = "macos")]
 use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "linux")]
@@ -15,10 +17,14 @@ use winit::{
 
 use crate::{config::EngineConfig, vulkan::Vulkan};
 
+use super::WindowMessage;
+
 pub struct Window {
   config: EngineConfig,
   app_run: Signal,
   window_ready: Signal<Vulkan>,
+  shutdown: Signal,
+  send: Sender<WindowMessage>,
 }
 
 impl Window {
@@ -27,6 +33,8 @@ impl Window {
     config: EngineConfig,
     app_run: Signal,
     window_ready: Signal<Vulkan>,
+    shutdown: Signal,
+    send: Sender<WindowMessage>,
   ) -> Result<(), Error> {
     let mut event_loop = EventLoop::builder();
     #[cfg(not(target_os = "macos"))]
@@ -38,6 +46,8 @@ impl Window {
       config,
       app_run,
       window_ready,
+      shutdown,
+      send,
     })?;
 
     Ok(())
@@ -71,20 +81,31 @@ impl ApplicationHandler for Window {
 
   fn window_event(
     &mut self,
-    _event_loop: &winit::event_loop::ActiveEventLoop,
+    event_loop: &winit::event_loop::ActiveEventLoop,
     _window_id: winit::window::WindowId,
     event: winit::event::WindowEvent,
   ) {
+    debug!("Window Event");
     match event {
       winit::event::WindowEvent::CloseRequested => {
-        // !Destroy
+        info!("Window sending exit request");
+        event_loop.exit();
+        self.send.send(WindowMessage::Exit).unwrap();
       }
-      winit::event::WindowEvent::RedrawRequested => {}
+      winit::event::WindowEvent::RedrawRequested => {
+        debug!("Redraw Request");
+      }
       _ => {}
     }
   }
 
-  fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-    // !Redraw
+  fn new_events(
+    &mut self,
+    event_loop: &winit::event_loop::ActiveEventLoop,
+    _cause: winit::event::StartCause,
+  ) {
+    if self.shutdown.is_signaled() {
+      event_loop.exit();
+    }
   }
 }

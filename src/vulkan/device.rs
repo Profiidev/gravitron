@@ -185,10 +185,12 @@ impl Queues {
     self.graphics
   }
 
+  #[allow(dead_code)]
   pub fn compute(&self) -> vk::Queue {
     self.compute
   }
 
+  #[allow(dead_code)]
   pub fn transfer(&self) -> vk::Queue {
     self.transfer
   }
