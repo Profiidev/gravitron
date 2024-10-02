@@ -1,7 +1,7 @@
 use entity::IntoEntity;
 use scheduler::{Scheduler, SchedulerBuilder};
 use systems::{IntoSystem, System};
-use world::World;
+use world::{UnsafeWorldCell, World};
 
 pub mod commands;
 pub mod components;
@@ -22,6 +22,7 @@ type SystemId = Id;
 pub struct ECS {
   scheduler: Scheduler,
   world: World,
+  pub world_cell: UnsafeWorldCell<'static>,
 }
 
 #[derive(Default)]
@@ -74,10 +75,13 @@ impl ECSBuilder {
     self.world.create_entity(entity)
   }
 
-  pub fn build(self) -> ECS {
+  pub fn build(mut self) -> ECS {
+    let world_cell = UnsafeWorldCell::new(&mut self.world);
+
     ECS {
       scheduler: self.scheduler.build(self.sync_system_exec),
       world: self.world,
+      world_cell,
     }
   }
 }
