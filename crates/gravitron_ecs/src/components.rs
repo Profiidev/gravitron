@@ -1,10 +1,10 @@
 use downcast::{downcast, Any};
 
-use crate::Id;
+use crate::ComponentId;
 
 pub trait Component: Any {
-  fn id(&self) -> Id;
-  fn sid() -> Id
+  fn id(&self) -> ComponentId;
+  fn sid() -> ComponentId
   where
     Self: Sized;
 }

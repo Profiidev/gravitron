@@ -204,7 +204,7 @@ impl<'a> Storage<'a> {
       };
 
       from.edges.insert(
-        to.id,
+        comp.id(),
         ArchetypeEdge {
           add: UnsafeArchetypeCell::new(to),
           remove: UnsafeArchetypeCell::null(),
@@ -258,7 +258,7 @@ impl<'a> Storage<'a> {
       };
 
       from.edges.insert(
-        to.id,
+        comp,
         ArchetypeEdge {
           remove: UnsafeArchetypeCell::new(to),
           add: UnsafeArchetypeCell::null(),
