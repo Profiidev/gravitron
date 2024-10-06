@@ -42,7 +42,8 @@ impl Transform {
   }
 
   fn set_position_matrix(&mut self) {
-    self.position_matrix = glam::Mat4::from_scale_rotation_translation(self.scaling, self.rotation, self.position);
+    self.position_matrix =
+      glam::Mat4::from_scale_rotation_translation(self.scaling, self.rotation, self.position);
     self.inverse_position_matrix = self.position_matrix.inverse();
   }
 }

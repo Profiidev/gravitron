@@ -37,7 +37,10 @@ fn main() {
   ));
 
   let mut camera_transform = Transform::default();
-  camera_transform.set_rotation(math::Quat::from_axis_angle(math::Vec3::Y, 45_f32.to_radians()));
+  camera_transform.set_rotation(math::Quat::from_axis_angle(
+    math::Vec3::Y,
+    45_f32.to_radians(),
+  ));
   camera_transform.set_position(math::Vec3::new(0.0, 0.0, 5.0));
   builder.create_entity((
     CameraBuilder::new().build(&camera_transform),

@@ -9,7 +9,10 @@ use pools::Pools;
 use resources::model::{InstanceData, ModelManager};
 use swap_chain::SwapChain;
 
-use crate::{config::{app::AppConfig, vulkan::VulkanConfig}, ecs_resources::components::camera::Camera};
+use crate::{
+  config::{app::AppConfig, vulkan::VulkanConfig},
+  ecs_resources::components::camera::Camera,
+};
 
 use super::{device::Device, error::RendererInitError, instance::InstanceDevice, surface::Surface};
 

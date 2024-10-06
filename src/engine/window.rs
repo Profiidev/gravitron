@@ -7,10 +7,10 @@ use log::{debug, info};
 use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(all(target_os = "linux", feature = "wayland"))]
 use winit::platform::wayland::EventLoopBuilderExtWayland;
-#[cfg(all(target_os = "linux", not(feature = "wayland")))]
-use winit::platform::x11::EventLoopBuilderExtX11;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
+#[cfg(all(target_os = "linux", not(feature = "wayland")))]
+use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},

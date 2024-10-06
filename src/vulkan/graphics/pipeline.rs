@@ -8,7 +8,9 @@ use crate::{
   config::vulkan::{
     ComputePipelineConfig, Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig,
     PipelineType, ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
-  }, ecs_resources::components::camera::Camera, vulkan::shader::buffer::Buffer
+  },
+  ecs_resources::components::camera::Camera,
+  vulkan::shader::buffer::Buffer,
 };
 
 pub fn init_render_pass(
@@ -156,7 +158,9 @@ impl PipelineManager {
 
   pub fn update_camera(&mut self, camera: &Camera) {
     for pipeline in self.pipelines.values_mut() {
-      pipeline.descriptor_buffers[0][0].fill(&[camera.view_matrix(), camera.projection_matrix()]).unwrap();
+      pipeline.descriptor_buffers[0][0]
+        .fill(&[camera.view_matrix(), camera.projection_matrix()])
+        .unwrap();
     }
   }
 }
