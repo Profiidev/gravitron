@@ -9,7 +9,7 @@ pub fn component(input: TokenStream) -> TokenStream {
 
   let name = input.ident;
   let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-  
+
   quote! {
     impl #impl_generics gravitron_ecs::components::Component for #name #type_generics #where_clause {
       fn id(&self) -> gravitron_ecs::ComponentId {
