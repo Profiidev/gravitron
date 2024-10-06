@@ -6,8 +6,10 @@ use crate::config::app::AppConfig;
 const REQUIRED_EXTENSION_NAMES: [*const i8; 1] = [khr::surface::NAME.as_ptr()];
 
 #[cfg(target_os = "linux")]
-const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 2] = [
+const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 1] = [
+  #[cfg(feature = "wayland")]
   khr::wayland_surface::NAME.as_ptr(),
+  #[cfg(not(feature = "wayland"))]
   khr::xlib_surface::NAME.as_ptr(),
 ];
 

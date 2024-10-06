@@ -1,8 +1,9 @@
-use std::time::Instant;
-
 use crate::ecs::Component;
+use crate::vulkan::graphics::resources::material::Material;
+use crate::Id;
 
-#[derive(Component, Debug)]
+#[derive(Component)]
 pub struct MeshRenderer {
-  pub x: Instant,
+  pub model_id: Id,
+  pub material: Material,
 }

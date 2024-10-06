@@ -5,8 +5,10 @@ use gravitron_utils::thread::Signal;
 use log::{debug, info};
 #[cfg(target_os = "macos")]
 use winit::platform::macos::EventLoopBuilderExtMacOS;
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "wayland"))]
 use winit::platform::wayland::EventLoopBuilderExtWayland;
+#[cfg(all(target_os = "linux", not(feature = "wayland")))]
+use winit::platform::x11::EventLoopBuilderExtX11;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
 use winit::{
@@ -39,6 +41,10 @@ impl Window {
     let mut event_loop = EventLoop::builder();
     #[cfg(not(target_os = "macos"))]
     let event_loop = event_loop.with_any_thread(true);
+    #[cfg(all(target_os = "linux", feature = "wayland"))]
+    let event_loop = event_loop.with_wayland();
+    #[cfg(all(target_os = "linux", not(feature = "wayland")))]
+    let event_loop = event_loop.with_x11();
     let event_loop = event_loop.build()?;
 
     debug!("Starting Event Loop");
@@ -85,7 +91,6 @@ impl ApplicationHandler for Window {
     _window_id: winit::window::WindowId,
     event: winit::event::WindowEvent,
   ) {
-    debug!("Window Event");
     match event {
       winit::event::WindowEvent::CloseRequested => {
         info!("Window sending exit request");

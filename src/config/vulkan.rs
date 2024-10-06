@@ -169,7 +169,6 @@ pub enum ShaderInputVariable {
 #[derive(Default)]
 pub struct DescriptorSet {
   pub descriptors: Vec<Descriptor>,
-  pub type_: vk::DescriptorType,
 }
 
 pub enum DescriptorType {
@@ -182,32 +181,43 @@ impl DescriptorSet {
     self.descriptors.push(layout);
     self
   }
-
-  pub fn set_type(mut self, type_: DescriptorType) -> Self {
-    self.type_ = match type_ {
-      DescriptorType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
-      DescriptorType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
-    };
-    self
-  }
 }
 
 pub struct Descriptor {
   pub type_: vk::DescriptorType,
+  pub buffer_usage: vk::BufferUsageFlags,
   pub descriptor_count: u32,
   pub stage: vk::ShaderStageFlags,
+  pub size: u64,
 }
 
 impl Descriptor {
   pub fn new(
-    type_: vk::DescriptorType,
+    type_: DescriptorType,
     descriptor_count: u32,
     stage: vk::ShaderStageFlags,
+    size: u64,
   ) -> Self {
+    let (type_, buffer_usage) = convert_type(type_);
     Self {
       type_,
+      buffer_usage,
       descriptor_count,
       stage,
+      size,
     }
+  }
+}
+
+fn convert_type(type_: DescriptorType) -> (vk::DescriptorType, vk::BufferUsageFlags) {
+  match type_ {
+    DescriptorType::StorageBuffer => (
+      vk::DescriptorType::STORAGE_BUFFER,
+      vk::BufferUsageFlags::STORAGE_BUFFER,
+    ),
+    DescriptorType::UniformBuffer => (
+      vk::DescriptorType::UNIFORM_BUFFER,
+      vk::BufferUsageFlags::UNIFORM_BUFFER,
+    ),
   }
 }

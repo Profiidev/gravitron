@@ -1,14 +1,18 @@
+use std::collections::HashMap;
+
 use ash::{khr, vk};
 use gpu_allocator::vulkan;
 
 use crate::{
   config::app::AppConfig,
   vulkan::{device::Device, instance::InstanceDevice, surface::Surface},
+  Id,
 };
 
 use super::{
   pipeline::Pipeline,
   pools::{CommandBufferType, Pools},
+  resources::model::{InstanceData, ModelManager},
 };
 
 pub struct SwapChain {
@@ -264,6 +268,8 @@ impl SwapChain {
     device: &ash::Device,
     render_pass: vk::RenderPass,
     pipeline: &Pipeline,
+    model_manager: &ModelManager,
+    instances: &HashMap<Id, Vec<InstanceData>>,
   ) -> Result<(), vk::Result> {
     let buffer = self.command_buffer[self.current_image];
     let buffer_begin_info = vk::CommandBufferBeginInfo::default();
@@ -295,16 +301,9 @@ impl SwapChain {
 
     unsafe {
       device.cmd_begin_render_pass(buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
-      device.cmd_bind_pipeline(buffer, vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline());
 
-      device.cmd_bind_descriptor_sets(
-        buffer,
-        vk::PipelineBindPoint::GRAPHICS,
-        pipeline.layout(),
-        0,
-        pipeline.descriptor_sets(),
-        &[],
-      );
+      pipeline.record_command_buffer(buffer, device);
+      model_manager.record_command_buffer(instances, buffer, device);
 
       device.cmd_end_render_pass(buffer);
       device.end_command_buffer(buffer)?;

@@ -90,4 +90,5 @@ void main() {
   }
 
   fragColor = vec4(l / (1 + l), 1.0);
+  fragColor = vec4(fragColorIn, 1.0);
 }

@@ -10,7 +10,7 @@ use gravitron_ecs::{
   ECSBuilder, EntityId, ECS,
 };
 use gravitron_utils::thread::Signal;
-use log::info;
+use log::{info, trace};
 use window::Window;
 
 use crate::{
@@ -47,6 +47,8 @@ impl Gravitron {
 
     loop {
       if last_frame.elapsed() > time_per_frame {
+        last_frame = Instant::now();
+
         self.ecs.run();
 
         let engine_commands = world.get_resource_mut::<EngineCommands>().unwrap();
@@ -59,7 +61,7 @@ impl Gravitron {
 
         engine_commands.execute(&mut self.ecs);
 
-        last_frame = Instant::now();
+        trace!("Game loop tok {:?}", last_frame.elapsed());
       }
     }
   }
