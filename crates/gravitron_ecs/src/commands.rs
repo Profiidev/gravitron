@@ -50,7 +50,7 @@ impl Commands {
 
   pub fn add_comp(&mut self, entity: EntityId, comp: impl Component) {
     trace!(
-      "Registering Add Component Command for Entity {} with Component {}",
+      "Registering Add Component Command for Entity {} with Component {:?}",
       entity,
       comp.id()
     );
@@ -63,7 +63,7 @@ impl Commands {
 
   pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
     trace!(
-      "Registering Remove Component Command for Entity {} with Component {}",
+      "Registering Remove Component Command for Entity {} with Component {:?}",
       entity,
       comp
     );
@@ -123,7 +123,7 @@ struct AddComponentCommand {
 impl Command for AddComponentCommand {
   fn execute(&mut self, storage: &mut Storage) {
     trace!(
-      "Executing Add Component Command for Entity {} with Component {}",
+      "Executing Add Component Command for Entity {} with Component {:?}",
       self.id,
       self.comp.as_ref().unwrap().id()
     );
@@ -140,7 +140,7 @@ struct RemoveComponentCommand {
 impl Command for RemoveComponentCommand {
   fn execute(&mut self, storage: &mut Storage) {
     trace!(
-      "Executing Remove Component Command for Entity {} with Component {}",
+      "Executing Remove Component Command for Entity {} with Component {:?}",
       self.id,
       self.comp
     );
@@ -190,6 +190,6 @@ mod test {
     let mut world = World::default();
     let mut commands = Commands::create(UnsafeWorldCell::new(&mut world));
 
-    commands.remove_comp(0, 0);
+    commands.remove_comp(0, std::any::TypeId::of::<A>());
   }
 }

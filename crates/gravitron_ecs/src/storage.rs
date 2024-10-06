@@ -180,7 +180,7 @@ impl<'a> Storage<'a> {
   }
 
   pub fn add_comp(&mut self, entity: EntityId, comp: Box<dyn Component>) {
-    trace!("Adding Component {} to Entity {}", comp.id(), entity);
+    trace!("Adding Component {:?} to Entity {}", comp.id(), entity);
 
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
@@ -234,7 +234,7 @@ impl<'a> Storage<'a> {
   }
 
   pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
-    trace!("Removing Component {} from Entity {}", comp, entity);
+    trace!("Removing Component {:?} from Entity {}", comp, entity);
 
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };

@@ -85,7 +85,7 @@ macro_rules! impl_query_param {
       fn into_query(entity: (EntityId, &'a mut Vec<Box<dyn Component>>)) -> Self::Item {
         let mut $one = None;
 
-        if $one::id() == EntityId::MAX {
+        if $one::id() == std::any::TypeId::of::<EntityId>() {
           $one = Some($one::into_param(ParamType::Id(entity.0)));
         }
 
@@ -124,7 +124,7 @@ macro_rules! impl_query_param {
           let mut $params = None;
         )*
 
-        if $first::id() == EntityId::MAX {
+        if $first::id() == std::any::TypeId::of::<EntityId>() {
           $first = Some($first::into_param(ParamType::Id(entity.0)));
         }
 
@@ -227,7 +227,7 @@ impl<'a> QueryParamItem<'a> for EntityId {
   type Item = EntityId;
 
   fn id() -> ComponentId {
-    ComponentId::MAX
+    std::any::TypeId::of::<EntityId>()
   }
 
   fn into_param(input: ParamType<'a>) -> Self::Item {
