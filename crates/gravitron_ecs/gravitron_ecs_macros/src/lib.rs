@@ -1,27 +1,23 @@
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{parse::Parse, parse_macro_input, token::Comma, Ident, ItemStruct, LitInt};
 
-static COMPONENT_ID: AtomicU64 = AtomicU64::new(0);
-
 #[proc_macro_derive(Component)]
 pub fn component(input: TokenStream) -> TokenStream {
   let input = parse_macro_input!(input as ItemStruct);
 
-  let name = input.ident.clone();
-  let id = COMPONENT_ID.fetch_add(1, Ordering::SeqCst);
-
+  let name = input.ident;
+  let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+  
   quote! {
-    impl gravitron_ecs::components::Component for #name {
+    impl #impl_generics gravitron_ecs::components::Component for #name #type_generics #where_clause {
       fn id(&self) -> gravitron_ecs::ComponentId {
-        #id as gravitron_ecs::ComponentId
+        std::any::TypeId::of::<#name>() as gravitron_ecs::ComponentId
       }
 
       fn sid() -> gravitron_ecs::ComponentId {
-        #id as gravitron_ecs::ComponentId
+        std::any::TypeId::of::<#name>() as gravitron_ecs::ComponentId
       }
     }
   }
