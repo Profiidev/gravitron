@@ -1,12 +1,12 @@
 use gravitron::{
   config::EngineConfig,
+  ecs::{systems::query::Query, Component},
   ecs_resources::components::{
     camera::CameraBuilder, renderer::MeshRenderer, transform::Transform,
   },
   engine::Gravitron,
   math,
   vulkan::graphics::resources::material::Material,
-  ecs::{Component, systems::query::Query}
 };
 
 fn main() {
@@ -23,7 +23,7 @@ fn main() {
       },
     },
     transform,
-    Marker::default()
+    Marker::default(),
   ));
   let mut transform = Transform::default();
   transform.set_position(math::Vec3::new(0.0, 0.0, 0.0));
@@ -39,7 +39,11 @@ fn main() {
   ));
 
   let mut camera_transform = Transform::default();
-  camera_transform.set_rotation(-std::f32::consts::FRAC_PI_4, std::f32::consts::FRAC_PI_4 * 3.0, 0.0);
+  camera_transform.set_rotation(
+    -std::f32::consts::FRAC_PI_4,
+    std::f32::consts::FRAC_PI_4 * 3.0,
+    0.0,
+  );
   dbg!(camera_transform.rotation() * math::Vec3::X);
   camera_transform.set_position(math::Vec3::new(10.0, 10.0, 10.0));
   builder.create_entity((
