@@ -1,10 +1,16 @@
 use std::collections::HashMap;
 
+use anyhow::Error;
 use ash::vk;
+use gpu_allocator::vulkan;
 
-use crate::config::vulkan::{
-  ComputePipelineConfig, Descriptor, DescriptorSet, GraphicsPipelineConfig, PipelineType,
-  ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
+use crate::{
+  config::vulkan::{
+    ComputePipelineConfig, Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig,
+    PipelineType, ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
+  },
+  ecs_resources::components::camera::Camera,
+  vulkan::shader::buffer::Buffer,
 };
 
 pub fn init_render_pass(
@@ -61,7 +67,7 @@ pub fn init_render_pass(
 }
 
 pub struct PipelineManager {
-  pub pipelines: HashMap<String, Pipeline>,
+  pipelines: HashMap<String, Pipeline>,
   descriptor_pool: vk::DescriptorPool,
 }
 
@@ -71,7 +77,8 @@ impl PipelineManager {
     render_pass: vk::RenderPass,
     swap_chain_extent: &vk::Extent2D,
     pipelines: &mut Vec<PipelineType>,
-  ) -> Result<Self, vk::Result> {
+    allocator: &mut vulkan::Allocator,
+  ) -> Result<Self, Error> {
     pipelines.push(PipelineType::Graphics(Pipeline::default_shader(
       swap_chain_extent,
     )));
@@ -82,14 +89,18 @@ impl PipelineManager {
       match pipeline {
         PipelineType::Graphics(c) => {
           descriptor_count += c.descriptor_sets.len();
-          for descriptor in &c.descriptor_sets {
-            add_descriptor_set(&mut pool_sizes, descriptor);
+          for descriptor_set in &c.descriptor_sets {
+            for descriptor in &descriptor_set.descriptors {
+              add_descriptor(&mut pool_sizes, descriptor);
+            }
           }
         }
         PipelineType::Compute(c) => {
           descriptor_count += c.descriptor_sets.len();
-          for descriptor in &c.descriptor_sets {
-            add_descriptor_set(&mut pool_sizes, descriptor);
+          for descriptor_set in &c.descriptor_sets {
+            for descriptor in &descriptor_set.descriptors {
+              add_descriptor(&mut pool_sizes, descriptor);
+            }
           }
         }
       }
@@ -107,13 +118,19 @@ impl PipelineManager {
         PipelineType::Graphics(config) => {
           vk_pipelines.insert(
             config.name.clone(),
-            Pipeline::init_graphics_pipeline(logical_device, render_pass, config, descriptor_pool)?,
+            Pipeline::init_graphics_pipeline(
+              logical_device,
+              render_pass,
+              config,
+              descriptor_pool,
+              allocator,
+            )?,
           );
         }
         PipelineType::Compute(config) => {
           vk_pipelines.insert(
             config.name.clone(),
-            Pipeline::init_compute_pipeline(logical_device, config, descriptor_pool)?,
+            Pipeline::init_compute_pipeline(logical_device, config, descriptor_pool, allocator)?,
           );
         }
       }
@@ -125,18 +142,26 @@ impl PipelineManager {
     })
   }
 
-  pub fn destroy(&self, logical_device: &ash::Device) {
+  pub fn destroy(&mut self, logical_device: &ash::Device, allocator: &mut vulkan::Allocator) {
     unsafe {
       logical_device.destroy_descriptor_pool(self.descriptor_pool, None);
     }
     std::fs::create_dir_all("cache").unwrap();
-    for pipeline in self.pipelines.values() {
-      pipeline.destroy(logical_device);
+    for pipeline in self.pipelines.values_mut() {
+      pipeline.destroy(logical_device, allocator);
     }
   }
 
   pub fn get_pipeline(&self, name: &str) -> Option<&Pipeline> {
     self.pipelines.get(name)
+  }
+
+  pub fn update_camera(&mut self, camera: &Camera) {
+    for pipeline in self.pipelines.values_mut() {
+      pipeline.descriptor_buffers[0][0]
+        .fill(&[camera.view_matrix(), camera.projection_matrix()])
+        .unwrap();
+    }
   }
 }
 
@@ -144,8 +169,10 @@ pub struct Pipeline {
   name: String,
   pipeline: vk::Pipeline,
   pipeline_layout: vk::PipelineLayout,
+  pipeline_bind_point: vk::PipelineBindPoint,
   descriptor_sets: Vec<vk::DescriptorSet>,
   descriptor_set_layouts: Vec<vk::DescriptorSetLayout>,
+  descriptor_buffers: Vec<Vec<Buffer>>,
   cache: vk::PipelineCache,
 }
 
@@ -178,14 +205,16 @@ impl Pipeline {
         .add_variable(ShaderInputVariable::Float),
     )
     .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
-      vk::DescriptorType::UNIFORM_BUFFER,
+      DescriptorType::UniformBuffer,
       1,
       vk::ShaderStageFlags::VERTEX,
+      128,
     )))
     .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
-      vk::DescriptorType::STORAGE_BUFFER,
+      DescriptorType::StorageBuffer,
       1,
       vk::ShaderStageFlags::FRAGMENT,
+      144,
     )))
   }
 
@@ -193,7 +222,8 @@ impl Pipeline {
     logical_device: &ash::Device,
     pipeline: &ComputePipelineConfig,
     descriptor_pool: vk::DescriptorPool,
-  ) -> Result<Self, vk::Result> {
+    allocator: &mut vulkan::Allocator,
+  ) -> Result<Self, Error> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
     let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&pipeline.shader.code);
@@ -204,14 +234,13 @@ impl Pipeline {
       .module(shader_module)
       .name(&main_function_name);
 
-    let descriptor_layouts =
-      Self::get_descriptor_set_layouts(&pipeline.descriptor_sets, logical_device)?;
-
-    let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo::default()
-      .descriptor_pool(descriptor_pool)
-      .set_layouts(&descriptor_layouts);
-    let descriptor_sets =
-      unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info)? };
+    let (descriptor_layouts, descriptor_sets, descriptor_buffers) =
+      Self::get_descriptor_set_layouts(
+        &pipeline.descriptor_sets,
+        descriptor_pool,
+        logical_device,
+        allocator,
+      )?;
 
     let pipeline_layout_create_info =
       vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
@@ -238,8 +267,10 @@ impl Pipeline {
       name: pipeline.name.clone(),
       pipeline: vk_pipelines,
       pipeline_layout,
+      pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
       descriptor_sets,
       descriptor_set_layouts: descriptor_layouts,
+      descriptor_buffers,
       cache: pipeline_cache,
     })
   }
@@ -249,7 +280,8 @@ impl Pipeline {
     render_pass: vk::RenderPass,
     pipeline: &GraphicsPipelineConfig,
     descriptor_pool: vk::DescriptorPool,
-  ) -> Result<Self, vk::Result> {
+    allocator: &mut vulkan::Allocator,
+  ) -> Result<Self, Error> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
     let mut shader_modules = vec![];
@@ -386,14 +418,13 @@ impl Pipeline {
     let color_blend_info =
       vk::PipelineColorBlendStateCreateInfo::default().attachments(&color_blend_attachment);
 
-    let descriptor_layouts =
-      Self::get_descriptor_set_layouts(&pipeline.descriptor_sets, logical_device)?;
-
-    let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo::default()
-      .descriptor_pool(descriptor_pool)
-      .set_layouts(&descriptor_layouts);
-    let descriptor_sets =
-      unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info)? };
+    let (descriptor_layouts, descriptor_sets, descriptor_buffers) =
+      Self::get_descriptor_set_layouts(
+        &pipeline.descriptor_sets,
+        descriptor_pool,
+        logical_device,
+        allocator,
+      )?;
 
     let pipeline_layout_create_info =
       vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
@@ -436,25 +467,39 @@ impl Pipeline {
       name: pipeline.name.clone(),
       pipeline: vk_pipelines,
       pipeline_layout,
+      pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
       descriptor_sets,
       descriptor_set_layouts: descriptor_layouts,
+      descriptor_buffers,
       cache: pipeline_cache,
     })
   }
 
+  #[allow(clippy::complexity)]
   fn get_descriptor_set_layouts(
-    descriptor_sets: &Vec<DescriptorSet>,
+    descriptor_sets_config: &Vec<DescriptorSet>,
+    descriptor_pool: vk::DescriptorPool,
     logical_device: &ash::Device,
-  ) -> Result<Vec<vk::DescriptorSetLayout>, vk::Result> {
+    allocator: &mut vulkan::Allocator,
+  ) -> Result<
+    (
+      Vec<vk::DescriptorSetLayout>,
+      Vec<vk::DescriptorSet>,
+      Vec<Vec<Buffer>>,
+    ),
+    Error,
+  > {
     let mut descriptor_layouts = vec![];
-    for descriptor_set in descriptor_sets {
+
+    for descriptor_set in descriptor_sets_config {
       let mut descriptor_set_layout_binding_descs = vec![];
+
       for (i, descriptor) in descriptor_set.descriptors.iter().enumerate() {
         descriptor_set_layout_binding_descs.push(
           vk::DescriptorSetLayoutBinding::default()
             .binding(i as u32)
             .descriptor_type(descriptor.type_)
-            .descriptor_count(1)
+            .descriptor_count(descriptor.descriptor_count)
             .stage_flags(descriptor.stage),
         );
       }
@@ -467,7 +512,50 @@ impl Pipeline {
       descriptor_layouts.push(descriptor_set_layout);
     }
 
-    Ok(descriptor_layouts)
+    let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo::default()
+      .descriptor_pool(descriptor_pool)
+      .set_layouts(&descriptor_layouts);
+    let descriptor_sets =
+      unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info)? };
+
+    let mut descriptor_buffers = vec![];
+
+    for (j, descriptor_set) in descriptor_sets_config.iter().enumerate() {
+      let mut buffers = vec![];
+      let mut offset = 0;
+
+      for (i, descriptor) in descriptor_set.descriptors.iter().enumerate() {
+        let buffer = Buffer::new(
+          allocator,
+          logical_device,
+          descriptor.size,
+          descriptor.buffer_usage,
+          gpu_allocator::MemoryLocation::CpuToGpu,
+        )?;
+
+        let buffer_info_descriptor = [vk::DescriptorBufferInfo::default()
+          .buffer(buffer.buffer())
+          .offset(offset)
+          .range(descriptor.size)];
+        let write_desc_set = vk::WriteDescriptorSet::default()
+          .dst_set(descriptor_sets[j])
+          .dst_binding(i as u32)
+          .descriptor_type(descriptor.type_)
+          .buffer_info(&buffer_info_descriptor);
+
+        unsafe {
+          logical_device.update_descriptor_sets(&[write_desc_set], &[]);
+        }
+
+        buffers.push(buffer);
+
+        offset += descriptor.size;
+      }
+
+      descriptor_buffers.push(buffers);
+    }
+
+    Ok((descriptor_layouts, descriptor_sets, descriptor_buffers))
   }
 
   fn create_shader_cache(
@@ -482,8 +570,13 @@ impl Pipeline {
     unsafe { logical_device.create_pipeline_cache(&pipeline_cache_create_info, None) }
   }
 
-  pub fn destroy(&self, logical_device: &ash::Device) {
+  pub fn destroy(&mut self, logical_device: &ash::Device, allocator: &mut vulkan::Allocator) {
     unsafe {
+      for buffers in &mut self.descriptor_buffers {
+        for buffer in std::mem::take(buffers) {
+          buffer.cleanup(logical_device, allocator).unwrap();
+        }
+      }
       for layout in &self.descriptor_set_layouts {
         logical_device.destroy_descriptor_set_layout(*layout, None);
       }
@@ -496,20 +589,24 @@ impl Pipeline {
     }
   }
 
-  pub fn pipeline(&self) -> vk::Pipeline {
-    self.pipeline
-  }
-
-  pub fn layout(&self) -> vk::PipelineLayout {
-    self.pipeline_layout
-  }
-
-  pub fn descriptor_sets(&self) -> &[vk::DescriptorSet] {
-    &self.descriptor_sets
+  pub unsafe fn record_command_buffer(
+    &self,
+    command_buffer: vk::CommandBuffer,
+    device: &ash::Device,
+  ) {
+    device.cmd_bind_pipeline(command_buffer, self.pipeline_bind_point, self.pipeline);
+    device.cmd_bind_descriptor_sets(
+      command_buffer,
+      self.pipeline_bind_point,
+      self.pipeline_layout,
+      0,
+      &self.descriptor_sets,
+      &[],
+    );
   }
 }
 
-fn add_descriptor_set(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, desc: &DescriptorSet) {
+fn add_descriptor(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, desc: &Descriptor) {
   if let Some(pool) = pool_sizes.iter_mut().find(|s| s.ty == desc.type_) {
     pool.descriptor_count += 1;
   } else {

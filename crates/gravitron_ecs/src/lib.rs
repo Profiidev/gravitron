@@ -1,3 +1,5 @@
+use std::any::TypeId;
+
 use entity::IntoEntity;
 use scheduler::{Scheduler, SchedulerBuilder};
 use systems::{IntoSystem, System};
@@ -14,7 +16,7 @@ pub(crate) mod world;
 pub use gravitron_ecs_macros::Component;
 
 pub type Id = u64;
-pub type ComponentId = Id;
+pub type ComponentId = TypeId;
 pub type EntityId = Id;
 type ArchetypeId = Id;
 type SystemId = Id;
