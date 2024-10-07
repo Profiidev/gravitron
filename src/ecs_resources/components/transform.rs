@@ -36,8 +36,8 @@ impl Transform {
     self.set_position_matrix();
   }
 
-  pub fn set_rotation(&mut self, rotation: glam::Quat) {
-    self.rotation = rotation;
+  pub fn set_rotation(&mut self, x: f32, y: f32, z: f32) {
+    self.rotation = glam::Quat::from_euler(glam::EulerRot::XZYEx, z, x, y);
     self.set_position_matrix();
   }
 
