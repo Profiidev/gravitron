@@ -37,10 +37,12 @@ impl World {
 
   pub fn add_resource<R: 'static>(&mut self, res: R) {
     debug!("Adding Resource {}", std::any::type_name::<R>());
-    if self.get_resource::<R>().is_some() {
+
+    let id = TypeId::of::<R>();
+    if self.resources.contains_key(&id) {
       return;
     }
-    self.resources.insert(TypeId::of::<R>(), Box::new(res));
+    self.resources.insert(id, Box::new(res));
   }
 
   pub fn get_resource<R: 'static>(&self) -> Option<&R> {
