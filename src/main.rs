@@ -1,9 +1,13 @@
 use gravitron::{
   config::EngineConfig,
-  ecs::{systems::{query::Query, resources::Res}, Component},
-  ecs_resources::{components::{
-    camera::CameraBuilder, renderer::MeshRenderer, transform::Transform,
-  }, resources::engine_info::EngineInfo},
+  ecs::{
+    systems::{query::Query, resources::Res},
+    Component,
+  },
+  ecs_resources::{
+    components::{camera::CameraBuilder, renderer::MeshRenderer, transform::Transform},
+    resources::engine_info::EngineInfo,
+  },
   engine::Gravitron,
   math,
   vulkan::graphics::resources::material::Material,

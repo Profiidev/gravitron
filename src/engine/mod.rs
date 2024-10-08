@@ -15,7 +15,10 @@ use window::Window;
 
 use crate::{
   config::EngineConfig,
-  ecs_resources::{resources::{engine_commands::EngineCommands, engine_info::EngineInfo}, systems::add_systems},
+  ecs_resources::{
+    resources::{engine_commands::EngineCommands, engine_info::EngineInfo},
+    systems::add_systems,
+  },
 };
 
 mod window;
@@ -49,7 +52,7 @@ impl Gravitron {
       let elapsed = last_frame.elapsed();
       if elapsed > time_per_frame {
         self.ecs.set_resource(EngineInfo {
-          delta_time: elapsed.as_secs_f32()
+          delta_time: elapsed.as_secs_f32(),
         });
 
         last_frame = Instant::now();
