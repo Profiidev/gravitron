@@ -1,9 +1,9 @@
 use gravitron::{
   config::EngineConfig,
-  ecs::{systems::query::Query, Component},
-  ecs_resources::components::{
+  ecs::{systems::{query::Query, resources::Res}, Component},
+  ecs_resources::{components::{
     camera::CameraBuilder, renderer::MeshRenderer, transform::Transform,
-  },
+  }, resources::engine_info::EngineInfo},
   engine::Gravitron,
   math,
   vulkan::graphics::resources::material::Material,
@@ -60,12 +60,12 @@ pub struct Marker {
   t: f32,
 }
 
-fn test(q: Query<(&mut Transform, &mut Marker)>) {
+fn test(info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
   for (t, m) in q {
     let mut pos = t.position();
     pos.x = m.t.cos() * 5.0;
     pos.z = m.t.sin() * 5.0;
     t.set_position(pos);
-    m.t += 0.01;
+    m.t += 0.5 * info.delta_time();
   }
 }

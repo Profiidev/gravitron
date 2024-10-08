@@ -15,7 +15,7 @@ use window::Window;
 
 use crate::{
   config::EngineConfig,
-  ecs_resources::{resources::engine_commands::EngineCommands, systems::add_systems},
+  ecs_resources::{resources::{engine_commands::EngineCommands, engine_info::EngineInfo}, systems::add_systems},
 };
 
 mod window;
@@ -46,7 +46,12 @@ impl Gravitron {
     let world = unsafe { self.ecs.world_cell.world_mut() };
 
     loop {
-      if last_frame.elapsed() > time_per_frame {
+      let elapsed = last_frame.elapsed();
+      if elapsed > time_per_frame {
+        self.ecs.set_resource(EngineInfo {
+          delta_time: elapsed.as_secs_f32()
+        });
+
         last_frame = Instant::now();
 
         self.ecs.run();
@@ -126,6 +131,7 @@ impl GravitronBuilder {
     self
       .ecs
       .add_resource(EngineCommands::create(window_handle, shutdown));
+    self.ecs.add_resource(EngineInfo::default());
 
     self.ecs.add_resource(window_ready.wait());
 
