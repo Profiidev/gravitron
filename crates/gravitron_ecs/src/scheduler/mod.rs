@@ -1,5 +1,9 @@
 use std::{
-  collections::HashMap, hash::Hash, sync::{atomic::AtomicUsize, Arc}, thread, time::Duration
+  collections::HashMap,
+  hash::Hash,
+  sync::{atomic::AtomicUsize, Arc},
+  thread,
+  time::Duration,
 };
 
 use graph::Graph;
