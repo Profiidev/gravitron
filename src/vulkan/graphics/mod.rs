@@ -27,7 +27,7 @@ pub struct Renderer {
   pipeline: PipelineManager,
   pools: Pools,
   model_manager: ModelManager,
-  instances: HashMap<Id, Vec<InstanceData>>,
+  instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>,
 }
 
 impl Renderer {
@@ -48,7 +48,7 @@ impl Renderer {
       .first()
       .ok_or(RendererInitError::FormatMissing)?
       .format;
-    let render_pass = pipeline::init_render_pass(logical_device, format)?;
+    let render_pass = pipeline::init_render_pass(logical_device, format, config.shaders.len() + 1)?;
     let swap_chain = SwapChain::init(
       instance,
       device,
@@ -95,20 +95,46 @@ impl Renderer {
   }
 
   pub fn record_command_buffer(&self, device: &ash::Device) -> Result<(), vk::Result> {
-    self.swap_chain.record_command_buffer(
-      device,
-      self.render_pass,
-      self.pipeline.get_pipeline("default").unwrap(),
-      &self.model_manager,
-      &self.instances,
-    )
+    let buffer = self
+      .swap_chain
+      .record_command_buffer_first(device, self.render_pass)?;
+
+    let names = self.pipeline.pipeline_names();
+    let pipeline_count = names.len();
+    for (i, pipeline) in names.into_iter().enumerate() {
+      unsafe {
+        self
+          .pipeline
+          .get_pipeline(pipeline)
+          .unwrap()
+          .record_command_buffer(buffer, device)
+      };
+
+      if let Some(instances) = self.instances.get(pipeline) {
+        self.model_manager.record_command_buffer(instances, buffer, device);
+      }
+
+      if i + 1 < pipeline_count {
+        unsafe {
+          device.cmd_next_subpass(buffer, vk::SubpassContents::INLINE);
+        }
+      }
+    }
+
+    self.swap_chain.record_command_buffer_second(device, buffer)
   }
 
-  pub fn draw_frame(&mut self, device: &Device, allocator: &mut vulkan::Allocator) {
-    self
-      .model_manager
-      .update_instance_buffer(&self.instances, device.get_device(), allocator)
-      .unwrap();
+  pub fn set_instances(&mut self, instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>, device: &ash::Device, allocator: &mut vulkan::Allocator) {
+    self.instances = instances;
+    for instances in self.instances.values() {
+      self
+        .model_manager
+        .update_instance_buffer(instances, device, allocator)
+        .unwrap();
+    }
+  }
+
+  pub fn draw_frame(&mut self, device: &Device) {
     self.swap_chain.draw_frame(device);
   }
 

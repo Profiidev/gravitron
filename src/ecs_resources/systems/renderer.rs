@@ -33,9 +33,10 @@ pub fn renderer_recording(
     return;
   };
 
-  let mut models: HashMap<Id, Vec<InstanceData>> = HashMap::new();
+  let mut models: HashMap<String, HashMap<Id, Vec<InstanceData>>> = HashMap::new();
   for (mesh_render, transform) in to_render {
-    let instances = models.entry(mesh_render.model_id).or_default();
+    let shader = models.entry(mesh_render.material.shader.clone()).or_default();
+    let instances = shader.entry(mesh_render.model_id).or_default();
     let material = &mesh_render.material;
     instances.push(InstanceData::new(
       transform.matrix(),
@@ -45,6 +46,7 @@ pub fn renderer_recording(
       material.roughness,
     ));
   }
+  vulkan.set_instances(models);
 
   vulkan.record_command_buffer();
 }

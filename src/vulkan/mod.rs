@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::mem::ManuallyDrop;
 
 use anyhow::Error;
@@ -5,6 +6,7 @@ use anyhow::Error;
 use debug::Debugger;
 use device::Device;
 use gpu_allocator::vulkan;
+use graphics::resources::model::InstanceData;
 use graphics::Renderer;
 use instance::{InstanceDevice, InstanceDeviceConfig};
 use surface::Surface;
@@ -12,6 +14,7 @@ use winit::window::Window;
 
 use crate::config::{app::AppConfig, vulkan::VulkanConfig};
 use crate::ecs_resources::components::camera::Camera;
+use crate::Id;
 
 #[cfg(feature = "debug")]
 mod debug;
@@ -102,7 +105,11 @@ impl Vulkan {
   }
 
   pub fn draw_frame(&mut self) {
-    self.renderer.draw_frame(&self.device, &mut self.allocator);
+    self.renderer.draw_frame(&self.device);
+  }
+
+  pub fn set_instances(&mut self, instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>) {
+    self.renderer.set_instances(instances, self.device.get_device(), &mut self.allocator);
   }
 
   pub fn record_command_buffer(&self) {

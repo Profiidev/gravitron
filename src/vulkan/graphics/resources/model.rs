@@ -14,8 +14,7 @@ pub struct ModelManager {
 pub const CUBE_MODEL: Id = 0;
 
 pub struct Model {
-  //vertex_data: Vec<VertexData>,
-  index_data: Vec<u32>,
+  index_len: u32,
   vertex_buffer: Option<Buffer>,
   index_buffer: Option<Buffer>,
   instance_buffer: Option<Buffer>,
@@ -128,8 +127,7 @@ impl Model {
     )?;
 
     Ok(Self {
-      //vertex_data,
-      index_data,
+      index_len: index_data.len() as u32,
       vertex_buffer: Some(vertex_buffer),
       index_buffer: Some(index_buffer),
       instance_buffer: Some(instance_buffer),
@@ -200,7 +198,7 @@ impl Model {
       );
       device.cmd_draw_indexed(
         command_buffer,
-        self.index_data.len() as u32,
+        self.index_len,
         instance_count,
         0,
         0,

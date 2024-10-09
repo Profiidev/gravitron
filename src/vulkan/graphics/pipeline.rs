@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
@@ -16,39 +14,84 @@ use crate::{
 pub fn init_render_pass(
   logical_device: &ash::Device,
   format: vk::Format,
+  pipeline_count: usize,
 ) -> Result<vk::RenderPass, vk::Result> {
-  let attachment = [
-    vk::AttachmentDescription::default()
-      .format(format)
-      .samples(vk::SampleCountFlags::TYPE_1)
-      .load_op(vk::AttachmentLoadOp::CLEAR)
-      .store_op(vk::AttachmentStoreOp::STORE)
-      .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-      .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-      .initial_layout(vk::ImageLayout::UNDEFINED)
-      .final_layout(vk::ImageLayout::PRESENT_SRC_KHR),
-    vk::AttachmentDescription::default()
-      .format(vk::Format::D32_SFLOAT)
-      .samples(vk::SampleCountFlags::TYPE_1)
-      .load_op(vk::AttachmentLoadOp::CLEAR)
-      .store_op(vk::AttachmentStoreOp::DONT_CARE)
-      .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-      .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-      .initial_layout(vk::ImageLayout::UNDEFINED)
-      .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL),
-  ];
+    let color = vk::AttachmentDescription::default()
+        .format(format)
+        .samples(vk::SampleCountFlags::TYPE_1)
+        .load_op(vk::AttachmentLoadOp::LOAD)
+        .store_op(vk::AttachmentStoreOp::STORE)
+        .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+        .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+        .initial_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+        .final_layout(vk::ImageLayout::PRESENT_SRC_KHR);
+    let depth = vk::AttachmentDescription::default()
+        .format(vk::Format::D32_SFLOAT)
+        .samples(vk::SampleCountFlags::TYPE_1)
+        .load_op(vk::AttachmentLoadOp::LOAD)
+        .store_op(vk::AttachmentStoreOp::STORE)
+        .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+        .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+        .initial_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+        .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-  let color_attachment_ref = [vk::AttachmentReference::default()
-    .attachment(0)
-    .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
-  let depth_attachment_ref = vk::AttachmentReference::default()
-    .attachment(1)
+  let attachment = if pipeline_count == 1 {
+    vec![
+      color.load_op(vk::AttachmentLoadOp::CLEAR).final_layout(vk::ImageLayout::PRESENT_SRC_KHR).initial_layout(vk::ImageLayout::UNDEFINED),
+      depth.load_op(vk::AttachmentLoadOp::CLEAR).initial_layout(vk::ImageLayout::UNDEFINED),
+    ]
+  } else if pipeline_count == 2 {
+    vec![
+      color.load_op(vk::AttachmentLoadOp::CLEAR).initial_layout(vk::ImageLayout::UNDEFINED),
+      depth.load_op(vk::AttachmentLoadOp::CLEAR).initial_layout(vk::ImageLayout::UNDEFINED),
+      color.final_layout(vk::ImageLayout::PRESENT_SRC_KHR),
+      depth,
+    ]
+  } else {
+    vec![
+      color.load_op(vk::AttachmentLoadOp::CLEAR).initial_layout(vk::ImageLayout::UNDEFINED),
+      depth.load_op(vk::AttachmentLoadOp::CLEAR).initial_layout(vk::ImageLayout::UNDEFINED),
+      color,
+      depth,
+      color.final_layout(vk::ImageLayout::PRESENT_SRC_KHR),
+      depth,
+    ]
+  };
+
+  let end = if pipeline_count <= 2 { 2 } else { 4 };
+
+  let color = vk::AttachmentReference::default()
+    .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+  let depth = vk::AttachmentReference::default()
     .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-  let subpass = [vk::SubpassDescription::default()
-    .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-    .depth_stencil_attachment(&depth_attachment_ref)
-    .color_attachments(&color_attachment_ref)];
+  let start_color_ref = [color.attachment(0)];
+  let middle_color_ref = [color.attachment(2)];
+  let end_color_ref = [color.attachment(end)];
+
+  let start_depth_ref = depth.attachment(1);
+  let middle_depth_ref = depth.attachment(3);
+  let end_depth_ref = depth.attachment(end + 1);
+
+  let mut subpass = Vec::new();
+  for i in 0..pipeline_count {
+    if i == 0 {
+      subpass.push(vk::SubpassDescription::default()
+        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+        .depth_stencil_attachment(&start_depth_ref)
+        .color_attachments(&start_color_ref));  
+    } else if pipeline_count - 1 == i {
+      subpass.push(vk::SubpassDescription::default()
+        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+        .depth_stencil_attachment(&end_depth_ref)
+        .color_attachments(&end_color_ref));  
+    } else {
+      subpass.push(vk::SubpassDescription::default()
+        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+        .depth_stencil_attachment(&middle_depth_ref)
+        .color_attachments(&middle_color_ref));  
+    }
+  }
 
   let subpass_dependency = [vk::SubpassDependency::default()
     .src_subpass(vk::SUBPASS_EXTERNAL)
@@ -67,7 +110,7 @@ pub fn init_render_pass(
 }
 
 pub struct PipelineManager {
-  pipelines: HashMap<String, Pipeline>,
+  pipelines: Vec<(String, Pipeline)>,
   descriptor_pool: vk::DescriptorPool,
 }
 
@@ -80,7 +123,6 @@ impl PipelineManager {
     allocator: &mut vulkan::Allocator,
   ) -> Result<Self, Error> {
     pipelines.push(PipelineType::Graphics(Pipeline::default_shader(
-      swap_chain_extent,
     )));
 
     let mut descriptor_count = 0;
@@ -112,11 +154,12 @@ impl PipelineManager {
     let descriptor_pool =
       unsafe { logical_device.create_descriptor_pool(&descriptor_pool_create_info, None)? };
 
-    let mut vk_pipelines = HashMap::new();
+    let mut vk_pipelines = Vec::new();
+    let mut i = 0;
     for pipeline in pipelines {
       match pipeline {
         PipelineType::Graphics(config) => {
-          vk_pipelines.insert(
+          vk_pipelines.push((
             config.name.clone(),
             Pipeline::init_graphics_pipeline(
               logical_device,
@@ -124,14 +167,17 @@ impl PipelineManager {
               config,
               descriptor_pool,
               allocator,
+              swap_chain_extent,
+              i
             )?,
-          );
+          ));
+          i += 1;
         }
         PipelineType::Compute(config) => {
-          vk_pipelines.insert(
+          vk_pipelines.push((
             config.name.clone(),
             Pipeline::init_compute_pipeline(logical_device, config, descriptor_pool, allocator)?,
-          );
+          ));
         }
       }
     }
@@ -147,21 +193,25 @@ impl PipelineManager {
       logical_device.destroy_descriptor_pool(self.descriptor_pool, None);
     }
     std::fs::create_dir_all("cache").unwrap();
-    for pipeline in self.pipelines.values_mut() {
+    for (_, pipeline) in &mut self.pipelines {
       pipeline.destroy(logical_device, allocator);
     }
   }
 
   pub fn get_pipeline(&self, name: &str) -> Option<&Pipeline> {
-    self.pipelines.get(name)
+    Some(&self.pipelines.iter().find(|(n, _)| n == name)?.1)
   }
 
   pub fn update_camera(&mut self, camera: &Camera) {
-    for pipeline in self.pipelines.values_mut() {
+    for (_, pipeline) in &mut self.pipelines {
       pipeline.descriptor_buffers[0][0]
         .fill(&[camera.view_matrix(), camera.projection_matrix()])
         .unwrap();
     }
+  }
+
+  pub fn pipeline_names(&self) -> Vec<&String> {
+    self.pipelines.iter().map(|(n, _)| n).collect()
   }
 }
 
@@ -177,17 +227,16 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-  pub fn default_shader(extend: &vk::Extent2D) -> GraphicsPipelineConfig {
+  pub fn default_shader() -> GraphicsPipelineConfig {
     GraphicsPipelineConfig::new(
       "default".to_string(),
       vk::PrimitiveTopology::TRIANGLE_LIST,
-      (extend.width, extend.height),
     )
-    .add_shader(ShaderConfig::new(
+    .set_vert_shader(ShaderConfig::new(
       ShaderType::Vertex,
       vk_shader_macros::include_glsl!("./shaders/shader.vert").to_vec(),
     ))
-    .add_shader(ShaderConfig::new(
+    .set_frag_shader(ShaderConfig::new(
       ShaderType::Fragment,
       vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec(),
     ))
@@ -281,11 +330,27 @@ impl Pipeline {
     pipeline: &GraphicsPipelineConfig,
     descriptor_pool: vk::DescriptorPool,
     allocator: &mut vulkan::Allocator,
+    swapchain_extend: &vk::Extent2D,
+    subpass: u32,
   ) -> Result<Self, Error> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
     let mut shader_modules = vec![];
-    for shader in &pipeline.shaders {
+    if let Some(shader) = &pipeline.vert_shader {
+      let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&shader.code);
+      let shader_module =
+        unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
+      shader_modules.push((shader_module, shader.type_));
+    }
+
+    if let Some(shader) = &pipeline.geo_shader {
+      let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&shader.code);
+      let shader_module =
+        unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
+      shader_modules.push((shader_module, shader.type_));
+    }
+
+    if let Some(shader) = &pipeline.frag_shader {
       let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&shader.code);
       let shader_module =
         unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
@@ -373,19 +438,25 @@ impl Pipeline {
       .vertex_attribute_descriptions(&vertex_attrib_descs);
     let input_assembly_info =
       vk::PipelineInputAssemblyStateCreateInfo::default().topology(pipeline.topology);
+    
+    let viewport_size = if let Some(viewport_size) = pipeline.viewport_size {
+      viewport_size
+    } else {
+      (swapchain_extend.width, swapchain_extend.height)
+    };
 
     let viewport = [vk::Viewport::default()
       .x(0.0)
       .y(0.0)
-      .width(pipeline.viewport_size.0 as f32)
-      .height(pipeline.viewport_size.1 as f32)
+      .width(viewport_size.0 as f32)
+      .height(viewport_size.1 as f32)
       .min_depth(0.0)
       .max_depth(1.0)];
     let scissor = [vk::Rect2D::default()
       .offset(vk::Offset2D::default())
       .extent(vk::Extent2D {
-        width: pipeline.viewport_size.0,
-        height: pipeline.viewport_size.1,
+        width: viewport_size.0,
+        height: viewport_size.1,
       })];
 
     let viewport_info = vk::PipelineViewportStateCreateInfo::default()
@@ -447,7 +518,7 @@ impl Pipeline {
       .color_blend_state(&color_blend_info)
       .layout(pipeline_layout)
       .render_pass(render_pass)
-      .subpass(0);
+      .subpass(subpass);
 
     let pipeline_cache = Self::create_shader_cache(logical_device, &pipeline.name)?;
 

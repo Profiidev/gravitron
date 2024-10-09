@@ -1,19 +1,12 @@
-use std::collections::HashMap;
-
 use ash::{khr, vk};
 use gpu_allocator::vulkan;
 
 use crate::{
   config::app::AppConfig,
   vulkan::{device::Device, instance::InstanceDevice, surface::Surface},
-  Id,
 };
 
-use super::{
-  pipeline::Pipeline,
-  pools::{CommandBufferType, Pools},
-  resources::model::{InstanceData, ModelManager},
-};
+use super::pools::{CommandBufferType, Pools};
 
 pub struct SwapChain {
   loader: khr::swapchain::Device,
@@ -179,7 +172,7 @@ impl SwapChain {
 
     let mut frame_buffers = Vec::new();
     for image_view in &swapchain_image_views {
-      let vi = [*image_view, depth_image_view];
+      let vi = [*image_view, depth_image_view, *image_view, depth_image_view];
       let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
         .render_pass(render_pass)
         .attachments(&vi)
@@ -263,14 +256,11 @@ impl SwapChain {
     }
   }
 
-  pub fn record_command_buffer(
+  pub fn record_command_buffer_first(
     &self,
     device: &ash::Device,
     render_pass: vk::RenderPass,
-    pipeline: &Pipeline,
-    model_manager: &ModelManager,
-    instances: &HashMap<Id, Vec<InstanceData>>,
-  ) -> Result<(), vk::Result> {
+  ) -> Result<vk::CommandBuffer, vk::Result> {
     let buffer = self.command_buffer[self.current_image];
     let buffer_begin_info = vk::CommandBufferBeginInfo::default();
     unsafe {
@@ -301,15 +291,20 @@ impl SwapChain {
 
     unsafe {
       device.cmd_begin_render_pass(buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
-
-      pipeline.record_command_buffer(buffer, device);
-      model_manager.record_command_buffer(instances, buffer, device);
-
-      device.cmd_end_render_pass(buffer);
-      device.end_command_buffer(buffer)?;
     }
 
-    Ok(())
+    Ok(buffer)
+  }
+
+  pub fn record_command_buffer_second(
+    &self,
+    device: &ash::Device,
+    buffer: vk::CommandBuffer,
+  ) -> Result<(), vk::Result> {
+    unsafe {
+      device.cmd_end_render_pass(buffer);
+      device.end_command_buffer(buffer)
+    }
   }
 
   pub fn draw_frame(&mut self, device: &Device) {
