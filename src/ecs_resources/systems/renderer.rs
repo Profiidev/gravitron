@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[allow(unused_imports)]
 use log::{trace, warn};
 
 use crate::ecs::{systems::query::Query, systems::resources::ResMut};
@@ -11,20 +12,26 @@ use crate::vulkan::graphics::resources::model::InstanceData;
 use crate::vulkan::Vulkan;
 use crate::Id;
 
-pub fn renderer(
+pub fn init_renderer(vulkan: ResMut<Vulkan>) {
+  #[cfg(feature = "debug")]
+  trace!("Initializing Renderer");
+  vulkan.wait_for_draw_start();
+}
+
+pub fn renderer_recording(
   mut vulkan: ResMut<Vulkan>,
   to_render: Query<(&MeshRenderer, &Transform)>,
   camera: Query<&Camera>,
 ) {
-  trace!("Executing MeshRenderer");
+  #[cfg(feature = "debug")]
+  trace!("Recording Render Instructions");
 
-  let Some(camera) = camera.into_iter().next() else {
+  if let Some(camera) = camera.into_iter().next() {
+    vulkan.update_camera(camera);
+  } else {
     warn!("No camera found. Can't render anything");
     return;
   };
-
-  let vulkan = &mut *vulkan;
-  vulkan.wait_for_draw_start();
 
   let mut models: HashMap<Id, Vec<InstanceData>> = HashMap::new();
   for (mesh_render, transform) in to_render {
@@ -39,7 +46,11 @@ pub fn renderer(
     ));
   }
 
-  vulkan.update_camera(camera);
-  vulkan.record_command_buffer(&models);
-  vulkan.draw_frame(&models);
+  vulkan.record_command_buffer();
+}
+
+pub fn execute_renderer(mut vulkan: ResMut<Vulkan>) {
+  #[cfg(feature = "debug")]
+  trace!("Drawing Frame");
+  vulkan.draw_frame();
 }

@@ -27,6 +27,7 @@ pub struct Renderer {
   pipeline: PipelineManager,
   pools: Pools,
   model_manager: ModelManager,
+  instances: HashMap<Id, Vec<InstanceData>>,
 }
 
 impl Renderer {
@@ -73,6 +74,7 @@ impl Renderer {
       pipeline,
       pools,
       model_manager,
+      instances: HashMap::new(),
     })
   }
 
@@ -92,29 +94,20 @@ impl Renderer {
     self.swap_chain.wait_for_draw_start(logical_device);
   }
 
-  pub fn record_command_buffer(
-    &self,
-    instances: &HashMap<Id, Vec<InstanceData>>,
-    device: &ash::Device,
-  ) -> Result<(), vk::Result> {
+  pub fn record_command_buffer(&self, device: &ash::Device) -> Result<(), vk::Result> {
     self.swap_chain.record_command_buffer(
       device,
       self.render_pass,
       self.pipeline.get_pipeline("default").unwrap(),
       &self.model_manager,
-      instances,
+      &self.instances,
     )
   }
 
-  pub fn draw_frame(
-    &mut self,
-    instances: &HashMap<Id, Vec<InstanceData>>,
-    device: &Device,
-    allocator: &mut vulkan::Allocator,
-  ) {
+  pub fn draw_frame(&mut self, device: &Device, allocator: &mut vulkan::Allocator) {
     self
       .model_manager
-      .update_instance_buffer(instances, device.get_device(), allocator)
+      .update_instance_buffer(&self.instances, device.get_device(), allocator)
       .unwrap();
     self.swap_chain.draw_frame(device);
   }
