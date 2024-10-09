@@ -103,16 +103,26 @@ impl Graph {
 }
 
 impl ColoredGraph {
-  pub fn get_color(&self, node_idx: usize) -> usize {
+  pub fn try_get_color(&self, node_idx: usize) -> Option<usize> {
     self
       .colors
       .iter()
       .position(|c| c.contains(&node_idx))
-      .unwrap()
+  }
+
+  pub fn get_color(&self, node_idx: usize) -> usize {
+    self.try_get_color(node_idx).unwrap()
   }
 
   pub fn num_colors(&self) -> usize {
     self.colors.len()
+  }
+
+  pub fn retain_colors<F>(&mut self, filter: F)
+  where 
+    F: FnMut(&Vec<usize>) -> bool
+  {
+    self.colors.retain(filter);
   }
 }
 

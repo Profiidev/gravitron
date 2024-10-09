@@ -85,6 +85,7 @@ impl SchedulerBuilder {
       for system in self.systems_without_stage {
         stages.push(vec![system]);
       }
+
       stages
     } else {
       debug!("Initializing Scheduler for async Execution");
@@ -97,40 +98,37 @@ impl SchedulerBuilder {
 
       for key in keys {
         let systems = self.systems_with_stage.remove(&key).unwrap();
+        let systems_len = systems.len();
         let mut meta_data = Vec::new();
 
-        for system in &systems_left {
+        for system in &systems {
           meta_data.push(system.get_meta());
         }
-        for system in &systems {
+        for system in &systems_left {
           meta_data.push(system.get_meta());
         }
 
         let graph: Graph = meta_data.into();
-        let colored = graph.color();
+        let mut colored = graph.color();
+        
+        colored.retain_colors(|nodes| {
+          nodes.iter().any(|n| *n < systems_len)
+        });
 
-        let highest_system_stage = (0..systems.len())
-          .map(|i| colored.get_color(i))
-          .max()
-          .unwrap();
-
-        let mut local_stages = (0..=highest_system_stage)
-          .map(|_| vec![])
-          .collect::<Vec<_>>();
-        for (i, system) in systems.into_iter().enumerate() {
-          local_stages
-            .get_mut(colored.get_color(i))
-            .unwrap()
-            .push(system);
-        }
+        let mut local_stages = (0..colored.num_colors()).map(|_| vec![]).collect::<Vec<_>>();
         let mut unused_systems = Vec::new();
+
+        for (i, system) in systems.into_iter().enumerate() {
+          local_stages[colored.get_color(i)].push(system);
+        }
         for (i, system) in systems_left.into_iter().enumerate() {
-          if let Some(stage) = local_stages.get_mut(colored.get_color(i)) {
-            stage.push(system);
+          if let Some(color) = colored.try_get_color(i + systems_len) {
+            local_stages[color].push(system);
           } else {
             unused_systems.push(system);
           }
         }
+
         systems_left = unused_systems;
 
         stages.extend(local_stages);
