@@ -71,5 +71,4 @@ fn test(info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
     t.set_position(pos);
     m.t += 0.5 * info.delta_time();
   }
-  std::process::exit(0)
 }

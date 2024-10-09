@@ -10,6 +10,7 @@ use gravitron_ecs::{
   ECSBuilder, EntityId, ECS,
 };
 use gravitron_utils::thread::Signal;
+#[allow(unused_imports)]
 use log::{info, trace};
 use window::Window;
 
@@ -17,7 +18,7 @@ use crate::{
   config::EngineConfig,
   ecs_resources::{
     resources::{engine_commands::EngineCommands, engine_info::EngineInfo},
-    systems::add_systems,
+    systems::{add_systems, stages::SystemStage},
   },
 };
 
@@ -31,7 +32,7 @@ pub struct Gravitron {
 }
 
 pub struct GravitronBuilder {
-  ecs: ECSBuilder,
+  ecs: ECSBuilder<SystemStage>,
   config: EngineConfig,
 }
 
@@ -69,6 +70,7 @@ impl Gravitron {
 
         engine_commands.execute(&mut self.ecs);
 
+        #[cfg(feature = "debug")]
         trace!("Game loop tok {:?}", last_frame.elapsed());
       }
     }

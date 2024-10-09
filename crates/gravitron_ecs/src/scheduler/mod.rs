@@ -8,6 +8,7 @@ use std::{
 
 use graph::Graph;
 use gravitron_utils::thread::ThreadPool;
+#[allow(unused_imports)]
 use log::{debug, trace};
 
 use crate::{
@@ -31,7 +32,9 @@ pub struct SchedulerBuilder<K: PartialEq + Hash + Clone = usize> {
 
 impl Scheduler {
   pub fn run(&mut self, world: &mut World) {
+    #[allow(unused_variables)]
     for (i, stage) in self.systems.iter_mut().enumerate() {
+      #[cfg(feature = "debug")]
       trace!("Executing System Stage {}", i);
 
       let running = Arc::new(AtomicUsize::new(stage.len()));
