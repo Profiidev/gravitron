@@ -109,7 +109,9 @@ impl Vulkan {
   }
 
   pub fn set_instances(&mut self, instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>) {
-    self.renderer.set_instances(instances, self.device.get_device(), &mut self.allocator);
+    self
+      .renderer
+      .set_instances(instances, self.device.get_device(), &mut self.allocator);
   }
 
   pub fn record_command_buffer(&self) {

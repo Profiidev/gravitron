@@ -35,7 +35,9 @@ pub fn renderer_recording(
 
   let mut models: HashMap<String, HashMap<Id, Vec<InstanceData>>> = HashMap::new();
   for (mesh_render, transform) in to_render {
-    let shader = models.entry(mesh_render.material.shader.clone()).or_default();
+    let shader = models
+      .entry(mesh_render.material.shader.clone())
+      .or_default();
     let instances = shader.entry(mesh_render.model_id).or_default();
     let material = &mesh_render.material;
     instances.push(InstanceData::new(

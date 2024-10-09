@@ -196,14 +196,7 @@ impl Model {
         &[self.instance_buffer.as_ref().unwrap().buffer()],
         &[0],
       );
-      device.cmd_draw_indexed(
-        command_buffer,
-        self.index_len,
-        instance_count,
-        0,
-        0,
-        0,
-      );
+      device.cmd_draw_indexed(command_buffer, self.index_len, instance_count, 0, 0, 0);
     }
   }
 }

@@ -111,7 +111,9 @@ impl Renderer {
       };
 
       if let Some(instances) = self.instances.get(pipeline) {
-        self.model_manager.record_command_buffer(instances, buffer, device);
+        self
+          .model_manager
+          .record_command_buffer(instances, buffer, device);
       }
 
       if i + 1 < pipeline_count {
@@ -124,7 +126,12 @@ impl Renderer {
     self.swap_chain.record_command_buffer_second(device, buffer)
   }
 
-  pub fn set_instances(&mut self, instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>, device: &ash::Device, allocator: &mut vulkan::Allocator) {
+  pub fn set_instances(
+    &mut self,
+    instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>,
+    device: &ash::Device,
+    allocator: &mut vulkan::Allocator,
+  ) {
     self.instances = instances;
     for instances in self.instances.values() {
       self
