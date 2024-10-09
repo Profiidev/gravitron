@@ -104,10 +104,7 @@ impl Graph {
 
 impl ColoredGraph {
   pub fn try_get_color(&self, node_idx: usize) -> Option<usize> {
-    self
-      .colors
-      .iter()
-      .position(|c| c.contains(&node_idx))
+    self.colors.iter().position(|c| c.contains(&node_idx))
   }
 
   pub fn get_color(&self, node_idx: usize) -> usize {
@@ -119,8 +116,8 @@ impl ColoredGraph {
   }
 
   pub fn retain_colors<F>(&mut self, filter: F)
-  where 
-    F: FnMut(&Vec<usize>) -> bool
+  where
+    F: FnMut(&Vec<usize>) -> bool,
   {
     self.colors.retain(filter);
   }

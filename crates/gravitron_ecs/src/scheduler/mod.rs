@@ -110,12 +110,12 @@ impl SchedulerBuilder {
 
         let graph: Graph = meta_data.into();
         let mut colored = graph.color();
-        
-        colored.retain_colors(|nodes| {
-          nodes.iter().any(|n| *n < systems_len)
-        });
 
-        let mut local_stages = (0..colored.num_colors()).map(|_| vec![]).collect::<Vec<_>>();
+        colored.retain_colors(|nodes| nodes.iter().any(|n| *n < systems_len));
+
+        let mut local_stages = (0..colored.num_colors())
+          .map(|_| vec![])
+          .collect::<Vec<_>>();
         let mut unused_systems = Vec::new();
 
         for (i, system) in systems.into_iter().enumerate() {
