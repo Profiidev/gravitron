@@ -48,7 +48,6 @@ fn main() {
     std::f32::consts::FRAC_PI_4 * 3.0,
     0.0,
   );
-  dbg!(camera_transform.rotation() * math::Vec3::X);
   camera_transform.set_position(math::Vec3::new(10.0, 10.0, 10.0));
   builder.create_entity((
     CameraBuilder::new().build(&camera_transform),
@@ -72,4 +71,5 @@ fn test(info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
     t.set_position(pos);
     m.t += 0.5 * info.delta_time();
   }
+  std::process::exit(0)
 }
