@@ -1,8 +1,5 @@
 use std::{
-  collections::HashMap,
-  sync::{atomic::AtomicUsize, Arc},
-  thread,
-  time::Duration,
+  collections::HashMap, hash::Hash, sync::{atomic::AtomicUsize, Arc}, thread, time::Duration
 };
 
 use graph::Graph;
@@ -23,10 +20,9 @@ pub struct Scheduler {
   thread_pool: ThreadPool,
 }
 
-#[derive(Default)]
-pub struct SchedulerBuilder {
+pub struct SchedulerBuilder<K: PartialEq + Hash + Clone = usize> {
   systems_without_stage: Vec<StoredSystem>,
-  systems_with_stage: HashMap<usize, Vec<StoredSystem>>,
+  systems_with_stage: HashMap<K, Vec<StoredSystem>>,
 }
 
 impl Scheduler {
@@ -52,7 +48,7 @@ impl Scheduler {
   }
 }
 
-impl SchedulerBuilder {
+impl<K: Clone + Ord + Hash> SchedulerBuilder<K> {
   pub fn add_system<I, S: System + 'static>(&mut self, system: impl IntoSystem<I, System = S>) {
     self
       .systems_without_stage
@@ -62,7 +58,7 @@ impl SchedulerBuilder {
   pub fn add_system_at_stage<I, S: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = S>,
-    relative_stage: usize,
+    relative_stage: K,
   ) {
     let stage = self.systems_with_stage.entry(relative_stage).or_default();
     stage.push(Box::new(system.into_system()));
@@ -74,7 +70,7 @@ impl SchedulerBuilder {
 
       let mut stages = Vec::new();
 
-      let mut keys = self.systems_with_stage.keys().copied().collect::<Vec<_>>();
+      let mut keys = self.systems_with_stage.keys().cloned().collect::<Vec<_>>();
       keys.sort_unstable();
       for stage in keys {
         for system in self.systems_with_stage.remove(&stage).unwrap() {
@@ -91,7 +87,7 @@ impl SchedulerBuilder {
       debug!("Initializing Scheduler for async Execution");
 
       let mut systems_left = self.systems_without_stage;
-      let mut keys = self.systems_with_stage.keys().copied().collect::<Vec<_>>();
+      let mut keys = self.systems_with_stage.keys().cloned().collect::<Vec<_>>();
       keys.sort_unstable();
 
       let mut stages: Vec<Vec<Box<dyn System>>> = Vec::new();
@@ -169,6 +165,15 @@ impl SchedulerBuilder {
   }
 }
 
+impl<K: Ord + Clone + Hash> Default for SchedulerBuilder<K> {
+  fn default() -> Self {
+    Self {
+      systems_with_stage: Default::default(),
+      systems_without_stage: Default::default(),
+    }
+  }
+}
+
 #[cfg(test)]
 mod test {
   use crate::systems::resources::{Res, ResMut};
@@ -177,7 +182,7 @@ mod test {
 
   #[test]
   fn sync_no_set_stage() {
-    let mut builder = SchedulerBuilder::default();
+    let mut builder: SchedulerBuilder<usize> = SchedulerBuilder::default();
 
     builder.add_system(s1);
     builder.add_system(s2);
@@ -223,7 +228,7 @@ mod test {
 
   #[test]
   fn async_no_set_stage() {
-    let mut builder = SchedulerBuilder::default();
+    let mut builder: SchedulerBuilder<usize> = SchedulerBuilder::default();
 
     builder.add_system(s1);
     builder.add_system(s2);
