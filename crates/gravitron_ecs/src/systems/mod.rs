@@ -19,6 +19,7 @@ static SYSTEM_ID: AtomicU64 = AtomicU64::new(0);
 pub trait System: Send {
   fn run(&mut self, world: UnsafeWorldCell<'_>);
   fn get_meta(&self) -> &SystemMeta;
+  fn get_id(&self) -> SystemId;
 }
 
 macro_rules! impl_system {
@@ -50,6 +51,10 @@ macro_rules! impl_system {
 
       fn get_meta(&self) -> &SystemMeta {
         &self.meta
+      }
+
+      fn get_id(&self) -> SystemId {
+        self.id
       }
     }
 

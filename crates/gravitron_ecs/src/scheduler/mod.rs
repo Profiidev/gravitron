@@ -1,4 +1,5 @@
 use std::{
+  collections::HashMap,
   sync::{atomic::AtomicUsize, Arc},
   thread,
   time::Duration,
@@ -24,7 +25,8 @@ pub struct Scheduler {
 
 #[derive(Default)]
 pub struct SchedulerBuilder {
-  systems: Vec<StoredSystem>,
+  systems_without_stage: Vec<StoredSystem>,
+  systems_with_stage: HashMap<usize, Vec<StoredSystem>>,
 }
 
 impl Scheduler {
@@ -52,36 +54,108 @@ impl Scheduler {
 
 impl SchedulerBuilder {
   pub fn add_system<I, S: System + 'static>(&mut self, system: impl IntoSystem<I, System = S>) {
-    self.systems.push(Box::new(system.into_system()));
+    self
+      .systems_without_stage
+      .push(Box::new(system.into_system()));
   }
 
-  pub fn build(self, sync_system_exec: bool) -> Scheduler {
+  pub fn add_system_at_stage<I, S: System + 'static>(
+    &mut self,
+    system: impl IntoSystem<I, System = S>,
+    relative_stage: usize,
+  ) {
+    let stage = self.systems_with_stage.entry(relative_stage).or_default();
+    stage.push(Box::new(system.into_system()));
+  }
+
+  pub fn build(mut self, sync_system_exec: bool) -> Scheduler {
     let stages = if sync_system_exec {
       debug!("Initializing Scheduler for sync Execution");
 
       let mut stages = Vec::new();
-      for system in self.systems {
+
+      let mut keys = self.systems_with_stage.keys().copied().collect::<Vec<_>>();
+      keys.sort_unstable();
+      for stage in keys {
+        for system in self.systems_with_stage.remove(&stage).unwrap() {
+          stages.push(vec![system]);
+        }
+      }
+
+      for system in self.systems_without_stage {
         stages.push(vec![system]);
       }
       stages
     } else {
       debug!("Initializing Scheduler for async Execution");
 
-      let meta_data = self
-        .systems
-        .iter()
-        .map(|s| s.get_meta())
-        .collect::<Vec<_>>();
-      let graph: Graph = meta_data.into();
+      let mut systems_left = self.systems_without_stage;
+      let mut keys = self.systems_with_stage.keys().copied().collect::<Vec<_>>();
+      keys.sort_unstable();
 
-      debug!("Optimizing System Stages");
-      let colored = graph.color();
+      let mut stages: Vec<Vec<Box<dyn System>>> = Vec::new();
 
-      let mut stages = (0..colored.num_colors())
-        .map(|_| vec![])
-        .collect::<Vec<_>>();
-      for (i, system) in self.systems.into_iter().enumerate() {
-        stages.get_mut(colored.get_color(i)).unwrap().push(system);
+      for key in keys {
+        let systems = self.systems_with_stage.remove(&key).unwrap();
+        let mut meta_data = Vec::new();
+
+        for system in &systems_left {
+          meta_data.push(system.get_meta());
+        }
+        for system in &systems {
+          meta_data.push(system.get_meta());
+        }
+
+        let graph: Graph = meta_data.into();
+        let colored = graph.color();
+
+        let highest_system_stage = (0..systems.len())
+          .map(|i| colored.get_color(i))
+          .max()
+          .unwrap();
+
+        let mut local_stages = (0..=highest_system_stage)
+          .map(|_| vec![])
+          .collect::<Vec<_>>();
+        for (i, system) in systems.into_iter().enumerate() {
+          local_stages
+            .get_mut(colored.get_color(i))
+            .unwrap()
+            .push(system);
+        }
+        let mut unused_systems = Vec::new();
+        for (i, system) in systems_left.into_iter().enumerate() {
+          if let Some(stage) = local_stages.get_mut(colored.get_color(i)) {
+            stage.push(system);
+          } else {
+            unused_systems.push(system);
+          }
+        }
+        systems_left = unused_systems;
+
+        stages.extend(local_stages);
+      }
+
+      if !systems_left.is_empty() {
+        let metadata = systems_left
+          .iter()
+          .map(|s| s.get_meta())
+          .collect::<Vec<_>>();
+
+        let graph: Graph = metadata.into();
+        let colored = graph.color();
+
+        let mut local_stages = (0..colored.num_colors())
+          .map(|_| vec![])
+          .collect::<Vec<_>>();
+        for (i, system) in systems_left.into_iter().enumerate() {
+          local_stages
+            .get_mut(colored.get_color(i))
+            .unwrap()
+            .push(system);
+        }
+
+        stages.extend(local_stages);
       }
 
       stages
@@ -95,4 +169,127 @@ impl SchedulerBuilder {
       thread_pool: ThreadPool::new(longest),
     }
   }
+}
+
+#[cfg(test)]
+mod test {
+  use crate::systems::resources::{Res, ResMut};
+
+  use super::{Scheduler, SchedulerBuilder};
+
+  #[test]
+  fn sync_no_set_stage() {
+    let mut builder = SchedulerBuilder::default();
+
+    builder.add_system(s1);
+    builder.add_system(s2);
+    builder.add_system(s3);
+    builder.add_system(s4);
+    builder.add_system(s5);
+    builder.add_system(s6);
+    builder.add_system(s7);
+    builder.add_system(s8);
+
+    let scheduler = builder.build(true);
+    assert_eq!(scheduler.systems.len(), 8);
+  }
+
+  #[test]
+  fn sync_set_stage() {
+    let mut builder = SchedulerBuilder::default();
+
+    builder.add_system_at_stage(s1, 0);
+    builder.add_system(s2);
+    builder.add_system_at_stage(s3, 1209841024);
+    builder.add_system(s4);
+    builder.add_system(s5);
+    builder.add_system_at_stage(s6, 12909002);
+    builder.add_system(s7);
+    builder.add_system(s8);
+
+    let s1_id = builder.systems_with_stage.get(&0).unwrap()[0].get_id();
+    let s3_id = builder.systems_with_stage.get(&12909002).unwrap()[0].get_id();
+    let s6_id = builder.systems_with_stage.get(&1209841024).unwrap()[0].get_id();
+
+    let scheduler = builder.build(true);
+    assert_eq!(scheduler.systems.len(), 8);
+
+    let s1_i = find_system(&scheduler, s1_id);
+    let s3_i = find_system(&scheduler, s3_id);
+    let s6_i = find_system(&scheduler, s6_id);
+
+    assert!(s1_i < s3_i);
+    assert!(s1_i < s3_i);
+    assert!(s3_i < s6_i);
+  }
+
+  #[test]
+  fn async_no_set_stage() {
+    let mut builder = SchedulerBuilder::default();
+
+    builder.add_system(s1);
+    builder.add_system(s2);
+    builder.add_system(s3);
+    builder.add_system(s4);
+    builder.add_system(s5);
+    builder.add_system(s6);
+    builder.add_system(s7);
+    builder.add_system(s8);
+
+    let scheduler = builder.build(false);
+    assert_eq!(scheduler.systems.len(), 4);
+  }
+
+  #[test]
+  fn async_set_stage() {
+    let mut builder = SchedulerBuilder::default();
+
+    builder.add_system_at_stage(s1, 0);
+    builder.add_system(s2);
+    builder.add_system_at_stage(s3, 1209841024);
+    builder.add_system(s4);
+    builder.add_system(s5);
+    builder.add_system_at_stage(s6, 12909002);
+    builder.add_system(s7);
+    builder.add_system(s8);
+
+    let s1_id = builder.systems_with_stage.get(&0).unwrap()[0].get_id();
+    let s3_id = builder.systems_with_stage.get(&12909002).unwrap()[0].get_id();
+    let s6_id = builder.systems_with_stage.get(&1209841024).unwrap()[0].get_id();
+
+    let scheduler = builder.build(false);
+    assert_eq!(scheduler.systems.len(), 4);
+
+    let s1_i = find_system(&scheduler, s1_id);
+    let s3_i = find_system(&scheduler, s3_id);
+    let s6_i = find_system(&scheduler, s6_id);
+
+    assert!(s1_i < s3_i);
+    assert!(s1_i < s3_i);
+    assert!(s3_i < s6_i);
+  }
+
+  fn find_system(scheduler: &Scheduler, system: u64) -> usize {
+    scheduler
+      .systems
+      .iter()
+      .position(|s| s.iter().map(|s| s.get_id()).any(|t| t == system))
+      .unwrap()
+  }
+
+  fn s1(_: Res<u32>, _: Res<usize>, _: Res<String>) {}
+
+  fn s2(_: ResMut<u32>, _: Res<f32>) {}
+
+  fn s3(_: ResMut<u32>, _: ResMut<String>) {}
+
+  fn s4(_: Res<usize>) {}
+
+  fn s5(_: ResMut<String>) {}
+
+  fn s6(_: ResMut<f32>, _: Res<String>) {}
+
+  fn s7(_: Res<f32>, _: Res<usize>, _: Res<String>) {}
+
+  fn s8(_: Res<u32>, _: Res<String>) {}
 }

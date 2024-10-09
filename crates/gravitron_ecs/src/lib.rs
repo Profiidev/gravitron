@@ -69,6 +69,14 @@ impl ECSBuilder {
     self.scheduler.add_system(system);
   }
 
+  pub fn add_system_at_stage<I, S: System + 'static>(
+    &mut self,
+    system: impl IntoSystem<I, System = S>,
+    relative_stage: usize,
+  ) {
+    self.scheduler.add_system_at_stage(system, relative_stage);
+  }
+
   pub fn add_resource<R: 'static>(&mut self, res: R) {
     self.world.add_resource(res);
   }

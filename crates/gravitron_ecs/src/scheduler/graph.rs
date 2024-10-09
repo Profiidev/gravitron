@@ -18,6 +18,7 @@ pub struct ColoredGraph {
 impl Graph {
   pub fn color(&self) -> ColoredGraph {
     let vertices = self.edges.len();
+
     let mut uncolored = (0..vertices).collect::<Vec<_>>();
     let mut colored = Vec::new();
 
