@@ -36,7 +36,15 @@ pub fn renderer_recording(
     if state.camera_mem.is_none() {
       state.camera_mem = vulkan.create_descriptor_mem("default", 0, 0, 128);
     }
-    vulkan.update_descriptor("default", 0, 0, &state.camera_mem.as_ref().unwrap(), &[camera.view_matrix(), camera.projection_matrix()]).unwrap();
+    vulkan
+      .update_descriptor(
+        "default",
+        0,
+        0,
+        &state.camera_mem.as_ref().unwrap(),
+        &[camera.view_matrix(), camera.projection_matrix()],
+      )
+      .unwrap();
   } else {
     warn!("No camera found. Can't render anything");
     return;
