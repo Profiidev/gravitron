@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
   vulkan::memory::{
-    manager::{BufferId, MemoryManager},
+    manager::{BufferBlockSize, BufferId, MemoryManager},
     BufferMemory,
   },
   Id,
@@ -44,10 +44,10 @@ pub struct InstanceData {
 
 impl ModelManager {
   pub fn new(memory_manager: &mut MemoryManager) -> Result<Self, Error> {
-    let vertex_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, None)?;
-    let index_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::INDEX_BUFFER, None)?;
+    let vertex_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, BufferBlockSize::Large)?;
+    let index_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::INDEX_BUFFER, BufferBlockSize::Large)?;
     let instance_buffer =
-      memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, None)?;
+      memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, BufferBlockSize::Large)?;
 
     let mut manager = ModelManager {
       models: Vec::new(),

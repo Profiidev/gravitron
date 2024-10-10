@@ -7,7 +7,7 @@ use crate::config::vulkan::{
 };
 
 use super::memory::{
-  manager::{BufferId, MemoryManager},
+  manager::{BufferBlockSize, BufferId, MemoryManager},
   BufferMemory,
 };
 
@@ -654,8 +654,7 @@ impl Pipeline {
       let mut offset = 0;
 
       for (i, descriptor) in descriptor_set.descriptors.iter().enumerate() {
-        let buffer =
-          memory_manager.create_buffer(descriptor.buffer_usage, Some(descriptor.size as usize))?;
+        let buffer = memory_manager.create_buffer(descriptor.buffer_usage, BufferBlockSize::Exact(descriptor.size as usize))?;
 
         let buffer_info_descriptor = [vk::DescriptorBufferInfo::default()
           .buffer(memory_manager.get_vk_buffer(buffer).unwrap())

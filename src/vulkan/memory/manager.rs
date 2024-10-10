@@ -19,7 +19,16 @@ use super::{
 pub type BufferId = crate::Id;
 pub type ImageId = crate::Id;
 
-const BUFFER_BLOCK_SIZE: usize = 1024 * 1024 * 64;
+const BUFFER_BLOCK_SIZE_LARGE: usize = 1024 * 1024 * 64;
+const BUFFER_BLOCK_SIZE_MEDIUM: usize = 1024 * 64;
+const BUFFER_BLOCK_SIZE_SMALL: usize = 1024 * 64;
+
+pub enum BufferBlockSize {
+  Large,
+  Medium,
+  Small,
+  Exact(usize)
+}
 
 pub struct MemoryManager {
   buffers: HashMap<BufferId, ManagedBuffer>,
@@ -73,13 +82,13 @@ impl MemoryManager {
   pub fn create_buffer(
     &mut self,
     usage: vk::BufferUsageFlags,
-    block_size: Option<usize>,
+    block_size: BufferBlockSize,
   ) -> Result<BufferId, Error> {
     let buffer = ManagedBuffer::new(
       &mut self.allocator,
       &self.device,
       usage,
-      block_size.unwrap_or(BUFFER_BLOCK_SIZE),
+      block_size.into(),
     )?;
 
     self.buffers.insert(self.last_buffer_id, buffer);
@@ -286,6 +295,17 @@ impl MemoryManager {
       ManuallyDrop::drop(&mut self.allocator);
     }
     Ok(())
+  }
+}
+
+impl From<BufferBlockSize> for usize {
+  fn from(value: BufferBlockSize) -> Self {
+    match value {
+      BufferBlockSize::Large => BUFFER_BLOCK_SIZE_LARGE,
+      BufferBlockSize::Medium => BUFFER_BLOCK_SIZE_MEDIUM,
+      BufferBlockSize::Small => BUFFER_BLOCK_SIZE_SMALL,
+      BufferBlockSize::Exact(size) => size,
+    }
   }
 }
 
