@@ -4,8 +4,6 @@ use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 use gravitron_ecs::Id;
-use pipeline::PipelineManager;
-use pools::Pools;
 use resources::model::{InstanceData, ModelManager};
 use swap_chain::SwapChain;
 
@@ -14,34 +12,37 @@ use crate::{
   ecs_resources::components::camera::Camera,
 };
 
-use super::{device::Device, error::RendererInitError, instance::InstanceDevice, surface::Surface};
+use super::{
+  device::Device,
+  error::RendererInitError,
+  instance::InstanceDevice,
+  memory::manager::MemoryManager,
+  pipeline::{self, pools::Pools},
+  surface::Surface,
+};
 
-mod pipeline;
-mod pools;
 pub mod resources;
 mod swap_chain;
 
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
   swap_chain: SwapChain,
-  pipeline: PipelineManager,
-  pools: Pools,
   model_manager: ModelManager,
   instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>,
+  logical_device: ash::Device,
 }
 
 impl Renderer {
   pub fn init(
     instance: &InstanceDevice,
     device: &Device,
-    allocator: &mut vulkan::Allocator,
+    memory_manager: &mut MemoryManager,
     surface: &Surface,
     config: &mut VulkanConfig,
     app_config: &AppConfig,
+    pools: &mut Pools,
   ) -> Result<Self, Error> {
     let logical_device = device.get_device();
-
-    let mut pools = Pools::init(logical_device, device.get_queue_families())?;
 
     let format = surface
       .get_formats(instance.get_physical_device())?
@@ -53,41 +54,30 @@ impl Renderer {
       instance,
       device,
       surface,
-      allocator,
+      memory_manager,
       app_config,
-      &mut pools,
+      pools,
       render_pass,
-    )?;
-    let pipeline = PipelineManager::init(
-      logical_device,
-      render_pass,
-      &swap_chain.get_extent(),
-      &mut config.shaders,
-      allocator,
     )?;
 
-    let model_manager = ModelManager::new(logical_device, allocator);
+    let model_manager = ModelManager::new(memory_manager)?;
 
     Ok(Self {
       render_pass,
       swap_chain,
-      pipeline,
-      pools,
       model_manager,
       instances: HashMap::new(),
+      logical_device: logical_device.clone(),
     })
   }
 
-  pub fn destroy(&mut self, logical_device: &ash::Device, allocator: &mut vulkan::Allocator) {
-    self.model_manager.cleanup(logical_device, allocator);
+  pub fn destroy(&mut self) {
     unsafe {
-      self.pools.cleanup(logical_device);
+      self
+        .logical_device
+        .destroy_render_pass(self.render_pass, None);
     }
-    self.pipeline.destroy(logical_device, allocator);
-    unsafe {
-      logical_device.destroy_render_pass(self.render_pass, None);
-    }
-    self.swap_chain.destroy(logical_device, allocator);
+    self.swap_chain.destroy(&self.logical_device);
   }
 
   pub fn wait_for_draw_start(&self, logical_device: &ash::Device) {
@@ -147,5 +137,13 @@ impl Renderer {
 
   pub fn update_camera(&mut self, camera: &Camera) {
     self.pipeline.update_camera(camera);
+  }
+
+  pub fn render_pass(&self) -> vk::RenderPass {
+    self.render_pass
+  }
+
+  pub fn swapchain(&self) -> &SwapChain {
+    &self.swap_chain
   }
 }

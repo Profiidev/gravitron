@@ -1,6 +1,5 @@
 use anyhow::Error;
 use ash::vk;
-use gpu_allocator::vulkan;
 
 use crate::{
   config::vulkan::{
@@ -8,8 +7,11 @@ use crate::{
     PipelineType, ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
   },
   ecs_resources::components::camera::Camera,
-  vulkan::shader::buffer::Buffer,
 };
+
+use super::memory::manager::{BufferId, MemoryManager};
+
+pub mod pools;
 
 pub fn init_render_pass(
   logical_device: &ash::Device,
@@ -130,6 +132,7 @@ pub fn init_render_pass(
 pub struct PipelineManager {
   pipelines: Vec<(String, Pipeline)>,
   descriptor_pool: vk::DescriptorPool,
+  logical_device: ash::Device,
 }
 
 impl PipelineManager {
@@ -138,7 +141,7 @@ impl PipelineManager {
     render_pass: vk::RenderPass,
     swap_chain_extent: &vk::Extent2D,
     pipelines: &mut Vec<PipelineType>,
-    allocator: &mut vulkan::Allocator,
+    memory_manager: &mut MemoryManager,
   ) -> Result<Self, Error> {
     pipelines.push(PipelineType::Graphics(Pipeline::default_shader()));
 
@@ -183,7 +186,7 @@ impl PipelineManager {
               render_pass,
               config,
               descriptor_pool,
-              allocator,
+              memory_manager,
               swap_chain_extent,
               i,
             )?,
@@ -193,7 +196,12 @@ impl PipelineManager {
         PipelineType::Compute(config) => {
           vk_pipelines.push((
             config.name.clone(),
-            Pipeline::init_compute_pipeline(logical_device, config, descriptor_pool, allocator)?,
+            Pipeline::init_compute_pipeline(
+              logical_device,
+              config,
+              descriptor_pool,
+              memory_manager,
+            )?,
           ));
         }
       }
@@ -202,16 +210,19 @@ impl PipelineManager {
     Ok(Self {
       pipelines: vk_pipelines,
       descriptor_pool,
+      logical_device: logical_device.clone(),
     })
   }
 
-  pub fn destroy(&mut self, logical_device: &ash::Device, allocator: &mut vulkan::Allocator) {
+  pub fn destroy(&mut self) {
     unsafe {
-      logical_device.destroy_descriptor_pool(self.descriptor_pool, None);
+      self
+        .logical_device
+        .destroy_descriptor_pool(self.descriptor_pool, None);
     }
     std::fs::create_dir_all("cache").unwrap();
     for (_, pipeline) in &mut self.pipelines {
-      pipeline.destroy(logical_device, allocator);
+      pipeline.destroy(&self.logical_device);
     }
   }
 
@@ -239,7 +250,7 @@ pub struct Pipeline {
   pipeline_bind_point: vk::PipelineBindPoint,
   descriptor_sets: Vec<vk::DescriptorSet>,
   descriptor_set_layouts: Vec<vk::DescriptorSetLayout>,
-  descriptor_buffers: Vec<Vec<Buffer>>,
+  descriptor_buffers: Vec<Vec<BufferId>>,
   cache: vk::PipelineCache,
 }
 
@@ -285,7 +296,7 @@ impl Pipeline {
     logical_device: &ash::Device,
     pipeline: &ComputePipelineConfig,
     descriptor_pool: vk::DescriptorPool,
-    allocator: &mut vulkan::Allocator,
+    memory_manager: &mut MemoryManager,
   ) -> Result<Self, Error> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
@@ -302,7 +313,7 @@ impl Pipeline {
         &pipeline.descriptor_sets,
         descriptor_pool,
         logical_device,
-        allocator,
+        memory_manager,
       )?;
 
     let pipeline_layout_create_info =
@@ -332,7 +343,7 @@ impl Pipeline {
       pipeline_layout,
       pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
       descriptor_sets,
-      descriptor_set_layouts: descriptor_layouts,
+      descriptor_set_layouts: descriptor_layouts.to_vec(),
       descriptor_buffers,
       cache: pipeline_cache,
     })
@@ -343,7 +354,7 @@ impl Pipeline {
     render_pass: vk::RenderPass,
     pipeline: &GraphicsPipelineConfig,
     descriptor_pool: vk::DescriptorPool,
-    allocator: &mut vulkan::Allocator,
+    memory_manager: &mut MemoryManager,
     swapchain_extend: &vk::Extent2D,
     subpass: u32,
   ) -> Result<Self, Error> {
@@ -508,7 +519,7 @@ impl Pipeline {
         &pipeline.descriptor_sets,
         descriptor_pool,
         logical_device,
-        allocator,
+        memory_manager,
       )?;
 
     let pipeline_layout_create_info =
@@ -554,7 +565,7 @@ impl Pipeline {
       pipeline_layout,
       pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
       descriptor_sets,
-      descriptor_set_layouts: descriptor_layouts,
+      descriptor_set_layouts: descriptor_layouts.to_vec(),
       descriptor_buffers,
       cache: pipeline_cache,
     })
@@ -565,12 +576,12 @@ impl Pipeline {
     descriptor_sets_config: &Vec<DescriptorSet>,
     descriptor_pool: vk::DescriptorPool,
     logical_device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
+    memory_manager: &mut MemoryManager,
   ) -> Result<
     (
       Vec<vk::DescriptorSetLayout>,
       Vec<vk::DescriptorSet>,
-      Vec<Vec<Buffer>>,
+      Vec<Vec<BufferId>>,
     ),
     Error,
   > {
@@ -610,16 +621,10 @@ impl Pipeline {
       let mut offset = 0;
 
       for (i, descriptor) in descriptor_set.descriptors.iter().enumerate() {
-        let buffer = Buffer::new(
-          allocator,
-          logical_device,
-          descriptor.size,
-          descriptor.buffer_usage,
-          gpu_allocator::MemoryLocation::CpuToGpu,
-        )?;
+        let buffer = memory_manager.create_buffer(descriptor.buffer_usage)?;
 
         let buffer_info_descriptor = [vk::DescriptorBufferInfo::default()
-          .buffer(buffer.buffer())
+          .buffer(memory_manager.get_vk_buffer(buffer).unwrap())
           .offset(offset)
           .range(descriptor.size)];
         let write_desc_set = vk::WriteDescriptorSet::default()
@@ -655,13 +660,8 @@ impl Pipeline {
     unsafe { logical_device.create_pipeline_cache(&pipeline_cache_create_info, None) }
   }
 
-  pub fn destroy(&mut self, logical_device: &ash::Device, allocator: &mut vulkan::Allocator) {
+  pub fn destroy(&mut self, logical_device: &ash::Device) {
     unsafe {
-      for buffers in &mut self.descriptor_buffers {
-        for buffer in std::mem::take(buffers) {
-          buffer.cleanup(logical_device, allocator).unwrap();
-        }
-      }
       for layout in &self.descriptor_set_layouts {
         logical_device.destroy_descriptor_set_layout(*layout, None);
       }

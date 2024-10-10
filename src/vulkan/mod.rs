@@ -1,14 +1,15 @@
 use std::collections::HashMap;
-use std::mem::ManuallyDrop;
 
 use anyhow::Error;
 #[cfg(feature = "debug")]
 use debug::Debugger;
 use device::Device;
-use gpu_allocator::vulkan;
 use graphics::resources::model::InstanceData;
 use graphics::Renderer;
 use instance::{InstanceDevice, InstanceDeviceConfig};
+use memory::manager::MemoryManager;
+use pipeline::pools::Pools;
+use pipeline::PipelineManager;
 use surface::Surface;
 use winit::window::Window;
 
@@ -22,7 +23,8 @@ mod device;
 pub mod error;
 pub mod graphics;
 mod instance;
-mod shader;
+mod memory;
+mod pipeline;
 mod surface;
 
 pub struct Vulkan {
@@ -31,12 +33,12 @@ pub struct Vulkan {
   #[cfg(feature = "debug")]
   debugger: Debugger,
   instance: InstanceDevice,
-  #[allow(dead_code)]
-  window: Window,
   surface: Surface,
   device: Device,
   renderer: Renderer,
-  allocator: ManuallyDrop<vulkan::Allocator>,
+  pools: Pools,
+  memory_manager: MemoryManager,
+  pipeline_manager: PipelineManager,
 }
 
 impl Vulkan {
@@ -60,7 +62,7 @@ impl Vulkan {
     #[cfg(feature = "debug")]
     let debugger = Debugger::init(&entry, instance.get_instance(), debugger_info)?;
 
-    let surface = Surface::init(&entry, instance.get_instance(), &window)?;
+    let surface = Surface::init(&entry, instance.get_instance(), window)?;
     let device = Device::init(
       instance.get_instance(),
       instance.get_physical_device(),
@@ -68,22 +70,26 @@ impl Vulkan {
       &config.renderer,
     )?;
 
-    let mut allocator = vulkan::Allocator::new(&vulkan::AllocatorCreateDesc {
-      device: device.get_device().clone(),
-      physical_device: instance.get_physical_device(),
-      instance: instance.get_instance().clone(),
-      debug_settings: Default::default(),
-      buffer_device_address: false,
-      allocation_sizes: Default::default(),
-    })?;
+    let mut pools = Pools::init(device.get_device(), device.get_queue_families())?;
+
+    let mut memory_manager = MemoryManager::new(&instance, &device, &mut pools)?;
 
     let renderer = Renderer::init(
       &instance,
       &device,
-      &mut allocator,
+      &mut memory_manager,
       &surface,
       &mut config,
       app_config,
+      &mut pools,
+    )?;
+
+    let pipeline_manager = PipelineManager::init(
+      device.get_device(),
+      renderer.render_pass(),
+      &renderer.swapchain().get_extent(),
+      &mut config.shaders,
+      &mut memory_manager,
     )?;
 
     Ok(Vulkan {
@@ -91,11 +97,12 @@ impl Vulkan {
       #[cfg(feature = "debug")]
       debugger,
       instance,
-      window,
       surface,
       device,
       renderer,
-      allocator: ManuallyDrop::new(allocator),
+      memory_manager,
+      pools,
+      pipeline_manager,
     })
   }
 
@@ -111,7 +118,7 @@ impl Vulkan {
   pub fn set_instances(&mut self, instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>) {
     self
       .renderer
-      .set_instances(instances, self.device.get_device(), &mut self.allocator);
+      .set_instances(instances, self.device.get_device());
   }
 
   pub fn record_command_buffer(&self) {
@@ -134,12 +141,13 @@ impl Vulkan {
         .expect("Unable to wait for device idle");
     }
 
-    self
-      .renderer
-      .destroy(self.device.get_device(), &mut self.allocator);
+    self.pipeline_manager.destroy();
+    self.renderer.destroy();
+    self.memory_manager.cleanup();
     unsafe {
-      ManuallyDrop::drop(&mut self.allocator);
+      self.pools.cleanup();
     }
+
     self.device.destroy();
     self.surface.destroy();
 
