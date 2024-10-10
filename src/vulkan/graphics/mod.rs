@@ -7,10 +7,7 @@ use gravitron_ecs::Id;
 use resources::model::{InstanceData, ModelManager};
 use swap_chain::SwapChain;
 
-use crate::{
-  config::{app::AppConfig, vulkan::VulkanConfig},
-  ecs_resources::components::camera::Camera,
-};
+use crate::config::{app::AppConfig, vulkan::VulkanConfig};
 
 use super::{
   device::Device,
@@ -133,10 +130,6 @@ impl Renderer {
 
   pub fn draw_frame(&mut self, device: &Device) {
     self.swap_chain.draw_frame(device);
-  }
-
-  pub fn update_camera(&mut self, camera: &Camera) {
-    self.pipeline.update_camera(camera);
   }
 
   pub fn render_pass(&self) -> vk::RenderPass {

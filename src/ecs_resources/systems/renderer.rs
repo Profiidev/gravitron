@@ -9,6 +9,7 @@ use crate::ecs_resources::components::camera::Camera;
 use crate::ecs_resources::components::renderer::MeshRenderer;
 use crate::ecs_resources::components::transform::Transform;
 use crate::vulkan::graphics::resources::model::InstanceData;
+use crate::vulkan::memory::BufferMemory;
 use crate::vulkan::Vulkan;
 use crate::Id;
 
@@ -18,7 +19,12 @@ pub fn init_renderer(vulkan: ResMut<Vulkan>) {
   vulkan.wait_for_draw_start();
 }
 
+pub struct RendererRecording {
+  camera_mem: Option<BufferMemory>,
+}
+
 pub fn renderer_recording(
+  mut state: ResMut<RendererRecording>,
   mut vulkan: ResMut<Vulkan>,
   to_render: Query<(&MeshRenderer, &Transform)>,
   camera: Query<&Camera>,
@@ -27,7 +33,10 @@ pub fn renderer_recording(
   trace!("Recording Render Instructions");
 
   if let Some(camera) = camera.into_iter().next() {
-    vulkan.update_camera(camera);
+    if state.camera_mem.is_none() {
+      state.camera_mem = vulkan.create_descriptor_mem("default", 0, 0, 128);
+    }
+    vulkan.update_descriptor("default", 0, 0, &state.camera_mem.as_ref().unwrap(), &[camera.view_matrix(), camera.projection_matrix()]).unwrap();
   } else {
     warn!("No camera found. Can't render anything");
     return;

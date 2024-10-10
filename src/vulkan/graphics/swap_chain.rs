@@ -135,7 +135,11 @@ impl SwapChain {
       .format(vk::Format::D32_SFLOAT)
       .subresource_range(subresource_range);
 
-    let depth_image = memory_manager.create_image(gpu_allocator::MemoryLocation::GpuOnly, &depth_image_create_info, &depth_image_view_create_info)?;
+    let depth_image = memory_manager.create_image(
+      gpu_allocator::MemoryLocation::GpuOnly,
+      &depth_image_create_info,
+      &depth_image_view_create_info,
+    )?;
     let depth_image_view = memory_manager.get_vk_image_view(depth_image).unwrap();
 
     let mut image_available = Vec::new();

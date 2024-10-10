@@ -1,4 +1,6 @@
 mod allocator;
 mod buffer;
-pub mod manager;
 mod image;
+pub mod manager;
+
+pub use allocator::BufferMemory;

@@ -8,13 +8,13 @@ use graphics::resources::model::InstanceData;
 use graphics::Renderer;
 use instance::{InstanceDevice, InstanceDeviceConfig};
 use memory::manager::MemoryManager;
+use memory::BufferMemory;
 use pipeline::pools::Pools;
 use pipeline::PipelineManager;
 use surface::Surface;
 use winit::window::Window;
 
 use crate::config::{app::AppConfig, vulkan::VulkanConfig};
-use crate::ecs_resources::components::camera::Camera;
 use crate::Id;
 
 #[cfg(feature = "debug")]
@@ -23,7 +23,7 @@ mod device;
 pub mod error;
 pub mod graphics;
 mod instance;
-mod memory;
+pub mod memory;
 mod pipeline;
 mod surface;
 
@@ -115,6 +115,40 @@ impl Vulkan {
     self.renderer.draw_frame(&self.device);
   }
 
+  pub fn update_descriptor<T: Sized>(
+    &mut self,
+    pipeline_name: &str,
+    descriptor_set: usize,
+    descriptor: usize,
+    mem: &BufferMemory,
+    data: &[T],
+  ) -> Option<()> {
+    self.pipeline_manager.update_descriptor(
+      &mut self.memory_manager,
+      pipeline_name,
+      descriptor_set,
+      descriptor,
+      mem,
+      data,
+    )
+  }
+
+  pub fn create_descriptor_mem(
+    &mut self,
+    pipeline_name: &str,
+    descriptor_set: usize,
+    descriptor: usize,
+    size: usize,
+  ) -> Option<BufferMemory> {
+    self.pipeline_manager.create_descriptor_mem(
+      &mut self.memory_manager,
+      pipeline_name,
+      descriptor_set,
+      descriptor,
+      size,
+    )
+  }
+
   pub fn set_instances(&mut self, instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>) {
     self
       .renderer
@@ -126,10 +160,6 @@ impl Vulkan {
       .renderer
       .record_command_buffer(self.device.get_device())
       .expect("Command Buffer Error");
-  }
-
-  pub fn update_camera(&mut self, camera: &Camera) {
-    self.renderer.update_camera(camera);
   }
 
   pub fn destroy(&mut self) {

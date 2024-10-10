@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::{
   vulkan::memory::{
-    allocator::BufferMemory,
     manager::{BufferId, MemoryManager},
+    BufferMemory,
   },
   Id,
 };

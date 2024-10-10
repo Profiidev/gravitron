@@ -42,7 +42,11 @@ impl Image {
     })
   }
 
-  pub fn cleanup(self, device: &ash::Device, allocator: &mut vulkan::Allocator) -> Result<(), Error> {
+  pub fn cleanup(
+    self,
+    device: &ash::Device,
+    allocator: &mut vulkan::Allocator,
+  ) -> Result<(), Error> {
     unsafe {
       device.destroy_image_view(self.image_view, None);
       device.destroy_image(self.image, None);

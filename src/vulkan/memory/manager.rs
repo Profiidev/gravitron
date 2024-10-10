@@ -79,8 +79,19 @@ impl MemoryManager {
     Ok(id)
   }
 
-  pub fn create_image(&mut self, location: gpu_allocator::MemoryLocation, image_info: &vk::ImageCreateInfo, image_view_info: &ImageViewCreateInfo) -> Result<ImageId, Error> {
-    let image = Image::new(&self.device, &mut self.allocator, location, image_info, image_view_info)?;
+  pub fn create_image(
+    &mut self,
+    location: gpu_allocator::MemoryLocation,
+    image_info: &vk::ImageCreateInfo,
+    image_view_info: &ImageViewCreateInfo,
+  ) -> Result<ImageId, Error> {
+    let image = Image::new(
+      &self.device,
+      &mut self.allocator,
+      location,
+      image_info,
+      image_view_info,
+    )?;
 
     self.images.insert(self.last_image_id, image);
     let id = self.last_image_id;
@@ -88,12 +99,71 @@ impl MemoryManager {
     Ok(id)
   }
 
+  pub fn reserve_buffer_mem(&mut self, buffer_id: BufferId, size: usize) -> Option<BufferMemory> {
+    Some(self.reserve_buffer_mem_internal(buffer_id, size)?.2)
+  }
+
   pub fn add_to_buffer<T: Sized>(
     &mut self,
     buffer_id: BufferId,
     data: &[T],
   ) -> Option<BufferMemory> {
-    let (command_buffer, fence, size) = self.write_prepare_internal(buffer_id, data)?;
+    let size = std::mem::size_of_val(data);
+    let (command_buffer, fence, mem) = self.reserve_buffer_mem_internal(buffer_id, size)?;
+    let buffer = self.buffers.get_mut(&buffer_id)?;
+    buffer.transfer.fill(data);
+
+    buffer_copy(
+      &buffer.transfer,
+      &buffer.gpu,
+      &self.device,
+      self.transfer_queue,
+      command_buffer,
+      fence,
+      mem.offset(),
+      size,
+    )
+    .ok()?;
+
+    self.buffer_used.insert(buffer_id, fence);
+
+    Some(mem)
+  }
+
+  pub fn write_to_buffer<T: Sized>(
+    &mut self,
+    buffer_id: BufferId,
+    mem: &BufferMemory,
+    data: &[T],
+  ) -> Option<()> {
+    let size = std::mem::size_of_val(data);
+    let (command_buffer, fence) = self.write_prepare_internal(buffer_id, size)?;
+    let buffer = self.buffers.get_mut(&buffer_id)?;
+    buffer.transfer.fill(data);
+
+    buffer_copy(
+      &buffer.transfer,
+      &buffer.gpu,
+      &self.device,
+      self.transfer_queue,
+      command_buffer,
+      fence,
+      mem.offset(),
+      size,
+    )
+    .ok()?;
+
+    self.buffer_used.insert(buffer_id, fence);
+
+    Some(())
+  }
+
+  fn reserve_buffer_mem_internal(
+    &mut self,
+    buffer_id: BufferId,
+    size: usize,
+  ) -> Option<(vk::CommandBuffer, vk::Fence, BufferMemory)> {
+    let (command_buffer, fence) = self.write_prepare_internal(buffer_id, size)?;
     let buffer = self.buffers.get_mut(&buffer_id)?;
 
     let mem = if let Some(mem) = buffer.allocator.alloc(size) {
@@ -133,56 +203,15 @@ impl MemoryManager {
       buffer.allocator.alloc(size).unwrap()
     };
 
-    buffer_copy(
-      &buffer.transfer,
-      &buffer.gpu,
-      &self.device,
-      self.transfer_queue,
-      command_buffer,
-      fence,
-      mem.offset(),
-      size,
-    )
-    .ok()?;
-
-    self.buffer_used.insert(buffer_id, fence);
-
-    Some(mem)
+    Some((command_buffer, fence, mem))
   }
 
-  pub fn write_to_buffer<T: Sized>(
+  fn write_prepare_internal(
     &mut self,
     buffer_id: BufferId,
-    mem: &BufferMemory,
-    data: &[T],
-  ) -> Option<()> {
-    let (command_buffer, fence, size) = self.write_prepare_internal(buffer_id, data)?;
+    size: usize,
+  ) -> Option<(vk::CommandBuffer, vk::Fence)> {
     let buffer = self.buffers.get_mut(&buffer_id)?;
-
-    buffer_copy(
-      &buffer.transfer,
-      &buffer.gpu,
-      &self.device,
-      self.transfer_queue,
-      command_buffer,
-      fence,
-      mem.offset(),
-      size,
-    )
-    .ok()?;
-
-    self.buffer_used.insert(buffer_id, fence);
-
-    Some(())
-  }
-
-  fn write_prepare_internal<T: Sized>(
-    &mut self,
-    buffer_id: BufferId,
-    data: &[T],
-  ) -> Option<(vk::CommandBuffer, vk::Fence, usize)> {
-    let buffer = self.buffers.get_mut(&buffer_id)?;
-    let size = std::mem::size_of_val(&data);
 
     if let Some(&fence) = self.buffer_used.get(&buffer_id) {
       unsafe {
@@ -191,12 +220,12 @@ impl MemoryManager {
     }
 
     if buffer.transfer.size() < size {
+      let new_size = (size as f32 / self.buffer_size as f32).ceil() as usize * self.buffer_size;
       buffer
         .transfer
-        .resize(size, &self.device, &mut self.allocator)
+        .resize(new_size, &self.device, &mut self.allocator)
         .ok();
     }
-    buffer.transfer.fill(data);
 
     let mut cmd_index = None;
     while cmd_index.is_none() {
@@ -212,7 +241,11 @@ impl MemoryManager {
     let command_buffer = self.command_buffers[index];
     let fence = self.fences[index];
 
-    Some((command_buffer, fence, size))
+    if let Some((&done, _)) = self.buffer_used.iter().find(|(_, &f)| fence == f) {
+      self.buffer_used.remove(&done);
+    }
+
+    Some((command_buffer, fence))
   }
 
   pub fn free(&mut self, buffer_id: BufferId, mem: BufferMemory) {

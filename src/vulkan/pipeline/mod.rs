@@ -1,15 +1,15 @@
 use anyhow::Error;
 use ash::vk;
 
-use crate::{
-  config::vulkan::{
-    ComputePipelineConfig, Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig,
-    PipelineType, ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
-  },
-  ecs_resources::components::camera::Camera,
+use crate::config::vulkan::{
+  ComputePipelineConfig, Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig,
+  PipelineType, ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
 };
 
-use super::memory::manager::{BufferId, MemoryManager};
+use super::memory::{
+  manager::{BufferId, MemoryManager},
+  BufferMemory,
+};
 
 pub mod pools;
 
@@ -230,12 +230,45 @@ impl PipelineManager {
     Some(&self.pipelines.iter().find(|(n, _)| n == name)?.1)
   }
 
-  pub fn update_camera(&mut self, camera: &Camera) {
-    for (_, pipeline) in &mut self.pipelines {
-      pipeline.descriptor_buffers[0][0]
-        .fill(&[camera.view_matrix(), camera.projection_matrix()])
-        .unwrap();
-    }
+  pub fn update_descriptor<T: Sized>(
+    &self,
+    memory_manager: &mut MemoryManager,
+    pipeline_name: &str,
+    descriptor_set: usize,
+    descriptor: usize,
+    mem: &BufferMemory,
+    data: &[T],
+  ) -> Option<()> {
+    let pipeline = self
+      .pipelines
+      .iter()
+      .find(|(n, _)| n == pipeline_name)
+      .map(|(_, p)| p)?;
+    let set = pipeline.descriptor_buffers.get(descriptor_set)?;
+    let desc = set.get(descriptor)?;
+
+    memory_manager.write_to_buffer(*desc, mem, data);
+
+    Some(())
+  }
+
+  pub fn create_descriptor_mem(
+    &self,
+    memory_manager: &mut MemoryManager,
+    pipeline_name: &str,
+    descriptor_set: usize,
+    descriptor: usize,
+    size: usize,
+  ) -> Option<BufferMemory> {
+    let pipeline = self
+      .pipelines
+      .iter()
+      .find(|(n, _)| n == pipeline_name)
+      .map(|(_, p)| p)?;
+    let set = pipeline.descriptor_buffers.get(descriptor_set)?;
+    let desc = set.get(descriptor)?;
+
+    memory_manager.reserve_buffer_mem(*desc, size)
   }
 
   pub fn pipeline_names(&self) -> Vec<&String> {
