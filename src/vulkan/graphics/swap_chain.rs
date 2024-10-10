@@ -16,6 +16,7 @@ pub struct SwapChain {
   loader: khr::swapchain::Device,
   swapchain: vk::SwapchainKHR,
   image_views: Vec<vk::ImageView>,
+  #[allow(dead_code)]
   depth_image: ImageId,
   frame_buffers: Vec<vk::Framebuffer>,
   //surface_format: vk::SurfaceFormatKHR,

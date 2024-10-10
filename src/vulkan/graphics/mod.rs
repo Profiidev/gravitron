@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-
 use anyhow::Error;
 use ash::vk;
-use gpu_allocator::vulkan;
-use gravitron_ecs::Id;
-use resources::model::{InstanceData, ModelManager};
+use resources::model::ModelManager;
 use swap_chain::SwapChain;
 
 use crate::config::{app::AppConfig, vulkan::VulkanConfig};
@@ -13,8 +9,11 @@ use super::{
   device::Device,
   error::RendererInitError,
   instance::InstanceDevice,
-  memory::manager::MemoryManager,
-  pipeline::{self, pools::Pools},
+  memory::{
+    manager::{BufferId, MemoryManager},
+    BufferMemory,
+  },
+  pipeline::{self, pools::Pools, PipelineManager},
   surface::Surface,
 };
 
@@ -25,8 +24,10 @@ pub struct Renderer {
   render_pass: ash::vk::RenderPass,
   swap_chain: SwapChain,
   model_manager: ModelManager,
-  instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>,
   logical_device: ash::Device,
+  draw_commands: BufferId,
+  draw_count: BufferId,
+  draw_mem: BufferMemory,
 }
 
 impl Renderer {
@@ -59,12 +60,20 @@ impl Renderer {
 
     let model_manager = ModelManager::new(memory_manager)?;
 
+    let draw_commands =
+      memory_manager.create_buffer(vk::BufferUsageFlags::INDIRECT_BUFFER, None)?;
+    let draw_count =
+      memory_manager.create_buffer(vk::BufferUsageFlags::INDIRECT_BUFFER, Some(4))?;
+    let draw_mem = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+
     Ok(Self {
       render_pass,
       swap_chain,
       model_manager,
-      instances: HashMap::new(),
       logical_device: logical_device.clone(),
+      draw_commands,
+      draw_count,
+      draw_mem,
     })
   }
 
@@ -81,51 +90,54 @@ impl Renderer {
     self.swap_chain.wait_for_draw_start(logical_device);
   }
 
-  pub fn record_command_buffer(&self, device: &ash::Device) -> Result<(), vk::Result> {
+  pub fn record_command_buffer(
+    &self,
+    pipeline_manager: &PipelineManager,
+    memory_manager: &MemoryManager,
+  ) -> Result<(), vk::Result> {
     let buffer = self
       .swap_chain
-      .record_command_buffer_first(device, self.render_pass)?;
+      .record_command_buffer_first(&self.logical_device, self.render_pass)?;
 
-    let names = self.pipeline.pipeline_names();
+    let names = pipeline_manager.pipeline_names();
     let pipeline_count = names.len();
     for (i, pipeline) in names.into_iter().enumerate() {
       unsafe {
-        self
-          .pipeline
+        pipeline_manager
           .get_pipeline(pipeline)
           .unwrap()
-          .record_command_buffer(buffer, device)
-      };
+          .record_command_buffer(buffer, &self.logical_device);
 
-      if let Some(instances) = self.instances.get(pipeline) {
         self
           .model_manager
-          .record_command_buffer(instances, buffer, device);
+          .record_command_buffer(memory_manager, buffer, &self.logical_device);
+
+        let draw_commands = memory_manager.get_vk_buffer(self.draw_commands).unwrap();
+        let draw_count = memory_manager.get_vk_buffer(self.draw_count).unwrap();
+        let max_draw_count = memory_manager.get_buffer_size(self.draw_commands).unwrap() / 20;
+        self.logical_device.cmd_draw_indexed_indirect_count(
+          buffer,
+          draw_commands,
+          0,
+          draw_count,
+          0,
+          max_draw_count as u32,
+          std::mem::size_of::<vk::DrawIndexedIndirectCommand>() as u32,
+        );
       }
 
       if i + 1 < pipeline_count {
         unsafe {
-          device.cmd_next_subpass(buffer, vk::SubpassContents::INLINE);
+          self
+            .logical_device
+            .cmd_next_subpass(buffer, vk::SubpassContents::INLINE);
         }
       }
     }
 
-    self.swap_chain.record_command_buffer_second(device, buffer)
-  }
-
-  pub fn set_instances(
-    &mut self,
-    instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>,
-    device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
-  ) {
-    self.instances = instances;
-    for instances in self.instances.values() {
-      self
-        .model_manager
-        .update_instance_buffer(instances, device, allocator)
-        .unwrap();
-    }
+    self
+      .swap_chain
+      .record_command_buffer_second(&self.logical_device, buffer)
   }
 
   pub fn draw_frame(&mut self, device: &Device) {

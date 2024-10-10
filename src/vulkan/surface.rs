@@ -8,6 +8,7 @@ use winit::{
 pub struct Surface {
   surface_loader: khr::surface::Instance,
   surface: vk::SurfaceKHR,
+  #[allow(dead_code)]
   window: Window,
 }
 

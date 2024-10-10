@@ -44,9 +44,10 @@ pub struct InstanceData {
 
 impl ModelManager {
   pub fn new(memory_manager: &mut MemoryManager) -> Result<Self, Error> {
-    let vertex_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER)?;
-    let index_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::INDEX_BUFFER)?;
-    let instance_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER)?;
+    let vertex_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, None)?;
+    let index_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::INDEX_BUFFER, None)?;
+    let instance_buffer =
+      memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, None)?;
 
     let mut manager = ModelManager {
       models: Vec::new(),
@@ -83,15 +84,37 @@ impl ModelManager {
 
   pub fn record_command_buffer(
     &self,
-    instances: &HashMap<Id, Vec<InstanceData>>,
+    memory_manager: &MemoryManager,
     command_buffer: vk::CommandBuffer,
     device: &ash::Device,
   ) {
+    let vertex_buffer = memory_manager.get_vk_buffer(self.vertex_buffer).unwrap();
+    let index_buffer = memory_manager.get_vk_buffer(self.index_buffer).unwrap();
+    let instance_buffer = memory_manager.get_vk_buffer(self.instance_buffer).unwrap();
+    unsafe {
+      device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
+      device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+      device.cmd_bind_vertex_buffers(command_buffer, 1, &[instance_buffer], &[0]);
+    }
+  }
+
+  pub fn fill_draw_buffer(
+    &self,
+    instances: &HashMap<Id, (u32, u32)>,
+  ) -> Vec<vk::DrawIndexedIndirectCommand> {
+    let mut commands = Vec::new();
     for (i, model) in self.models.iter().enumerate() {
-      if let Some(instance) = instances.get(&(i as Id)) {
-        model.record_command_buffer(instance.len() as u32, command_buffer, device);
+      if let Some((instance_count, first_instance)) = instances.get(&(i as Id)) {
+        commands.push(vk::DrawIndexedIndirectCommand {
+          index_count: model.index_len,
+          instance_count: *instance_count,
+          first_index: model.indices.offset() as u32,
+          vertex_offset: model.vertices.offset() as i32,
+          first_instance: *first_instance,
+        });
       }
     }
+    commands
   }
 }
 

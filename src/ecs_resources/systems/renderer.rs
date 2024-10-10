@@ -19,6 +19,7 @@ pub fn init_renderer(vulkan: ResMut<Vulkan>) {
   vulkan.wait_for_draw_start();
 }
 
+#[derive(Default)]
 pub struct RendererRecording {
   camera_mem: Option<BufferMemory>,
 }
@@ -41,7 +42,7 @@ pub fn renderer_recording(
         "default",
         0,
         0,
-        &state.camera_mem.as_ref().unwrap(),
+        state.camera_mem.as_ref().unwrap(),
         &[camera.view_matrix(), camera.projection_matrix()],
       )
       .unwrap();
@@ -65,9 +66,8 @@ pub fn renderer_recording(
       material.roughness,
     ));
   }
-  vulkan.set_instances(models);
 
-  vulkan.record_command_buffer();
+  vulkan.update_command_buffer();
 }
 
 pub fn execute_renderer(mut vulkan: ResMut<Vulkan>) {

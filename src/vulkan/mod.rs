@@ -1,10 +1,7 @@
-use std::collections::HashMap;
-
 use anyhow::Error;
 #[cfg(feature = "debug")]
 use debug::Debugger;
 use device::Device;
-use graphics::resources::model::InstanceData;
 use graphics::Renderer;
 use instance::{InstanceDevice, InstanceDeviceConfig};
 use memory::manager::MemoryManager;
@@ -15,7 +12,6 @@ use surface::Surface;
 use winit::window::Window;
 
 use crate::config::{app::AppConfig, vulkan::VulkanConfig};
-use crate::Id;
 
 #[cfg(feature = "debug")]
 mod debug;
@@ -149,16 +145,10 @@ impl Vulkan {
     )
   }
 
-  pub fn set_instances(&mut self, instances: HashMap<String, HashMap<Id, Vec<InstanceData>>>) {
+  pub fn update_command_buffer(&self) {
     self
       .renderer
-      .set_instances(instances, self.device.get_device());
-  }
-
-  pub fn record_command_buffer(&self) {
-    self
-      .renderer
-      .record_command_buffer(self.device.get_device())
+      .record_command_buffer(&self.pipeline_manager, &self.memory_manager)
       .expect("Command Buffer Error");
   }
 
@@ -173,7 +163,7 @@ impl Vulkan {
 
     self.pipeline_manager.destroy();
     self.renderer.destroy();
-    self.memory_manager.cleanup();
+    self.memory_manager.cleanup().unwrap();
     unsafe {
       self.pools.cleanup();
     }

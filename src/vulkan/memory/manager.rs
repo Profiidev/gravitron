@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem::ManuallyDrop, u64};
+use std::{collections::HashMap, mem::ManuallyDrop};
 
 use anyhow::Error;
 use ash::vk::{self, ImageViewCreateInfo};
@@ -19,6 +19,8 @@ use super::{
 pub type BufferId = crate::Id;
 pub type ImageId = crate::Id;
 
+const BUFFER_BLOCK_SIZE: usize = 1024 * 1024 * 64;
+
 pub struct MemoryManager {
   buffers: HashMap<BufferId, ManagedBuffer>,
   buffer_used: HashMap<BufferId, vk::Fence>,
@@ -27,7 +29,6 @@ pub struct MemoryManager {
   last_image_id: BufferId,
   allocator: ManuallyDrop<vulkan::Allocator>,
   device: ash::Device,
-  buffer_size: usize,
   command_buffers: Vec<vk::CommandBuffer>,
   fences: Vec<vk::Fence>,
   transfer_queue: vk::Queue,
@@ -63,15 +64,23 @@ impl MemoryManager {
       last_image_id: 0,
       allocator: ManuallyDrop::new(allocator),
       device: logical_device.clone(),
-      buffer_size: 1024 * 1024 * 64,
       command_buffers,
       fences,
       transfer_queue: device.get_queues().transfer(),
     })
   }
 
-  pub fn create_buffer(&mut self, usage: vk::BufferUsageFlags) -> Result<BufferId, Error> {
-    let buffer = ManagedBuffer::new(&mut self.allocator, &self.device, self.buffer_size, usage)?;
+  pub fn create_buffer(
+    &mut self,
+    usage: vk::BufferUsageFlags,
+    block_size: Option<usize>,
+  ) -> Result<BufferId, Error> {
+    let buffer = ManagedBuffer::new(
+      &mut self.allocator,
+      &self.device,
+      usage,
+      block_size.unwrap_or(BUFFER_BLOCK_SIZE),
+    )?;
 
     self.buffers.insert(self.last_buffer_id, buffer);
     let id = self.last_buffer_id;
@@ -111,7 +120,7 @@ impl MemoryManager {
     let size = std::mem::size_of_val(data);
     let (command_buffer, fence, mem) = self.reserve_buffer_mem_internal(buffer_id, size)?;
     let buffer = self.buffers.get_mut(&buffer_id)?;
-    buffer.transfer.fill(data);
+    buffer.transfer.fill(data).ok()?;
 
     buffer_copy(
       &buffer.transfer,
@@ -139,7 +148,7 @@ impl MemoryManager {
     let size = std::mem::size_of_val(data);
     let (command_buffer, fence) = self.write_prepare_internal(buffer_id, size)?;
     let buffer = self.buffers.get_mut(&buffer_id)?;
-    buffer.transfer.fill(data);
+    buffer.transfer.fill(data).ok()?;
 
     buffer_copy(
       &buffer.transfer,
@@ -170,7 +179,7 @@ impl MemoryManager {
       mem
     } else {
       let additional_size =
-        (size as f32 / self.buffer_size as f32).ceil() as usize * self.buffer_size;
+        (size as f32 / buffer.block_size as f32).ceil() as usize * buffer.block_size;
       let new_gpu = Buffer::new(
         &mut self.allocator,
         &self.device,
@@ -188,7 +197,8 @@ impl MemoryManager {
         fence,
         0,
         buffer.gpu.size(),
-      );
+      )
+      .ok()?;
 
       unsafe {
         self.device.wait_for_fences(&[fence], true, u64::MAX).ok()?;
@@ -196,7 +206,7 @@ impl MemoryManager {
       }
 
       let old_gpu = std::mem::replace(&mut buffer.gpu, new_gpu);
-      unsafe { old_gpu.cleanup(&self.device, &mut self.allocator) };
+      unsafe { old_gpu.cleanup(&self.device, &mut self.allocator).ok()? };
 
       buffer.allocator.grow(additional_size);
 
@@ -220,7 +230,7 @@ impl MemoryManager {
     }
 
     if buffer.transfer.size() < size {
-      let new_size = (size as f32 / self.buffer_size as f32).ceil() as usize * self.buffer_size;
+      let new_size = (size as f32 / buffer.block_size as f32).ceil() as usize * buffer.block_size;
       buffer
         .transfer
         .resize(new_size, &self.device, &mut self.allocator)
@@ -232,7 +242,7 @@ impl MemoryManager {
       for i in 0..self.command_buffers.len() {
         if unsafe { self.device.get_fence_status(self.fences[i]).ok()? } {
           cmd_index = Some(i);
-          unsafe { self.device.reset_fences(&[self.fences[i]]) };
+          unsafe { self.device.reset_fences(&[self.fences[i]]).ok()? };
           break;
         }
       }
@@ -261,6 +271,10 @@ impl MemoryManager {
     Some(self.images.get(&image_id)?.image_view())
   }
 
+  pub fn get_buffer_size(&self, buffer_id: BufferId) -> Option<usize> {
+    Some(self.buffers.get(&buffer_id)?.gpu.size())
+  }
+
   pub fn cleanup(&mut self) -> Result<(), Error> {
     for (_, buffer) in std::mem::take(&mut self.buffers) {
       buffer.cleanup(&self.device, &mut self.allocator)?;
@@ -279,19 +293,20 @@ struct ManagedBuffer {
   transfer: Buffer,
   gpu: Buffer,
   allocator: Allocator,
+  block_size: usize,
 }
 
 impl ManagedBuffer {
   fn new(
     allocator: &mut vulkan::Allocator,
     device: &ash::Device,
-    size: usize,
     usage: vk::BufferUsageFlags,
+    block_size: usize,
   ) -> Result<Self, Error> {
     let transfer = Buffer::new(
       allocator,
       device,
-      size,
+      block_size,
       usage | vk::BufferUsageFlags::TRANSFER_SRC,
       gpu_allocator::MemoryLocation::CpuToGpu,
     )?;
@@ -299,17 +314,18 @@ impl ManagedBuffer {
     let gpu = Buffer::new(
       allocator,
       device,
-      size,
+      block_size,
       usage | vk::BufferUsageFlags::TRANSFER_DST,
       gpu_allocator::MemoryLocation::GpuOnly,
     )?;
 
-    let allocator = Allocator::new(size);
+    let allocator = Allocator::new(block_size);
 
     Ok(Self {
       transfer,
       gpu,
       allocator,
+      block_size,
     })
   }
 

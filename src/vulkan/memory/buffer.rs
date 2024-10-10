@@ -41,7 +41,7 @@ impl Buffer {
         .unwrap()
         .mapped_ptr()
         .ok_or(vk::Result::ERROR_OUT_OF_HOST_MEMORY)?
-        .byte_add(offset as usize)
+        .byte_add(offset)
     }
     .as_ptr() as *mut T;
 

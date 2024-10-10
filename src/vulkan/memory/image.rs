@@ -16,7 +16,7 @@ impl Image {
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
   ) -> Result<Self, Error> {
-    let image = unsafe { device.create_image(&image_info, None)? };
+    let image = unsafe { device.create_image(image_info, None)? };
 
     let requirements = unsafe { device.get_image_memory_requirements(image) };
     let allocations_create_desc = vulkan::AllocationCreateDesc {
@@ -28,7 +28,7 @@ impl Image {
     };
     let image_allocation = allocator.allocate(&allocations_create_desc)?;
 
-    let image_view_info = image_view_info.clone().image(image);
+    let image_view_info = image_view_info.image(image);
     unsafe {
       device.bind_image_memory(image, image_allocation.memory(), image_allocation.offset())?
     };
