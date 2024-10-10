@@ -27,7 +27,7 @@ pub enum BufferBlockSize {
   Large,
   Medium,
   Small,
-  Exact(usize)
+  Exact(usize),
 }
 
 pub struct MemoryManager {
@@ -84,12 +84,7 @@ impl MemoryManager {
     usage: vk::BufferUsageFlags,
     block_size: BufferBlockSize,
   ) -> Result<BufferId, Error> {
-    let buffer = ManagedBuffer::new(
-      &mut self.allocator,
-      &self.device,
-      usage,
-      block_size.into(),
-    )?;
+    let buffer = ManagedBuffer::new(&mut self.allocator, &self.device, usage, block_size.into())?;
 
     self.buffers.insert(self.last_buffer_id, buffer);
     let id = self.last_buffer_id;

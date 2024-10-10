@@ -60,10 +60,14 @@ impl Renderer {
 
     let model_manager = ModelManager::new(memory_manager)?;
 
-    let draw_commands =
-      memory_manager.create_buffer(vk::BufferUsageFlags::INDIRECT_BUFFER, BufferBlockSize::Medium)?;
-    let draw_count =
-      memory_manager.create_buffer(vk::BufferUsageFlags::INDIRECT_BUFFER, BufferBlockSize::Exact(4))?;
+    let draw_commands = memory_manager.create_buffer(
+      vk::BufferUsageFlags::INDIRECT_BUFFER,
+      BufferBlockSize::Medium,
+    )?;
+    let draw_count = memory_manager.create_buffer(
+      vk::BufferUsageFlags::INDIRECT_BUFFER,
+      BufferBlockSize::Exact(4),
+    )?;
     let draw_mem = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
 
     Ok(Self {

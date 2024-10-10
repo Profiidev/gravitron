@@ -44,8 +44,10 @@ pub struct InstanceData {
 
 impl ModelManager {
   pub fn new(memory_manager: &mut MemoryManager) -> Result<Self, Error> {
-    let vertex_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, BufferBlockSize::Large)?;
-    let index_buffer = memory_manager.create_buffer(vk::BufferUsageFlags::INDEX_BUFFER, BufferBlockSize::Large)?;
+    let vertex_buffer =
+      memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, BufferBlockSize::Large)?;
+    let index_buffer =
+      memory_manager.create_buffer(vk::BufferUsageFlags::INDEX_BUFFER, BufferBlockSize::Large)?;
     let instance_buffer =
       memory_manager.create_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, BufferBlockSize::Large)?;
 
