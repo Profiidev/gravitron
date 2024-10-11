@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
   vulkan::memory::{
-    manager::{
-      BufferBlockSize, BufferId, MemoryManager},
+    manager::{BufferBlockSize, BufferId, MemoryManager},
     BufferMemory,
   },
   Id,
@@ -94,7 +93,7 @@ impl ModelManager {
   ) -> Option<Id> {
     let vertices_slice = vertex_data.as_slice();
     let vertices = memory_manager.add_to_buffer(self.vertex_buffer, vertices_slice)?;
-    let index_slice = vertex_data.as_slice();
+    let index_slice = index_data.as_slice();
     let indices = memory_manager.add_to_buffer(self.index_buffer, index_slice)?;
 
     let id = self.last_id;

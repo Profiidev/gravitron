@@ -130,16 +130,17 @@ impl Renderer {
 
     let names = pipeline_manager.pipeline_names();
     let pipeline_count = names.len();
+
+    self
+      .model_manager
+      .record_command_buffer(memory_manager, buffer, &self.logical_device);
+
     for (i, pipeline) in names.into_iter().enumerate() {
       unsafe {
         pipeline_manager
           .get_pipeline(pipeline)
           .unwrap()
           .record_command_buffer(buffer, &self.logical_device);
-
-        self
-          .model_manager
-          .record_command_buffer(memory_manager, buffer, &self.logical_device);
 
         let draw_commands = memory_manager.get_vk_buffer(self.draw_commands).unwrap();
         let draw_count = memory_manager.get_vk_buffer(self.draw_count).unwrap();
