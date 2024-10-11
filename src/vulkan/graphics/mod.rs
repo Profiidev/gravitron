@@ -5,7 +5,7 @@ use ash::vk;
 use resources::model::{ModelId, ModelManager};
 use swap_chain::SwapChain;
 
-use crate::config::{app::AppConfig, vulkan::VulkanConfig};
+use crate::config::{app::AppConfig, vulkan::{PipelineType, VulkanConfig}};
 
 use super::{
   device::Device,
@@ -28,10 +28,8 @@ pub struct Renderer {
   model_manager: ModelManager,
   logical_device: ash::Device,
   draw_commands: BufferId,
-  draw_commands_mem: Option<BufferMemory>,
   draw_count: BufferId,
-  draw_count_mem: BufferMemory,
-  draw_count_data: u32,
+  shader_mem: HashMap<String, (BufferMemory, BufferMemory, u32)>,
   commands: HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
   buffers_updated: Vec<usize>,
 }
@@ -72,10 +70,23 @@ impl Renderer {
     )?;
     let draw_count = memory_manager.create_buffer(
       vk::BufferUsageFlags::INDIRECT_BUFFER,
-      BufferBlockSize::Exact(4),
+      BufferBlockSize::Small,
     )?;
-    let draw_commands_mem = memory_manager.reserve_buffer_mem(draw_commands, 1).unwrap();
-    let draw_count_mem = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+
+    let cmd_block_size = 10 * std::mem::size_of::<vk::DrawIndexedIndirectCommand>();
+    let mut shader_mem = HashMap::new();
+
+    for pipeline in &config.shaders {
+      if let PipelineType::Graphics(shader) = pipeline {
+        let cmd_mem = memory_manager.reserve_buffer_mem(draw_commands, cmd_block_size).unwrap();
+        let count_mme = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+        shader_mem.insert(shader.name.clone(), (cmd_mem, count_mme, 0));
+      }
+    }
+
+    let cmd_mem = memory_manager.reserve_buffer_mem(draw_commands, cmd_block_size).unwrap();
+    let count_mme = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+    shader_mem.insert("default".into(), (cmd_mem, count_mme, 0));
 
     Ok(Self {
       render_pass,
@@ -83,10 +94,8 @@ impl Renderer {
       model_manager,
       logical_device: logical_device.clone(),
       draw_commands,
-      draw_commands_mem: Some(draw_commands_mem),
+      shader_mem,
       draw_count,
-      draw_count_mem,
-      draw_count_data: 0,
       commands: HashMap::new(),
       buffers_updated: Vec::new(),
     })
@@ -144,13 +153,15 @@ impl Renderer {
 
         let draw_commands = memory_manager.get_vk_buffer(self.draw_commands).unwrap();
         let draw_count = memory_manager.get_vk_buffer(self.draw_count).unwrap();
-        let max_draw_count = memory_manager.get_buffer_size(self.draw_commands).unwrap() / 20;
+        let (cmd_mem, count_mem, _) = self.shader_mem.get(pipeline).unwrap();
+        let max_draw_count = cmd_mem.size() / 20;
+
         self.logical_device.cmd_draw_indexed_indirect_count(
           buffer,
           draw_commands,
-          0,
+          cmd_mem.offset() as u64,
           draw_count,
-          0,
+          count_mem.offset() as u64,
           max_draw_count as u32,
           std::mem::size_of::<vk::DrawIndexedIndirectCommand>() as u32,
         );
@@ -189,41 +200,42 @@ impl Renderer {
       return;
     }
 
-    let cmd_new_length = cmd_new.len();
-
     let cmd_size = std::mem::size_of::<vk::DrawIndexedIndirectCommand>();
-    let size_needed = cmd_size * (self.draw_count_data as usize + cmd_new.len());
-    let old_mem = std::mem::take(&mut self.draw_commands_mem).unwrap();
-    memory_manager.free_buffer_mem(old_mem);
-    self.draw_commands_mem = Some(
-      memory_manager
-        .reserve_buffer_mem(self.draw_commands, size_needed)
-        .unwrap(),
-    );
+    let cmd_block_size = 10 * cmd_size;
 
-    let mut to_write = Vec::new();
-    for (i, (model_id, shader, cmd)) in cmd_new.into_iter().enumerate() {
-      let model = self.commands.entry(model_id).or_default();
-      model.insert(
-        shader,
-        (
-          cmd,
-          (self.draw_count_data as u64 + i as u64) * cmd_size as u64,
-        ),
-      );
-      to_write.push(cmd);
+    let mut write_info = Vec::new();
+    let mut write_data = Vec::new();
+
+    for (shader, cmd_new) in cmd_new {
+      let (cmd_mem, count_mem, count) = self.shader_mem.get_mut(&shader).unwrap();
+
+      let cmd_new_len = cmd_new.len();
+
+      let required_size = cmd_size * (*count as usize + cmd_new_len);
+      if cmd_mem.size() < required_size {
+        let new_size = (required_size as f32 / cmd_block_size as f32).ceil() as usize * cmd_block_size;
+        memory_manager.resize_buffer_mem(cmd_mem, new_size);
+        self.buffers_updated = Vec::new();
+      }
+
+      write_info.push(vk::BufferCopy {
+        src_offset: (write_data.len() * cmd_size) as u64,
+        dst_offset: (cmd_mem.offset() + *count as usize * cmd_size) as u64,
+        size: (cmd_size * cmd_new_len) as u64,
+      });
+
+      for (i, (model_id, cmd)) in cmd_new.into_iter().enumerate() {
+        let model = self.commands.entry(model_id).or_default();
+        model.insert(shader.clone(), (cmd, (cmd_mem.offset() + (*count as usize + i) * cmd_size) as u64));
+        write_data.push(cmd);
+      }
+
+      *count += cmd_new_len as u32;
+      memory_manager.write_to_buffer(count_mem, &[*count]);
     }
 
-    let copy_info = [vk::BufferCopy {
-      src_offset: 0,
-      dst_offset: self.draw_count_data as u64 * cmd_size as u64,
-      size: (to_write.len() * cmd_size) as u64,
-    }];
-    let to_write_slice = to_write.as_slice();
-    memory_manager.write_to_buffer_direct(self.draw_commands, to_write_slice, &copy_info);
-
-    self.draw_count_data += cmd_new_length as u32;
-    memory_manager.write_to_buffer(&self.draw_count_mem, &[self.draw_count_data]);
+    let write_data_slice = write_data.as_slice();
+    memory_manager.write_to_buffer_direct(self.draw_commands, write_data_slice, &write_info);
   }
 
   pub fn draw_frame(&mut self, device: &Device) {

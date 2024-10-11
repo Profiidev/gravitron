@@ -21,6 +21,7 @@ pub fn init_renderer(vulkan: ResMut<Vulkan>) {
 #[derive(Default)]
 pub struct RendererRecording {
   camera_mem: Option<BufferMemory>,
+  camera_mem2: Option<BufferMemory>,
 }
 
 pub fn renderer_recording(
@@ -35,10 +36,17 @@ pub fn renderer_recording(
   if let Some(camera) = camera.into_iter().next() {
     if state.camera_mem.is_none() {
       state.camera_mem = vulkan.create_descriptor_mem("default", 0, 0, 128);
+      state.camera_mem2 = vulkan.create_descriptor_mem("testing", 0, 0, 128);
     }
     vulkan
       .update_descriptor(
         state.camera_mem.as_ref().unwrap(),
+        &[camera.view_matrix(), camera.projection_matrix()],
+      )
+      .unwrap();
+    vulkan
+      .update_descriptor(
+        state.camera_mem2.as_ref().unwrap(),
         &[camera.view_matrix(), camera.projection_matrix()],
       )
       .unwrap();
