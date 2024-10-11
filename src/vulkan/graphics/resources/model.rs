@@ -128,7 +128,7 @@ impl ModelManager {
     commands: &mut HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
-  ) -> Vec<(ModelId, String, vk::DrawIndexedIndirectCommand)> {
+  ) -> HashMap<String, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>> {
     let instance_size = std::mem::size_of::<InstanceData>();
     let mut copy_offset = 0;
     let mut instance_copies_info = Vec::new();
@@ -137,7 +137,7 @@ impl ModelManager {
     let cmd_size = size_of::<vk::DrawIndexedIndirectCommand>() as u64;
     let mut cmd_copies_info = Vec::new();
     let mut cmd_copies = Vec::new();
-    let mut cmd_new = Vec::new();
+    let mut cmd_new = HashMap::new();
 
     for (model_id, shaders) in commands.iter_mut() {
       if !instances.contains_key(model_id) {
@@ -191,12 +191,9 @@ impl ModelManager {
               let new_size = (instances_size as f32 / model.instance_alloc_size as f32).ceil()
                 as usize
                 * model.instance_alloc_size;
-              let new_mem = memory_manager
-                .reserve_buffer_mem(mem.buffer(), new_size)
-                .unwrap();
 
               command.first_instance = mem.offset() as u32;
-              memory_manager.free_buffer_mem(std::mem::replace(mem, new_mem));
+              memory_manager.resize_buffer_mem(mem, new_size);
             }
           }
 
@@ -255,7 +252,8 @@ impl ModelManager {
             first_instance: mem.offset() as u32,
           };
 
-          cmd_new.push((model_id, shader.clone(), cmd));
+          let shader_cmd: &mut Vec<(u64, vk::DrawIndexedIndirectCommand)> = cmd_new.entry(shader.clone()).or_default();
+          shader_cmd.push((model_id, cmd));
 
           model.instances.insert(shader, (mem, instances));
         }
