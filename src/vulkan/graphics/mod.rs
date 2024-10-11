@@ -15,12 +15,13 @@ use super::{
     manager::{BufferBlockSize, BufferId, MemoryManager},
     BufferMemory,
   },
-  pipeline::{self, pools::Pools, PipelineManager},
+  pipeline::{pools::Pools, PipelineManager},
   surface::Surface,
 };
 
 pub mod resources;
 mod swap_chain;
+mod render_pass;
 
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
@@ -51,7 +52,7 @@ impl Renderer {
       .first()
       .ok_or(RendererInitError::FormatMissing)?
       .format;
-    let render_pass = pipeline::init_render_pass(logical_device, format, config.shaders.len() + 1)?;
+    let render_pass = render_pass::init_render_pass(logical_device, format, config.shaders.len() + 1)?;
     let swap_chain = SwapChain::init(
       instance,
       device,
