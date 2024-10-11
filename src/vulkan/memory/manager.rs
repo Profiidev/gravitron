@@ -21,7 +21,7 @@ pub type ImageId = crate::Id;
 
 pub const BUFFER_BLOCK_SIZE_LARGE: usize = 1024 * 1024 * 64;
 pub const BUFFER_BLOCK_SIZE_MEDIUM: usize = 1024 * 64;
-pub const BUFFER_BLOCK_SIZE_SMALL: usize = 1024 * 64;
+pub const BUFFER_BLOCK_SIZE_SMALL: usize = 64;
 
 pub enum BufferBlockSize {
   Large,
@@ -309,6 +309,11 @@ impl MemoryManager {
   }
 
   pub fn cleanup(&mut self) -> Result<(), Error> {
+    for &fence in &self.fences {
+      unsafe {
+        self.device.destroy_fence(fence, None);
+      }
+    }
     for (_, buffer) in std::mem::take(&mut self.buffers) {
       buffer.cleanup(&self.device, &mut self.allocator)?;
     }
