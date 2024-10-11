@@ -1,8 +1,11 @@
 use std::collections::BTreeMap;
 
+use super::manager::BufferId;
+
 pub struct BufferMemory {
   offset: usize,
   size: usize,
+  buffer: BufferId,
 }
 
 pub struct Allocator {
@@ -18,6 +21,10 @@ impl BufferMemory {
   pub fn size(&self) -> usize {
     self.size
   }
+
+  pub fn buffer(&self) -> BufferId {
+    self.buffer
+  }
 }
 
 impl Allocator {
@@ -28,7 +35,8 @@ impl Allocator {
     Self { free, size }
   }
 
-  pub fn alloc(&mut self, size: usize) -> Option<BufferMemory> {
+  pub fn alloc(&mut self, size: usize, buffer: BufferId) -> Option<BufferMemory> {
+    assert!(size > 0);
     let offset = self
       .free
       .iter()
@@ -39,7 +47,11 @@ impl Allocator {
       self.free.insert(offset + size, block_size - size);
     }
 
-    Some(BufferMemory { offset, size })
+    Some(BufferMemory {
+      offset,
+      size,
+      buffer,
+    })
   }
 
   pub fn free(&mut self, mem: BufferMemory) {

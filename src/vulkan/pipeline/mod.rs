@@ -41,7 +41,6 @@ pub fn init_render_pass(
     vec![
       color
         .load_op(vk::AttachmentLoadOp::CLEAR)
-        .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
         .initial_layout(vk::ImageLayout::UNDEFINED),
       depth
         .load_op(vk::AttachmentLoadOp::CLEAR)
@@ -55,7 +54,7 @@ pub fn init_render_pass(
       depth
         .load_op(vk::AttachmentLoadOp::CLEAR)
         .initial_layout(vk::ImageLayout::UNDEFINED),
-      color.final_layout(vk::ImageLayout::PRESENT_SRC_KHR),
+      color,
       depth,
     ]
   } else {
@@ -68,7 +67,7 @@ pub fn init_render_pass(
         .initial_layout(vk::ImageLayout::UNDEFINED),
       color,
       depth,
-      color.final_layout(vk::ImageLayout::PRESENT_SRC_KHR),
+      color,
       depth,
     ]
   };
@@ -233,21 +232,10 @@ impl PipelineManager {
   pub fn update_descriptor<T: Sized>(
     &self,
     memory_manager: &mut MemoryManager,
-    pipeline_name: &str,
-    descriptor_set: usize,
-    descriptor: usize,
     mem: &BufferMemory,
     data: &[T],
   ) -> Option<()> {
-    let pipeline = self
-      .pipelines
-      .iter()
-      .find(|(n, _)| n == pipeline_name)
-      .map(|(_, p)| p)?;
-    let set = pipeline.descriptor_buffers.get(descriptor_set)?;
-    let desc = set.get(descriptor)?;
-
-    memory_manager.write_to_buffer(*desc, mem, data);
+    memory_manager.write_to_buffer(mem, data);
 
     Some(())
   }

@@ -1,8 +1,13 @@
+use std::collections::HashMap;
+
 use anyhow::Error;
 #[cfg(feature = "debug")]
 use debug::Debugger;
 use device::Device;
-use graphics::Renderer;
+use graphics::{
+  resources::model::{InstanceData, ModelId},
+  Renderer,
+};
 use instance::{InstanceDevice, InstanceDeviceConfig};
 use memory::manager::MemoryManager;
 use memory::BufferMemory;
@@ -70,7 +75,7 @@ impl Vulkan {
 
     let mut memory_manager = MemoryManager::new(&instance, &device, &mut pools)?;
 
-    let renderer = Renderer::init(
+    let mut renderer = Renderer::init(
       &instance,
       &device,
       &mut memory_manager,
@@ -87,6 +92,8 @@ impl Vulkan {
       &mut config.shaders,
       &mut memory_manager,
     )?;
+
+    renderer.record_command_buffer(&pipeline_manager, &mut memory_manager)?;
 
     Ok(Vulkan {
       entry,
@@ -111,22 +118,10 @@ impl Vulkan {
     self.renderer.draw_frame(&self.device);
   }
 
-  pub fn update_descriptor<T: Sized>(
-    &mut self,
-    pipeline_name: &str,
-    descriptor_set: usize,
-    descriptor: usize,
-    mem: &BufferMemory,
-    data: &[T],
-  ) -> Option<()> {
-    self.pipeline_manager.update_descriptor(
-      &mut self.memory_manager,
-      pipeline_name,
-      descriptor_set,
-      descriptor,
-      mem,
-      data,
-    )
+  pub fn update_descriptor<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
+    self
+      .pipeline_manager
+      .update_descriptor(&mut self.memory_manager, mem, data)
   }
 
   pub fn create_descriptor_mem(
@@ -145,11 +140,20 @@ impl Vulkan {
     )
   }
 
-  pub fn update_command_buffer(&self) {
+  pub fn update_command_buffer(&mut self) {
     self
       .renderer
-      .record_command_buffer(&self.pipeline_manager, &self.memory_manager)
+      .record_command_buffer(&self.pipeline_manager, &mut self.memory_manager)
       .expect("Command Buffer Error");
+  }
+
+  pub fn update_draw_buffer(
+    &mut self,
+    instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
+  ) {
+    self
+      .renderer
+      .update_draw_buffer(&mut self.memory_manager, instances);
   }
 
   pub fn destroy(&mut self) {

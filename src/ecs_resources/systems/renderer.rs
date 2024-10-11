@@ -8,10 +8,9 @@ use crate::ecs::{systems::query::Query, systems::resources::ResMut};
 use crate::ecs_resources::components::camera::Camera;
 use crate::ecs_resources::components::renderer::MeshRenderer;
 use crate::ecs_resources::components::transform::Transform;
-use crate::vulkan::graphics::resources::model::InstanceData;
+use crate::vulkan::graphics::resources::model::{InstanceData, ModelId};
 use crate::vulkan::memory::BufferMemory;
 use crate::vulkan::Vulkan;
-use crate::Id;
 
 pub fn init_renderer(vulkan: ResMut<Vulkan>) {
   #[cfg(feature = "debug")]
@@ -39,9 +38,6 @@ pub fn renderer_recording(
     }
     vulkan
       .update_descriptor(
-        "default",
-        0,
-        0,
         state.camera_mem.as_ref().unwrap(),
         &[camera.view_matrix(), camera.projection_matrix()],
       )
@@ -51,12 +47,12 @@ pub fn renderer_recording(
     return;
   };
 
-  let mut models: HashMap<String, HashMap<Id, Vec<InstanceData>>> = HashMap::new();
+  let mut models: HashMap<ModelId, HashMap<String, Vec<InstanceData>>> = HashMap::new();
   for (mesh_render, transform) in to_render {
-    let shader = models
+    let shader = models.entry(mesh_render.model_id).or_default();
+    let instances = shader
       .entry(mesh_render.material.shader.clone())
       .or_default();
-    let instances = shader.entry(mesh_render.model_id).or_default();
     let material = &mesh_render.material;
     instances.push(InstanceData::new(
       transform.matrix(),
@@ -67,6 +63,7 @@ pub fn renderer_recording(
     ));
   }
 
+  vulkan.update_draw_buffer(models);
   vulkan.update_command_buffer();
 }
 

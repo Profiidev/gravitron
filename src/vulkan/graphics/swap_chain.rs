@@ -340,4 +340,8 @@ impl SwapChain {
 
     self.current_image = (self.current_image + 1) % self.amount_of_images as usize;
   }
+
+  pub fn current_frame(&self) -> usize {
+    self.current_image
+  }
 }

@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use anyhow::Error;
 use ash::vk;
-use resources::model::ModelManager;
+use resources::model::{ModelId, ModelManager};
 use swap_chain::SwapChain;
 
 use crate::config::{app::AppConfig, vulkan::VulkanConfig};
@@ -26,8 +28,12 @@ pub struct Renderer {
   model_manager: ModelManager,
   logical_device: ash::Device,
   draw_commands: BufferId,
+  draw_commands_mem: Option<BufferMemory>,
   draw_count: BufferId,
-  draw_mem: BufferMemory,
+  draw_count_mem: BufferMemory,
+  draw_count_data: u32,
+  commands: HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
+  buffers_updated: Vec<usize>,
 }
 
 impl Renderer {
@@ -68,7 +74,8 @@ impl Renderer {
       vk::BufferUsageFlags::INDIRECT_BUFFER,
       BufferBlockSize::Exact(4),
     )?;
-    let draw_mem = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+    let draw_commands_mem = memory_manager.reserve_buffer_mem(draw_commands, 1).unwrap();
+    let draw_count_mem = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
 
     Ok(Self {
       render_pass,
@@ -76,8 +83,12 @@ impl Renderer {
       model_manager,
       logical_device: logical_device.clone(),
       draw_commands,
+      draw_commands_mem: Some(draw_commands_mem),
       draw_count,
-      draw_mem,
+      draw_count_mem,
+      draw_count_data: 0,
+      commands: HashMap::new(),
+      buffers_updated: Vec::new(),
     })
   }
 
@@ -95,10 +106,24 @@ impl Renderer {
   }
 
   pub fn record_command_buffer(
-    &self,
+    &mut self,
     pipeline_manager: &PipelineManager,
-    memory_manager: &MemoryManager,
+    memory_manager: &mut MemoryManager,
   ) -> Result<(), vk::Result> {
+    let buffer_changed = memory_manager.buffer_resize();
+    if !buffer_changed
+      && self
+        .buffers_updated
+        .contains(&self.swap_chain.current_frame())
+    {
+      return Ok(());
+    }
+
+    if buffer_changed {
+      self.buffers_updated = Vec::new();
+      memory_manager.buffer_resize_reset();
+    }
+
     let buffer = self
       .swap_chain
       .record_command_buffer_first(&self.logical_device, self.render_pass)?;
@@ -141,7 +166,63 @@ impl Renderer {
 
     self
       .swap_chain
-      .record_command_buffer_second(&self.logical_device, buffer)
+      .record_command_buffer_second(&self.logical_device, buffer)?;
+
+    self.buffers_updated.push(self.swap_chain.current_frame());
+    Ok(())
+  }
+
+  pub fn update_draw_buffer(
+    &mut self,
+    memory_manager: &mut MemoryManager,
+    instances: HashMap<ModelId, HashMap<String, Vec<resources::model::InstanceData>>>,
+  ) {
+    let cmd_new = self.model_manager.update_draw_buffer(
+      self.draw_commands,
+      &mut self.commands,
+      memory_manager,
+      instances,
+    );
+
+    if cmd_new.is_empty() {
+      return;
+    }
+
+    let cmd_new_length = cmd_new.len();
+
+    let cmd_size = std::mem::size_of::<vk::DrawIndexedIndirectCommand>();
+    let size_needed = cmd_size * (self.draw_count_data as usize + cmd_new.len());
+    let old_mem = std::mem::take(&mut self.draw_commands_mem).unwrap();
+    memory_manager.free_buffer_mem(old_mem);
+    self.draw_commands_mem = Some(
+      memory_manager
+        .reserve_buffer_mem(self.draw_commands, size_needed)
+        .unwrap(),
+    );
+
+    let mut to_write = Vec::new();
+    for (i, (model_id, shader, cmd)) in cmd_new.into_iter().enumerate() {
+      let model = self.commands.entry(model_id).or_default();
+      model.insert(
+        shader,
+        (
+          cmd,
+          (self.draw_count_data as u64 + i as u64) * cmd_size as u64,
+        ),
+      );
+      to_write.push(cmd);
+    }
+
+    let copy_info = [vk::BufferCopy {
+      src_offset: 0,
+      dst_offset: self.draw_count_data as u64 * cmd_size as u64,
+      size: (to_write.len() * cmd_size) as u64,
+    }];
+    let to_write_slice = to_write.as_slice();
+    memory_manager.write_to_buffer_direct(self.draw_commands, to_write_slice, &copy_info);
+
+    self.draw_count_data += cmd_new_length as u32;
+    memory_manager.write_to_buffer(&self.draw_count_mem, &[self.draw_count_data]);
   }
 
   pub fn draw_frame(&mut self, device: &Device) {
