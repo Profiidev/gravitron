@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use crate::{
   vulkan::memory::{
     manager::{
-      BufferBlockSize, BufferId, MemoryManager, BUFFER_BLOCK_SIZE_LARGE, BUFFER_BLOCK_SIZE_MEDIUM,
-      BUFFER_BLOCK_SIZE_SMALL,
-    },
+      BufferBlockSize, BufferId, MemoryManager},
     BufferMemory,
   },
   Id,
@@ -132,6 +130,7 @@ impl ModelManager {
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
   ) -> Vec<(ModelId, String, vk::DrawIndexedIndirectCommand)> {
+    let instance_size = std::mem::size_of::<InstanceData>();
     let mut copy_offset = 0;
     let mut instance_copies_info = Vec::new();
     let mut instance_copies = Vec::new();
@@ -188,7 +187,7 @@ impl ModelManager {
               dst_offset: *offset,
             });
 
-            let instances_size = cmd_size as usize * instances.len();
+            let instances_size = instance_size * instances.len();
             if instances_size > mem.size() {
               let new_size = (instances_size as f32 / model.instance_alloc_size as f32).ceil()
                 as usize
@@ -206,10 +205,10 @@ impl ModelManager {
           for (i, instance) in instances.iter().enumerate() {
             if let Some(other_instance) = model_instances.get(i) {
               if other_instance == instance && !to_copy.is_empty() {
-                let copy_size = cmd_size * to_copy.len() as u64;
+                let copy_size = (instance_size * to_copy.len()) as u64;
 
                 instance_copies_info.push(vk::BufferCopy {
-                  dst_offset: (mem.offset() as u64 + cmd_size * (i - to_copy.len() + 1) as u64),
+                  dst_offset: (mem.offset() + instance_size * (i - to_copy.len() + 1)) as u64,
                   src_offset: copy_offset,
                   size: copy_size,
                 });
@@ -291,7 +290,7 @@ impl Model {
       vertices,
       index_len,
       indices,
-      instance_alloc_size: instance_count.into(),
+      instance_alloc_size: usize::from(instance_count) * std::mem::size_of::<InstanceData>(),
       instances: HashMap::new(),
     }
   }
@@ -365,9 +364,9 @@ impl InstanceData {
 impl From<InstanceCount> for usize {
   fn from(value: InstanceCount) -> Self {
     match value {
-      InstanceCount::High => BUFFER_BLOCK_SIZE_LARGE / 64,
-      InstanceCount::Medium => BUFFER_BLOCK_SIZE_MEDIUM / 64,
-      InstanceCount::Low => BUFFER_BLOCK_SIZE_SMALL / 64,
+      InstanceCount::High => 1000,
+      InstanceCount::Medium => 100,
+      InstanceCount::Low => 10,
       InstanceCount::Exact(count) => count,
     }
   }
