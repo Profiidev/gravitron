@@ -10,7 +10,10 @@ use crate::vulkan::{
   pipeline::pools::{CommandBufferType, Pools},
 };
 
-use super::{advanced_buffer::AdvancedBuffer, allocator::BufferMemory, image::Image, simple_buffer::SimpleBuffer};
+use super::{
+  advanced_buffer::AdvancedBuffer, allocator::BufferMemory, image::Image,
+  simple_buffer::SimpleBuffer,
+};
 
 pub type BufferId = crate::Id;
 pub type ImageId = crate::Id;
@@ -194,11 +197,7 @@ impl MemoryManager {
     Some(())
   }
 
-  pub fn write_to_simple_buffer<T: Sized>(
-    &mut self,
-    mem: &BufferMemory,
-    data: &[T],
-  ) -> Option<()> {
+  pub fn write_to_simple_buffer<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
     let buffer = self.simple_buffers.get_mut(&mem.buffer())?;
 
     buffer.write_to_buffer(mem, data)
@@ -241,11 +240,7 @@ impl MemoryManager {
     buffer.resize_buffer_mem(mem, size, &self.device, &mut self.allocator, &transfer)
   }
 
-  pub fn resize_simple_buffer_mem(
-    &mut self,
-    mem: &mut BufferMemory,
-    size: usize,
-  ) -> Option<bool> {
+  pub fn resize_simple_buffer_mem(&mut self, mem: &mut BufferMemory, size: usize) -> Option<bool> {
     let buffer = self.simple_buffers.get_mut(&mem.buffer())?;
 
     buffer.resize_buffer_mem(mem, size, &self.device, &mut self.allocator)
