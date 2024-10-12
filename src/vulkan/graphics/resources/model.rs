@@ -92,7 +92,8 @@ impl ModelManager {
     instance_count: InstanceCount,
   ) -> Option<(ModelId, bool)> {
     let vertices_slice = vertex_data.as_slice();
-    let (vertices, vert_resized) = memory_manager.add_to_buffer(self.vertex_buffer, vertices_slice)?;
+    let (vertices, vert_resized) =
+      memory_manager.add_to_buffer(self.vertex_buffer, vertices_slice)?;
     let index_slice = index_data.as_slice();
     let (indices, index_resized) = memory_manager.add_to_buffer(self.index_buffer, index_slice)?;
 
@@ -128,7 +129,10 @@ impl ModelManager {
     commands: &mut HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
-  ) -> (HashMap<String, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>>, bool) {
+  ) -> (
+    HashMap<String, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>>,
+    bool,
+  ) {
     let instance_size = std::mem::size_of::<InstanceData>();
     let mut copy_offset = 0;
     let mut instance_copies_info = Vec::new();
@@ -194,7 +198,8 @@ impl ModelManager {
                 as usize
                 * model.instance_alloc_size;
 
-              buffer_resized = buffer_resized || memory_manager.resize_buffer_mem(mem, new_size).unwrap();
+              buffer_resized =
+                buffer_resized || memory_manager.resize_buffer_mem(mem, new_size).unwrap();
               command.first_instance = (mem.offset() / instance_size) as u32;
             }
           }
@@ -243,7 +248,8 @@ impl ModelManager {
           let required_size = (instances_size as f32 / model.instance_alloc_size as f32).ceil()
             as usize
             * model.instance_alloc_size;
-          let Some((mem, buffer_resize_local)) = memory_manager.reserve_buffer_mem(self.instance_buffer, required_size)
+          let Some((mem, buffer_resize_local)) =
+            memory_manager.reserve_buffer_mem(self.instance_buffer, required_size)
           else {
             continue;
           };

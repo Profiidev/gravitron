@@ -73,13 +73,8 @@ impl ManagedBuffer {
   ) -> Option<(BufferMemory, bool)> {
     let size = std::mem::size_of_val(data);
     self.resize_transfer_buffer(size, device, allocator);
-    let (mem , buffer_resized) = self.reserve_buffer_mem(
-      size,
-      device,
-      allocator,
-      transfer_queue,
-      transfer,
-    )?;
+    let (mem, buffer_resized) =
+      self.reserve_buffer_mem(size, device, allocator, transfer_queue, transfer)?;
     self.transfer.fill(data).ok()?;
 
     transfer.reset(device).ok()?;
@@ -110,14 +105,7 @@ impl ManagedBuffer {
     let size = std::mem::size_of_val(data);
     assert!(size <= mem.size());
     let regions = buffer_copy_info(mem.offset(), size);
-    self.write_to_buffer_direct(
-      data,
-      &regions,
-      device,
-      allocator,
-      transfer_queue,
-      transfer,
-    )
+    self.write_to_buffer_direct(data, &regions, device, allocator, transfer_queue, transfer)
   }
 
   pub fn write_to_buffer_direct<T: Sized>(
@@ -221,13 +209,8 @@ impl ManagedBuffer {
     transfer: &Transfer,
   ) -> Option<bool> {
     assert!(mem.size() < size);
-    let (new_mem, buffer_resized) = self.reserve_buffer_mem(
-      size,
-      device,
-      allocator,
-      transfer_queue,
-      transfer,
-    )?;
+    let (new_mem, buffer_resized) =
+      self.reserve_buffer_mem(size, device, allocator, transfer_queue, transfer)?;
 
     transfer.reset(device).ok()?;
 

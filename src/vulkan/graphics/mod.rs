@@ -129,8 +129,8 @@ impl Renderer {
     memory_manager: &mut MemoryManager,
   ) -> Result<(), vk::Result> {
     if self
-        .buffers_updated
-        .contains(&self.swap_chain.current_frame())
+      .buffers_updated
+      .contains(&self.swap_chain.current_frame())
     {
       return Ok(());
     }
@@ -223,7 +223,8 @@ impl Renderer {
       if cmd_mem.size() < required_size {
         let new_size =
           (required_size as f32 / cmd_block_size as f32).ceil() as usize * cmd_block_size;
-        buffer_resized = buffer_resized || memory_manager.resize_buffer_mem(cmd_mem, new_size).unwrap();
+        buffer_resized =
+          buffer_resized || memory_manager.resize_buffer_mem(cmd_mem, new_size).unwrap();
         self.buffers_updated = Vec::new();
       }
 

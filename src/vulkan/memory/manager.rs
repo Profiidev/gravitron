@@ -114,7 +114,11 @@ impl MemoryManager {
     Ok(id)
   }
 
-  pub fn reserve_buffer_mem(&mut self, buffer_id: BufferId, size: usize) -> Option<(BufferMemory, bool)> {
+  pub fn reserve_buffer_mem(
+    &mut self,
+    buffer_id: BufferId,
+    size: usize,
+  ) -> Option<(BufferMemory, bool)> {
     let transfer = self.reserve_transfer(buffer_id).ok()?;
     let buffer = self.buffers.get_mut(&buffer_id)?;
 
@@ -217,10 +221,7 @@ impl MemoryManager {
     Some(self.buffers.get(&buffer_id)?.size())
   }
 
-  fn reserve_transfer(
-    &mut self,
-    buffer_id: BufferId,
-  ) -> Result<Transfer, Error> {
+  fn reserve_transfer(&mut self, buffer_id: BufferId) -> Result<Transfer, Error> {
     if let Some(&fence) = self.buffer_used.get(&buffer_id) {
       unsafe {
         self.device.wait_for_fences(&[fence], true, u64::MAX)?;
@@ -295,14 +296,10 @@ impl Transfer {
   }
 
   pub fn wait(&self, device: &ash::Device) -> Result<(), vk::Result> {
-    unsafe {
-      device.wait_for_fences(&[self.fence], true, u64::MAX)
-    }
+    unsafe { device.wait_for_fences(&[self.fence], true, u64::MAX) }
   }
 
   pub fn reset(&self, device: &ash::Device) -> Result<(), vk::Result> {
-    unsafe {
-      device.reset_fences(&[self.fence])
-    }
+    unsafe { device.reset_fences(&[self.fence]) }
   }
 }
