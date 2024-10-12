@@ -192,8 +192,8 @@ impl ModelManager {
                 as usize
                 * model.instance_alloc_size;
 
-              command.first_instance = mem.offset() as u32;
               memory_manager.resize_buffer_mem(mem, new_size);
+              command.first_instance = (mem.offset() / instance_size) as u32;
             }
           }
 

@@ -401,7 +401,7 @@ impl ManagedBuffer {
       allocator,
       device,
       block_size,
-      usage | vk::BufferUsageFlags::TRANSFER_DST,
+      usage | vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::TRANSFER_SRC,
       gpu_allocator::MemoryLocation::GpuOnly,
     )?;
 
