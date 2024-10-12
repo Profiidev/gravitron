@@ -5,7 +5,10 @@ use ash::vk;
 use resources::model::{ModelId, ModelManager};
 use swap_chain::SwapChain;
 
-use crate::config::{app::AppConfig, vulkan::{PipelineType, VulkanConfig}};
+use crate::config::{
+  app::AppConfig,
+  vulkan::{PipelineType, VulkanConfig},
+};
 
 use super::{
   device::Device,
@@ -19,9 +22,9 @@ use super::{
   surface::Surface,
 };
 
+mod render_pass;
 pub mod resources;
 mod swap_chain;
-mod render_pass;
 
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
@@ -52,7 +55,8 @@ impl Renderer {
       .first()
       .ok_or(RendererInitError::FormatMissing)?
       .format;
-    let render_pass = render_pass::init_render_pass(logical_device, format, config.shaders.len() + 1)?;
+    let render_pass =
+      render_pass::init_render_pass(logical_device, format, config.shaders.len() + 1)?;
     let swap_chain = SwapChain::init(
       instance,
       device,
@@ -79,13 +83,17 @@ impl Renderer {
 
     for pipeline in &config.shaders {
       if let PipelineType::Graphics(shader) = pipeline {
-        let cmd_mem = memory_manager.reserve_buffer_mem(draw_commands, cmd_block_size).unwrap();
+        let cmd_mem = memory_manager
+          .reserve_buffer_mem(draw_commands, cmd_block_size)
+          .unwrap();
         let count_mme = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
         shader_mem.insert(shader.name.clone(), (cmd_mem, count_mme, 0));
       }
     }
 
-    let cmd_mem = memory_manager.reserve_buffer_mem(draw_commands, cmd_block_size).unwrap();
+    let cmd_mem = memory_manager
+      .reserve_buffer_mem(draw_commands, cmd_block_size)
+      .unwrap();
     let count_mme = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
     shader_mem.insert("default".into(), (cmd_mem, count_mme, 0));
 
@@ -214,7 +222,8 @@ impl Renderer {
 
       let required_size = cmd_size * (*count as usize + cmd_new_len);
       if cmd_mem.size() < required_size {
-        let new_size = (required_size as f32 / cmd_block_size as f32).ceil() as usize * cmd_block_size;
+        let new_size =
+          (required_size as f32 / cmd_block_size as f32).ceil() as usize * cmd_block_size;
         memory_manager.resize_buffer_mem(cmd_mem, new_size);
         self.buffers_updated = Vec::new();
       }
@@ -227,7 +236,13 @@ impl Renderer {
 
       for (i, (model_id, cmd)) in cmd_new.into_iter().enumerate() {
         let model = self.commands.entry(model_id).or_default();
-        model.insert(shader.clone(), (cmd, (cmd_mem.offset() + (*count as usize + i) * cmd_size) as u64));
+        model.insert(
+          shader.clone(),
+          (
+            cmd,
+            (cmd_mem.offset() + (*count as usize + i) * cmd_size) as u64,
+          ),
+        );
         write_data.push(cmd);
       }
 

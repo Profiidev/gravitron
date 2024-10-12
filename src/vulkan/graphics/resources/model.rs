@@ -252,7 +252,8 @@ impl ModelManager {
             first_instance: mem.offset() as u32,
           };
 
-          let shader_cmd: &mut Vec<(u64, vk::DrawIndexedIndirectCommand)> = cmd_new.entry(shader.clone()).or_default();
+          let shader_cmd: &mut Vec<(u64, vk::DrawIndexedIndirectCommand)> =
+            cmd_new.entry(shader.clone()).or_default();
           shader_cmd.push((model_id, cmd));
 
           model.instances.insert(shader, (mem, instances));

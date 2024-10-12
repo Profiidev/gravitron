@@ -285,8 +285,7 @@ impl MemoryManager {
 
   pub fn resize_buffer_mem(&mut self, mem: &mut BufferMemory, size: usize) -> Option<()> {
     assert!(mem.size() < size);
-    let new_mem = self
-        .reserve_buffer_mem(mem.buffer(), size)?;
+    let new_mem = self.reserve_buffer_mem(mem.buffer(), size)?;
 
     let (command_buffer, fence) = self.write_prepare_internal(mem.buffer(), size)?;
     let buffer = self.buffers.get(&mem.buffer())?;
@@ -294,13 +293,22 @@ impl MemoryManager {
     unsafe {
       self.device.reset_fences(&[fence]).ok()?;
     }
-    
+
     let regions = [vk::BufferCopy {
       src_offset: mem.offset() as u64,
       dst_offset: new_mem.offset() as u64,
       size: mem.size() as u64,
     }];
-    buffer_copy(&buffer.gpu, &buffer.gpu, &self.device, self.transfer_queue, command_buffer, fence, &regions).ok()?;
+    buffer_copy(
+      &buffer.gpu,
+      &buffer.gpu,
+      &self.device,
+      self.transfer_queue,
+      command_buffer,
+      fence,
+      &regions,
+    )
+    .ok()?;
 
     let old_mem = std::mem::replace(mem, new_mem);
     self.free_buffer_mem(old_mem);
