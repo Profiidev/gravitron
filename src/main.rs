@@ -19,6 +19,7 @@ use gravitron::{
   math,
   vulkan::graphics::resources::material::Material,
 };
+use gravitron_ecs::commands::Commands;
 
 fn main() {
   let testing =
@@ -107,7 +108,7 @@ pub struct Marker {
   t: f32,
 }
 
-fn test(info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
+fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
   for (t, m) in q {
     let mut pos = t.position();
     pos.x = m.t.cos() * 5.0;
@@ -115,4 +116,12 @@ fn test(info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
     t.set_position(pos);
     m.t += 0.5 * info.delta_time();
   }
+  let renderer = MeshRenderer {
+    model_id: 0,
+    material: Material {
+      color: glam::Vec3::new(0.5, 0.5, 0.5),
+      ..Default::default()
+    },
+  };
+  cmd.create_entity((Transform::default(), Marker::default(), renderer));
 }

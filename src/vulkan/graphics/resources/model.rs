@@ -144,12 +144,12 @@ impl ModelManager {
         for (cmd, offset) in shaders.values_mut() {
           if cmd.instance_count > 0 {
             cmd.instance_count = 0;
-            cmd_copies.push(*cmd);
             cmd_copies_info.push(vk::BufferCopy {
               size: cmd_size,
               src_offset: cmd_copies.len() as u64 * cmd_size,
               dst_offset: *offset,
             });
+            cmd_copies.push(*cmd);
           }
         }
       }
@@ -164,12 +164,12 @@ impl ModelManager {
       for (shader, (cmd, offset)) in model_commands.iter_mut() {
         if !shaders.contains_key(shader) && cmd.instance_count > 0 {
           cmd.instance_count = 0;
-          cmd_copies.push(*cmd);
           cmd_copies_info.push(vk::BufferCopy {
             size: cmd_size,
             src_offset: cmd_copies.len() as u64 * cmd_size,
             dst_offset: *offset,
           });
+          cmd_copies.push(*cmd);
         }
       }
 
@@ -179,12 +179,12 @@ impl ModelManager {
 
           if model_instances.len() != instances.len() {
             command.instance_count = instances.len() as u32;
-            cmd_copies.push(*command);
             cmd_copies_info.push(vk::BufferCopy {
               size: cmd_size,
               src_offset: cmd_copies.len() as u64 * cmd_size,
               dst_offset: *offset,
             });
+            cmd_copies.push(*command);
 
             let instances_size = instance_size * instances.len();
             if instances_size > mem.size() {
@@ -199,7 +199,7 @@ impl ModelManager {
 
           let mut to_copy = Vec::new();
           for (i, instance) in instances.iter().enumerate() {
-            if let Some(other_instance) = model_instances.get(i) {
+            if let Some(other_instance) = model_instances.get_mut(i) {
               if other_instance == instance && !to_copy.is_empty() {
                 let copy_size = (instance_size * to_copy.len()) as u64;
 
@@ -214,9 +214,11 @@ impl ModelManager {
                 to_copy = Vec::new();
               } else if other_instance != instance {
                 to_copy.push(instance.clone());
+                *other_instance = instance.clone();
               }
             } else {
               to_copy.push(instance.clone());
+              model_instances.push(instance.clone());
             };
           }
 
