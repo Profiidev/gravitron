@@ -204,7 +204,7 @@ impl ModelManager {
                 let copy_size = (instance_size * to_copy.len()) as u64;
 
                 instance_copies_info.push(vk::BufferCopy {
-                  dst_offset: (mem.offset() + instance_size * (i - to_copy.len() + 1)) as u64,
+                  dst_offset: (mem.offset() + instance_size * (i - to_copy.len())) as u64,
                   src_offset: copy_offset,
                   size: copy_size,
                 });
