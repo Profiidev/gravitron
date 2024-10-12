@@ -252,7 +252,7 @@ impl ModelManager {
             instance_count: instances.len() as u32,
             first_index: model.indices.offset() as u32,
             vertex_offset: model.vertices.offset() as i32,
-            first_instance: mem.offset() as u32,
+            first_instance: (mem.offset() / instance_size) as u32,
           };
 
           let shader_cmd: &mut Vec<(u64, vk::DrawIndexedIndirectCommand)> =

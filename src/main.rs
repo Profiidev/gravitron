@@ -60,7 +60,7 @@ fn main() {
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config).add_system(test);
   let mut transform = Transform::default();
-  transform.set_position(math::Vec3::new(10.0, 0.0, 0.0));
+  transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
   builder.create_entity((
     MeshRenderer {
       model_id: 0,
