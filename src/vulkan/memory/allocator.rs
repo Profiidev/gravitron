@@ -1,11 +1,17 @@
 use std::collections::BTreeMap;
 
-use super::manager::BufferId;
+use super::manager::{AdvancedBufferId, SimpleBufferId};
 
-pub struct BufferMemory {
+pub struct AdvancedBufferMemory {
   offset: usize,
   size: usize,
-  buffer: BufferId,
+  buffer: AdvancedBufferId,
+}
+
+pub struct SimpleBufferMemory {
+  offset: usize,
+  size: usize,
+  buffer: SimpleBufferId,
 }
 
 pub struct Allocator {
@@ -13,7 +19,7 @@ pub struct Allocator {
   size: usize,
 }
 
-impl BufferMemory {
+impl AdvancedBufferMemory {
   pub fn offset(&self) -> usize {
     self.offset
   }
@@ -22,7 +28,21 @@ impl BufferMemory {
     self.size
   }
 
-  pub fn buffer(&self) -> BufferId {
+  pub fn buffer(&self) -> AdvancedBufferId {
+    self.buffer
+  }
+}
+
+impl SimpleBufferMemory {
+  pub fn offset(&self) -> usize {
+    self.offset
+  }
+
+  pub fn size(&self) -> usize {
+    self.size
+  }
+
+  pub fn buffer(&self) -> SimpleBufferId {
     self.buffer
   }
 }
@@ -35,7 +55,17 @@ impl Allocator {
     Self { free, size }
   }
 
-  pub fn alloc(&mut self, size: usize, buffer: BufferId) -> Option<BufferMemory> {
+  pub fn alloc_advanced(&mut self, size: usize, buffer: AdvancedBufferId) -> Option<AdvancedBufferMemory> {
+    let offset = self.alloc(size)?;
+    Some(AdvancedBufferMemory { offset, size, buffer })
+  }
+
+  pub fn alloc_simple(&mut self, size: usize, buffer: SimpleBufferId) -> Option<SimpleBufferMemory> {
+    let offset = self.alloc(size)?;
+    Some(SimpleBufferMemory { offset, size, buffer })
+  }
+
+  fn alloc(&mut self, size: usize) -> Option<usize> {
     assert!(size > 0);
     let offset = self
       .free
@@ -47,35 +77,31 @@ impl Allocator {
       self.free.insert(offset + size, block_size - size);
     }
 
-    Some(BufferMemory {
-      offset,
-      size,
-      buffer,
-    })
+    Some(offset)
   }
 
-  pub fn free(&mut self, mem: BufferMemory) {
+  pub fn free(&mut self, offset: usize, size: usize) {
     let before = self
       .free
-      .range(..mem.offset)
+      .range(..offset)
       .next_back()
-      .filter(|(&o, &s)| o + s == mem.size);
-    let after = self.free.range(mem.offset..mem.offset + mem.size).next();
+      .filter(|(&o, &s)| o + s == size);
+    let after = self.free.range(offset..offset + size).next();
 
     match (before, after) {
-      (Some((&offset, &size)), Some((&a_offset, &a_size))) => {
+      (Some((&o_offset, &o_size)), Some((&a_offset, &a_size))) => {
         self.free.remove(&a_offset);
-        self.free.insert(offset, size + mem.size + a_size);
+        self.free.insert(o_offset, o_size + size + a_size);
       }
       (None, Some((&a_offset, &a_size))) => {
         self.free.remove(&a_offset);
-        self.free.insert(mem.offset, mem.size + a_size);
+        self.free.insert(offset, size + a_size);
       }
-      (Some((&offset, &size)), None) => {
-        self.free.insert(offset, size + mem.size);
+      (Some((&o_offset, &o_size)), None) => {
+        self.free.insert(o_offset, o_size + size);
       }
       (None, None) => {
-        self.free.insert(mem.offset, mem.size);
+        self.free.insert(offset, size);
       }
     }
   }

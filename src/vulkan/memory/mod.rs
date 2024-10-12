@@ -5,4 +5,4 @@ mod image;
 pub mod manager;
 mod simple_buffer;
 
-pub use allocator::BufferMemory;
+pub use allocator::{AdvancedBufferMemory, SimpleBufferMemory};

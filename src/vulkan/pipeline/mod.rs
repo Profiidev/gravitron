@@ -7,8 +7,8 @@ use crate::config::vulkan::{
 };
 
 use super::memory::{
-  manager::{BufferBlockSize, BufferId, MemoryManager},
-  BufferMemory,
+  manager::{BufferBlockSize, AdvancedBufferId, MemoryManager},
+  AdvancedBufferMemory,
 };
 
 pub mod pools;
@@ -117,7 +117,7 @@ impl PipelineManager {
   pub fn update_descriptor<T: Sized>(
     &self,
     memory_manager: &mut MemoryManager,
-    mem: &BufferMemory,
+    mem: &AdvancedBufferMemory,
     data: &[T],
   ) -> Option<()> {
     memory_manager.write_to_advanced_buffer(mem, data);
@@ -132,7 +132,7 @@ impl PipelineManager {
     descriptor_set: usize,
     descriptor: usize,
     size: usize,
-  ) -> Option<BufferMemory> {
+  ) -> Option<AdvancedBufferMemory> {
     let pipeline = self
       .pipelines
       .iter()
@@ -156,7 +156,7 @@ pub struct Pipeline {
   pipeline_bind_point: vk::PipelineBindPoint,
   descriptor_sets: Vec<vk::DescriptorSet>,
   descriptor_set_layouts: Vec<vk::DescriptorSetLayout>,
-  descriptor_buffers: Vec<Vec<BufferId>>,
+  descriptor_buffers: Vec<Vec<AdvancedBufferId>>,
   cache: vk::PipelineCache,
 }
 
@@ -487,7 +487,7 @@ impl Pipeline {
     (
       Vec<vk::DescriptorSetLayout>,
       Vec<vk::DescriptorSet>,
-      Vec<Vec<BufferId>>,
+      Vec<Vec<AdvancedBufferId>>,
     ),
     Error,
   > {

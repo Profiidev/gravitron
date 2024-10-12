@@ -2,10 +2,10 @@ use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 
-use super::{allocator::Allocator, buffer::Buffer, manager::BufferId, BufferMemory};
+use super::{allocator::{Allocator, SimpleBufferMemory}, buffer::Buffer, manager::SimpleBufferId};
 
 pub struct SimpleBuffer {
-  id: BufferId,
+  id: SimpleBufferId,
   buffer: Buffer,
   allocator: Allocator,
   block_size: usize,
@@ -13,7 +13,7 @@ pub struct SimpleBuffer {
 
 impl SimpleBuffer {
   pub fn new(
-    id: BufferId,
+    id: SimpleBufferId,
     allocator: &mut vulkan::Allocator,
     device: &ash::Device,
     usage: vk::BufferUsageFlags,
@@ -74,7 +74,7 @@ impl SimpleBuffer {
     data: &[T],
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
-  ) -> Option<(BufferMemory, bool)> {
+  ) -> Option<(SimpleBufferMemory, bool)> {
     let size = std::mem::size_of_val(data);
     let (mem, buffer_resized) = self.reserve_buffer_mem(size, device, allocator)?;
 
@@ -83,7 +83,7 @@ impl SimpleBuffer {
     Some((mem, buffer_resized))
   }
 
-  pub fn write_to_buffer<T>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
+  pub fn write_to_buffer<T>(&mut self, mem: &SimpleBufferMemory, data: &[T]) -> Option<()> {
     let size = std::mem::size_of_val(data);
     let regions = [vk::BufferCopy {
       src_offset: 0,
@@ -118,15 +118,15 @@ impl SimpleBuffer {
     size: usize,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
-  ) -> Option<(BufferMemory, bool)> {
-    if let Some(mem) = self.allocator.alloc(size, self.id) {
+  ) -> Option<(SimpleBufferMemory, bool)> {
+    if let Some(mem) = self.allocator.alloc_simple(size, self.id) {
       Some((mem, false))
     } else {
       self
         .resize_buffer(allocator, device, size + self.buffer.size())
         .ok()?;
 
-      let mem = self.allocator.alloc(size, self.id)?;
+      let mem = self.allocator.alloc_simple(size, self.id)?;
 
       Some((mem, true))
     }
@@ -134,7 +134,7 @@ impl SimpleBuffer {
 
   pub fn resize_buffer_mem(
     &mut self,
-    mem: &mut BufferMemory,
+    mem: &mut SimpleBufferMemory,
     size: usize,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
@@ -150,8 +150,8 @@ impl SimpleBuffer {
     Some(buffer_resized)
   }
 
-  pub fn free_buffer_mem(&mut self, mem: super::BufferMemory) {
-    self.allocator.free(mem);
+  pub fn free_buffer_mem(&mut self, mem: SimpleBufferMemory) {
+    self.allocator.free(mem.offset(), mem.size());
   }
 
   pub fn size(&self) -> usize {

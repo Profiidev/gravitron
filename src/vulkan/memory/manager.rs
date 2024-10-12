@@ -9,14 +9,19 @@ use crate::vulkan::{
   instance::InstanceDevice,
   pipeline::pools::{CommandBufferType, Pools},
 };
+use crate::Id;
 
 use super::{
-  advanced_buffer::AdvancedBuffer, allocator::BufferMemory, image::Image,
-  simple_buffer::SimpleBuffer,
+  advanced_buffer::AdvancedBuffer, allocator::AdvancedBufferMemory, image::Image,
+  simple_buffer::SimpleBuffer, SimpleBufferMemory,
 };
 
-pub type BufferId = crate::Id;
-pub type ImageId = crate::Id;
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct AdvancedBufferId(Id);
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SimpleBufferId(Id);
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ImageId(Id);
 
 pub const BUFFER_BLOCK_SIZE_LARGE: usize = 1024 * 1024 * 64;
 pub const BUFFER_BLOCK_SIZE_MEDIUM: usize = 1024 * 64;
@@ -30,12 +35,13 @@ pub enum BufferBlockSize {
 }
 
 pub struct MemoryManager {
-  advanced_buffers: HashMap<BufferId, AdvancedBuffer>,
-  simple_buffers: HashMap<BufferId, SimpleBuffer>,
-  buffer_used: HashMap<BufferId, vk::Fence>,
-  last_buffer_id: BufferId,
+  advanced_buffers: HashMap<AdvancedBufferId, AdvancedBuffer>,
+  simple_buffers: HashMap<SimpleBufferId, SimpleBuffer>,
+  buffer_used: HashMap<AdvancedBufferId, vk::Fence>,
+  last_advanced_buffer_id: Id,
+  last_simple_buffer_id: Id,
   images: HashMap<ImageId, Image>,
-  last_image_id: BufferId,
+  last_image_id: Id,
   allocator: ManuallyDrop<vulkan::Allocator>,
   device: ash::Device,
   command_buffers: Vec<vk::CommandBuffer>,
@@ -69,7 +75,8 @@ impl MemoryManager {
       advanced_buffers: HashMap::new(),
       simple_buffers: HashMap::new(),
       buffer_used: HashMap::new(),
-      last_buffer_id: 0,
+      last_advanced_buffer_id: 0,
+      last_simple_buffer_id: 0,
       images: HashMap::new(),
       last_image_id: 0,
       allocator: ManuallyDrop::new(allocator),
@@ -84,8 +91,8 @@ impl MemoryManager {
     &mut self,
     usage: vk::BufferUsageFlags,
     block_size: BufferBlockSize,
-  ) -> Result<BufferId, Error> {
-    let id = self.last_buffer_id;
+  ) -> Result<AdvancedBufferId, Error> {
+    let id = AdvancedBufferId(self.last_advanced_buffer_id);
     let buffer = AdvancedBuffer::new(
       id,
       &mut self.allocator,
@@ -95,7 +102,7 @@ impl MemoryManager {
     )?;
 
     self.advanced_buffers.insert(id, buffer);
-    self.last_buffer_id += 1;
+    self.last_advanced_buffer_id += 1;
     Ok(id)
   }
 
@@ -103,8 +110,8 @@ impl MemoryManager {
     &mut self,
     usage: vk::BufferUsageFlags,
     block_size: BufferBlockSize,
-  ) -> Result<BufferId, Error> {
-    let id = self.last_buffer_id;
+  ) -> Result<SimpleBufferId, Error> {
+    let id = SimpleBufferId(self.last_simple_buffer_id);
     let buffer = SimpleBuffer::new(
       id,
       &mut self.allocator,
@@ -114,7 +121,7 @@ impl MemoryManager {
     )?;
 
     self.simple_buffers.insert(id, buffer);
-    self.last_buffer_id += 1;
+    self.last_simple_buffer_id += 1;
     Ok(id)
   }
 
@@ -124,6 +131,8 @@ impl MemoryManager {
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
   ) -> Result<ImageId, Error> {
+    let id = ImageId(self.last_image_id);
+
     let image = Image::new(
       &self.device,
       &mut self.allocator,
@@ -132,17 +141,17 @@ impl MemoryManager {
       image_view_info,
     )?;
 
-    self.images.insert(self.last_image_id, image);
-    let id = self.last_image_id;
+    self.images.insert(id, image);
+
     self.last_image_id += 1;
     Ok(id)
   }
 
   pub fn reserve_advanced_buffer_mem(
     &mut self,
-    buffer_id: BufferId,
+    buffer_id: AdvancedBufferId,
     size: usize,
-  ) -> Option<(BufferMemory, bool)> {
+  ) -> Option<(AdvancedBufferMemory, bool)> {
     let transfer = self.reserve_transfer(buffer_id).ok()?;
     let buffer = self.advanced_buffers.get_mut(&buffer_id)?;
 
@@ -151,9 +160,9 @@ impl MemoryManager {
 
   pub fn reserve_simple_buffer_mem(
     &mut self,
-    buffer_id: BufferId,
+    buffer_id: SimpleBufferId,
     size: usize,
-  ) -> Option<(BufferMemory, bool)> {
+  ) -> Option<(SimpleBufferMemory, bool)> {
     let buffer = self.simple_buffers.get_mut(&buffer_id)?;
 
     buffer.reserve_buffer_mem(size, &self.device, &mut self.allocator)
@@ -161,9 +170,9 @@ impl MemoryManager {
 
   pub fn add_to_advanced_buffer<T: Sized>(
     &mut self,
-    buffer_id: BufferId,
+    buffer_id: AdvancedBufferId,
     data: &[T],
-  ) -> Option<(BufferMemory, bool)> {
+  ) -> Option<(AdvancedBufferMemory, bool)> {
     let transfer = self.reserve_transfer(buffer_id).ok()?;
     let buffer = self.advanced_buffers.get_mut(&buffer_id)?;
 
@@ -175,9 +184,9 @@ impl MemoryManager {
 
   pub fn add_to_simple_buffer<T: Sized>(
     &mut self,
-    buffer_id: BufferId,
+    buffer_id: SimpleBufferId,
     data: &[T],
-  ) -> Option<(BufferMemory, bool)> {
+  ) -> Option<(SimpleBufferMemory, bool)> {
     let buffer = self.simple_buffers.get_mut(&buffer_id)?;
 
     buffer.add_to_buffer(data, &self.device, &mut self.allocator)
@@ -185,19 +194,24 @@ impl MemoryManager {
 
   pub fn write_to_advanced_buffer<T: Sized>(
     &mut self,
-    mem: &BufferMemory,
+    mem: &AdvancedBufferMemory,
     data: &[T],
   ) -> Option<()> {
-    let transfer = self.reserve_transfer(mem.buffer()).ok()?;
-    let buffer = self.advanced_buffers.get_mut(&mem.buffer())?;
+    let id = mem.buffer();
+    let transfer = self.reserve_transfer(id).ok()?;
+    let buffer = self.advanced_buffers.get_mut(&id)?;
 
     buffer.write_to_buffer(mem, data, &self.device, &mut self.allocator, &transfer)?;
 
-    self.buffer_used.insert(mem.buffer(), transfer.fence);
+    self.buffer_used.insert(id, transfer.fence);
     Some(())
   }
 
-  pub fn write_to_simple_buffer<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
+  pub fn write_to_simple_buffer<T: Sized>(
+    &mut self,
+    mem: &SimpleBufferMemory,
+    data: &[T],
+  ) -> Option<()> {
     let buffer = self.simple_buffers.get_mut(&mem.buffer())?;
 
     buffer.write_to_buffer(mem, data)
@@ -205,7 +219,7 @@ impl MemoryManager {
 
   pub fn write_to_advanced_buffer_direct<T: Sized>(
     &mut self,
-    buffer_id: BufferId,
+    buffer_id: AdvancedBufferId,
     data: &[T],
     regions: &[vk::BufferCopy],
   ) -> Option<()> {
@@ -220,7 +234,7 @@ impl MemoryManager {
 
   pub fn write_to_simple_buffer_direct<T: Sized>(
     &mut self,
-    buffer_id: BufferId,
+    buffer_id: SimpleBufferId,
     data: &[T],
     regions: &[vk::BufferCopy],
   ) -> Option<()> {
@@ -231,7 +245,7 @@ impl MemoryManager {
 
   pub fn resize_advanced_buffer_mem(
     &mut self,
-    mem: &mut BufferMemory,
+    mem: &mut AdvancedBufferMemory,
     size: usize,
   ) -> Option<bool> {
     let transfer = self.reserve_transfer(mem.buffer()).ok()?;
@@ -240,27 +254,37 @@ impl MemoryManager {
     buffer.resize_buffer_mem(mem, size, &self.device, &mut self.allocator, &transfer)
   }
 
-  pub fn resize_simple_buffer_mem(&mut self, mem: &mut BufferMemory, size: usize) -> Option<bool> {
+  pub fn resize_simple_buffer_mem(
+    &mut self,
+    mem: &mut SimpleBufferMemory,
+    size: usize,
+  ) -> Option<bool> {
     let buffer = self.simple_buffers.get_mut(&mem.buffer())?;
 
     buffer.resize_buffer_mem(mem, size, &self.device, &mut self.allocator)
   }
 
-  pub fn free_advanced_buffer_mem(&mut self, mem: BufferMemory) {
-    let buffer = self.advanced_buffers.get_mut(&mem.buffer()).unwrap();
+  pub fn free_advanced_buffer_mem(&mut self, mem: AdvancedBufferMemory) {
+    let buffer = self
+      .advanced_buffers
+      .get_mut(&mem.buffer())
+      .unwrap();
     buffer.free_buffer_mem(mem);
   }
 
-  pub fn free_simple_buffer_mem(&mut self, mem: BufferMemory) {
-    let buffer = self.simple_buffers.get_mut(&mem.buffer()).unwrap();
+  pub fn free_simple_buffer_mem(&mut self, mem: SimpleBufferMemory) {
+    let buffer = self
+      .simple_buffers
+      .get_mut(&mem.buffer())
+      .unwrap();
     buffer.free_buffer_mem(mem);
   }
 
-  pub fn get_advanced_vk_buffer(&self, buffer_id: BufferId) -> Option<vk::Buffer> {
+  pub fn get_advanced_vk_buffer(&self, buffer_id: AdvancedBufferId) -> Option<vk::Buffer> {
     Some(self.advanced_buffers.get(&buffer_id)?.vk_buffer())
   }
 
-  pub fn get_simple_vk_buffer(&self, buffer_id: BufferId) -> Option<vk::Buffer> {
+  pub fn get_simple_vk_buffer(&self, buffer_id: SimpleBufferId) -> Option<vk::Buffer> {
     Some(self.simple_buffers.get(&buffer_id)?.vk_buffer())
   }
 
@@ -268,15 +292,15 @@ impl MemoryManager {
     Some(self.images.get(&image_id)?.image_view())
   }
 
-  pub fn get_advanced_buffer_size(&self, buffer_id: BufferId) -> Option<usize> {
+  pub fn get_advanced_buffer_size(&self, buffer_id: AdvancedBufferId) -> Option<usize> {
     Some(self.advanced_buffers.get(&buffer_id)?.size())
   }
 
-  pub fn get_simple_buffer_size(&self, buffer_id: BufferId) -> Option<usize> {
+  pub fn get_simple_buffer_size(&self, buffer_id: SimpleBufferId) -> Option<usize> {
     Some(self.simple_buffers.get(&buffer_id)?.size())
   }
 
-  fn reserve_transfer(&mut self, buffer_id: BufferId) -> Result<Transfer, Error> {
+  fn reserve_transfer(&mut self, buffer_id: AdvancedBufferId) -> Result<Transfer, Error> {
     if let Some(&fence) = self.buffer_used.get(&buffer_id) {
       unsafe {
         self.device.wait_for_fences(&[fence], true, u64::MAX)?;

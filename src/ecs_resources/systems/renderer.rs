@@ -9,7 +9,7 @@ use crate::ecs_resources::components::camera::Camera;
 use crate::ecs_resources::components::renderer::MeshRenderer;
 use crate::ecs_resources::components::transform::Transform;
 use crate::vulkan::graphics::resources::model::{InstanceData, ModelId};
-use crate::vulkan::memory::BufferMemory;
+use crate::vulkan::memory::AdvancedBufferMemory;
 use crate::vulkan::Vulkan;
 
 pub fn init_renderer(vulkan: ResMut<Vulkan>) {
@@ -20,8 +20,8 @@ pub fn init_renderer(vulkan: ResMut<Vulkan>) {
 
 #[derive(Default)]
 pub struct RendererRecording {
-  camera_mem: Option<BufferMemory>,
-  camera_mem2: Option<BufferMemory>,
+  camera_mem: Option<AdvancedBufferMemory>,
+  camera_mem2: Option<AdvancedBufferMemory>,
 }
 
 pub fn renderer_recording(

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::{
   vulkan::memory::{
-    manager::{BufferBlockSize, BufferId, MemoryManager},
-    BufferMemory,
+    manager::{BufferBlockSize, AdvancedBufferId, MemoryManager},
+    AdvancedBufferMemory,
   },
   Id,
 };
@@ -15,19 +15,19 @@ pub type ModelId = Id;
 pub struct ModelManager {
   models: HashMap<ModelId, Model>,
   last_id: ModelId,
-  vertex_buffer: BufferId,
-  index_buffer: BufferId,
-  instance_buffer: BufferId,
+  vertex_buffer: AdvancedBufferId,
+  index_buffer: AdvancedBufferId,
+  instance_buffer: AdvancedBufferId,
 }
 
 pub const CUBE_MODEL: Id = 0;
 
 struct Model {
-  vertices: BufferMemory,
-  indices: BufferMemory,
+  vertices: AdvancedBufferMemory,
+  indices: AdvancedBufferMemory,
   index_len: u32,
   instance_alloc_size: usize,
-  instances: HashMap<String, (BufferMemory, Vec<InstanceData>)>,
+  instances: HashMap<String, (AdvancedBufferMemory, Vec<InstanceData>)>,
 }
 
 #[derive(Debug)]
@@ -132,7 +132,7 @@ impl ModelManager {
 
   pub fn update_draw_buffer(
     &mut self,
-    cmd_buffer: BufferId,
+    cmd_buffer: AdvancedBufferId,
     commands: &mut HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
@@ -303,8 +303,8 @@ impl ModelManager {
 
 impl Model {
   fn new(
-    vertices: BufferMemory,
-    indices: BufferMemory,
+    vertices: AdvancedBufferMemory,
+    indices: AdvancedBufferMemory,
     index_len: u32,
     instance_count: InstanceCount,
   ) -> Self {

@@ -10,7 +10,7 @@ use graphics::{
 };
 use instance::{InstanceDevice, InstanceDeviceConfig};
 use memory::manager::MemoryManager;
-use memory::BufferMemory;
+use memory::AdvancedBufferMemory;
 use pipeline::pools::Pools;
 use pipeline::PipelineManager;
 use surface::Surface;
@@ -118,7 +118,7 @@ impl Vulkan {
     self.renderer.draw_frame(&self.device);
   }
 
-  pub fn update_descriptor<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
+  pub fn update_descriptor<T: Sized>(&mut self, mem: &AdvancedBufferMemory, data: &[T]) -> Option<()> {
     self
       .pipeline_manager
       .update_descriptor(&mut self.memory_manager, mem, data)
@@ -130,7 +130,7 @@ impl Vulkan {
     descriptor_set: usize,
     descriptor: usize,
     size: usize,
-  ) -> Option<BufferMemory> {
+  ) -> Option<AdvancedBufferMemory> {
     self.pipeline_manager.create_descriptor_mem(
       &mut self.memory_manager,
       pipeline_name,
