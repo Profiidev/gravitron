@@ -2,6 +2,8 @@ use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 
+use super::manager::Transfer;
+
 pub struct Buffer {
   buffer: vk::Buffer,
   allocation: Option<vulkan::Allocation>,
@@ -126,4 +128,31 @@ fn create_buffer(
   unsafe { device.bind_buffer_memory(buffer, allocation.memory(), allocation.offset())? };
 
   Ok((buffer, allocation))
+}
+
+pub fn buffer_copy_info(dst_offset: usize, size: usize) -> Vec<vk::BufferCopy> {
+  vec![vk::BufferCopy::default()
+    .dst_offset(dst_offset as u64)
+    .size(size as u64)]
+}
+
+pub fn buffer_copy(
+  src: &Buffer,
+  dst: &Buffer,
+  device: &ash::Device,
+  transfer_queue: vk::Queue,
+  transfer: &Transfer,
+  regions: &[vk::BufferCopy],
+) -> Result<(), vk::Result> {
+  let command_buffer = transfer.buffer();
+  let begin_info = vk::CommandBufferBeginInfo::default();
+  let buffers = [command_buffer];
+  let submits = [vk::SubmitInfo::default().command_buffers(&buffers)];
+
+  unsafe {
+    device.begin_command_buffer(command_buffer, &begin_info)?;
+    device.cmd_copy_buffer(command_buffer, src.buffer(), dst.buffer(), regions);
+    device.end_command_buffer(command_buffer)?;
+    device.queue_submit(transfer_queue, &submits, transfer.fence())
+  }
 }

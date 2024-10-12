@@ -141,7 +141,7 @@ impl PipelineManager {
     let set = pipeline.descriptor_buffers.get(descriptor_set)?;
     let desc = set.get(descriptor)?;
 
-    memory_manager.reserve_buffer_mem(*desc, size)
+    Some(memory_manager.reserve_buffer_mem(*desc, size)?.0)
   }
 
   pub fn pipeline_names(&self) -> Vec<&String> {

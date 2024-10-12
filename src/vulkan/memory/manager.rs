@@ -10,11 +10,7 @@ use crate::vulkan::{
   pipeline::pools::{CommandBufferType, Pools},
 };
 
-use super::{
-  allocator::{Allocator, BufferMemory},
-  buffer::Buffer,
-  image::Image,
-};
+use super::{allocator::BufferMemory, image::Image, manged_buffer::ManagedBuffer};
 
 pub type BufferId = crate::Id;
 pub type ImageId = crate::Id;
@@ -41,7 +37,6 @@ pub struct MemoryManager {
   command_buffers: Vec<vk::CommandBuffer>,
   fences: Vec<vk::Fence>,
   transfer_queue: vk::Queue,
-  buffer_resize: bool,
 }
 
 impl MemoryManager {
@@ -77,7 +72,6 @@ impl MemoryManager {
       command_buffers,
       fences,
       transfer_queue: device.get_queues().transfer(),
-      buffer_resize: false,
     })
   }
 
@@ -86,10 +80,16 @@ impl MemoryManager {
     usage: vk::BufferUsageFlags,
     block_size: BufferBlockSize,
   ) -> Result<BufferId, Error> {
-    let buffer = ManagedBuffer::new(&mut self.allocator, &self.device, usage, block_size.into())?;
-
-    self.buffers.insert(self.last_buffer_id, buffer);
     let id = self.last_buffer_id;
+    let buffer = ManagedBuffer::new(
+      id,
+      &mut self.allocator,
+      &self.device,
+      usage,
+      block_size.into(),
+    )?;
+
+    self.buffers.insert(id, buffer);
     self.last_buffer_id += 1;
     Ok(id)
   }
@@ -114,46 +114,54 @@ impl MemoryManager {
     Ok(id)
   }
 
-  pub fn reserve_buffer_mem(&mut self, buffer_id: BufferId, size: usize) -> Option<BufferMemory> {
-    Some(self.reserve_buffer_mem_internal(buffer_id, size)?.2)
+  pub fn reserve_buffer_mem(&mut self, buffer_id: BufferId, size: usize) -> Option<(BufferMemory, bool)> {
+    let transfer = self.reserve_transfer(buffer_id).ok()?;
+    let buffer = self.buffers.get_mut(&buffer_id)?;
+
+    buffer.reserve_buffer_mem(
+      size,
+      &self.device,
+      &mut self.allocator,
+      self.transfer_queue,
+      &transfer,
+    )
   }
 
   pub fn add_to_buffer<T: Sized>(
     &mut self,
     buffer_id: BufferId,
     data: &[T],
-  ) -> Option<BufferMemory> {
-    let size = std::mem::size_of_val(data);
-    let (command_buffer, fence, mem) = self.reserve_buffer_mem_internal(buffer_id, size)?;
+  ) -> Option<(BufferMemory, bool)> {
+    let transfer = self.reserve_transfer(buffer_id).ok()?;
     let buffer = self.buffers.get_mut(&buffer_id)?;
-    buffer.transfer.fill(data).ok()?;
 
-    unsafe {
-      self.device.reset_fences(&[fence]).ok()?;
-    }
-
-    let regions = buffer_copy_info(mem.offset(), size);
-    buffer_copy(
-      &buffer.transfer,
-      &buffer.gpu,
+    let mem = buffer.add_to_buffer(
+      data,
       &self.device,
+      &mut self.allocator,
       self.transfer_queue,
-      command_buffer,
-      fence,
-      &regions,
-    )
-    .ok()?;
+      &transfer,
+    );
 
-    self.buffer_used.insert(buffer_id, fence);
-
-    Some(mem)
+    self.buffer_used.insert(buffer_id, transfer.fence);
+    mem
   }
 
   pub fn write_to_buffer<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
-    let size = std::mem::size_of_val(data);
-    assert!(size <= mem.size());
-    let regions = buffer_copy_info(mem.offset(), size);
-    self.write_to_buffer_direct(mem.buffer(), data, &regions)
+    let transfer = self.reserve_transfer(mem.buffer()).ok()?;
+    let buffer = self.buffers.get_mut(&mem.buffer())?;
+
+    buffer.write_to_buffer(
+      mem,
+      data,
+      &self.device,
+      &mut self.allocator,
+      self.transfer_queue,
+      &transfer,
+    )?;
+
+    self.buffer_used.insert(mem.buffer(), transfer.fence);
+    Some(())
   }
 
   pub fn write_to_buffer_direct<T: Sized>(
@@ -162,111 +170,67 @@ impl MemoryManager {
     data: &[T],
     regions: &[vk::BufferCopy],
   ) -> Option<()> {
-    let size = std::mem::size_of_val(data);
-    let (command_buffer, fence) = self.write_prepare_internal(buffer_id, size)?;
+    let transfer = self.reserve_transfer(buffer_id).ok()?;
     let buffer = self.buffers.get_mut(&buffer_id)?;
-    buffer.transfer.fill(data).ok()?;
 
-    unsafe {
-      self.device.reset_fences(&[fence]).ok()?;
-    }
-
-    buffer_copy(
-      &buffer.transfer,
-      &buffer.gpu,
-      &self.device,
-      self.transfer_queue,
-      command_buffer,
-      fence,
+    buffer.write_to_buffer_direct(
+      data,
       regions,
-    )
-    .ok()?;
+      &self.device,
+      &mut self.allocator,
+      self.transfer_queue,
+      &transfer,
+    )?;
 
-    self.buffer_used.insert(buffer_id, fence);
-
+    self.buffer_used.insert(buffer_id, transfer.fence);
     Some(())
   }
 
-  fn reserve_buffer_mem_internal(
-    &mut self,
-    buffer_id: BufferId,
-    size: usize,
-  ) -> Option<(vk::CommandBuffer, vk::Fence, BufferMemory)> {
-    let (command_buffer, fence) = self.write_prepare_internal(buffer_id, size)?;
-    let buffer = self.buffers.get_mut(&buffer_id)?;
+  pub fn resize_buffer_mem(&mut self, mem: &mut BufferMemory, size: usize) -> Option<bool> {
+    let transfer = self.reserve_transfer(mem.buffer()).ok()?;
+    let buffer = self.buffers.get_mut(&mem.buffer())?;
 
-    let mem = if let Some(mem) = buffer.allocator.alloc(size, buffer_id) {
-      mem
-    } else {
-      self.buffer_resize = true;
-
-      let additional_size =
-        (size as f32 / buffer.block_size as f32).ceil() as usize * buffer.block_size;
-      let new_gpu = Buffer::new(
-        &mut self.allocator,
-        &self.device,
-        buffer.gpu.size() + additional_size,
-        buffer.gpu.usage(),
-        gpu_allocator::MemoryLocation::GpuOnly,
-      )
-      .ok()?;
-
-      unsafe {
-        self.device.reset_fences(&[fence]).ok()?;
-      }
-
-      let regions = buffer_copy_info(0, buffer.gpu.size());
-      buffer_copy(
-        &buffer.gpu,
-        &new_gpu,
-        &self.device,
-        self.transfer_queue,
-        command_buffer,
-        fence,
-        &regions,
-      )
-      .ok()?;
-
-      unsafe {
-        self.device.wait_for_fences(&[fence], true, u64::MAX).ok()?;
-      }
-
-      let old_gpu = std::mem::replace(&mut buffer.gpu, new_gpu);
-      unsafe { old_gpu.cleanup(&self.device, &mut self.allocator).ok()? };
-
-      buffer.allocator.grow(additional_size);
-
-      buffer.allocator.alloc(size, buffer_id).unwrap()
-    };
-
-    Some((command_buffer, fence, mem))
+    buffer.resize_buffer_mem(
+      mem,
+      size,
+      &self.device,
+      &mut self.allocator,
+      self.transfer_queue,
+      &transfer,
+    )
   }
 
-  fn write_prepare_internal(
+  pub fn free_buffer_mem(&mut self, mem: BufferMemory) {
+    let buffer = self.buffers.get_mut(&mem.buffer()).unwrap();
+    buffer.free_buffer_mem(mem);
+  }
+
+  pub fn get_vk_buffer(&self, buffer_id: BufferId) -> Option<vk::Buffer> {
+    Some(self.buffers.get(&buffer_id)?.vk_buffer())
+  }
+
+  pub fn get_vk_image_view(&self, image_id: ImageId) -> Option<vk::ImageView> {
+    Some(self.images.get(&image_id)?.image_view())
+  }
+
+  pub fn get_buffer_size(&self, buffer_id: BufferId) -> Option<usize> {
+    Some(self.buffers.get(&buffer_id)?.size())
+  }
+
+  fn reserve_transfer(
     &mut self,
     buffer_id: BufferId,
-    size: usize,
-  ) -> Option<(vk::CommandBuffer, vk::Fence)> {
-    let buffer = self.buffers.get_mut(&buffer_id)?;
-
+  ) -> Result<Transfer, Error> {
     if let Some(&fence) = self.buffer_used.get(&buffer_id) {
       unsafe {
-        self.device.wait_for_fences(&[fence], true, u64::MAX).ok()?;
+        self.device.wait_for_fences(&[fence], true, u64::MAX)?;
       }
-    }
-
-    if buffer.transfer.size() < size {
-      let new_size = (size as f32 / buffer.block_size as f32).ceil() as usize * buffer.block_size;
-      buffer
-        .transfer
-        .resize(new_size, &self.device, &mut self.allocator)
-        .ok();
     }
 
     let mut cmd_index = None;
     while cmd_index.is_none() {
       for i in 0..self.command_buffers.len() {
-        if unsafe { self.device.get_fence_status(self.fences[i]).ok()? } {
+        if unsafe { self.device.get_fence_status(self.fences[i])? } {
           cmd_index = Some(i);
           break;
         }
@@ -280,69 +244,10 @@ impl MemoryManager {
       self.buffer_used.remove(&done);
     }
 
-    Some((command_buffer, fence))
-  }
-
-  pub fn resize_buffer_mem(&mut self, mem: &mut BufferMemory, size: usize) -> Option<()> {
-    assert!(mem.size() < size);
-    let new_mem = self.reserve_buffer_mem(mem.buffer(), size)?;
-
-    let (command_buffer, fence) = self.write_prepare_internal(mem.buffer(), size)?;
-    let buffer = self.buffers.get(&mem.buffer())?;
-
-    unsafe {
-      self.device.reset_fences(&[fence]).ok()?;
-    }
-
-    let regions = [vk::BufferCopy {
-      src_offset: mem.offset() as u64,
-      dst_offset: new_mem.offset() as u64,
-      size: mem.size() as u64,
-    }];
-    buffer_copy(
-      &buffer.gpu,
-      &buffer.gpu,
-      &self.device,
-      self.transfer_queue,
-      command_buffer,
+    Ok(Transfer {
+      buffer: command_buffer,
       fence,
-      &regions,
-    )
-    .ok()?;
-
-    let old_mem = std::mem::replace(mem, new_mem);
-    self.free_buffer_mem(old_mem);
-
-    unsafe {
-      self.device.wait_for_fences(&[fence], true, u64::MAX).ok()?;
-    }
-
-    Some(())
-  }
-
-  pub fn free_buffer_mem(&mut self, mem: BufferMemory) {
-    let buffer = self.buffers.get_mut(&mem.buffer()).unwrap();
-    buffer.allocator.free(mem);
-  }
-
-  pub fn get_vk_buffer(&self, buffer_id: BufferId) -> Option<vk::Buffer> {
-    Some(self.buffers.get(&buffer_id)?.gpu.buffer())
-  }
-
-  pub fn get_vk_image_view(&self, image_id: ImageId) -> Option<vk::ImageView> {
-    Some(self.images.get(&image_id)?.image_view())
-  }
-
-  pub fn get_buffer_size(&self, buffer_id: BufferId) -> Option<usize> {
-    Some(self.buffers.get(&buffer_id)?.gpu.size())
-  }
-
-  pub fn buffer_resize(&self) -> bool {
-    self.buffer_resize
-  }
-
-  pub fn buffer_resize_reset(&mut self) {
-    self.buffer_resize = false;
+    })
   }
 
   pub fn cleanup(&mut self) -> Result<(), Error> {
@@ -375,77 +280,29 @@ impl From<BufferBlockSize> for usize {
   }
 }
 
-struct ManagedBuffer {
-  transfer: Buffer,
-  gpu: Buffer,
-  allocator: Allocator,
-  block_size: usize,
+pub struct Transfer {
+  buffer: vk::CommandBuffer,
+  fence: vk::Fence,
 }
 
-impl ManagedBuffer {
-  fn new(
-    allocator: &mut vulkan::Allocator,
-    device: &ash::Device,
-    usage: vk::BufferUsageFlags,
-    block_size: usize,
-  ) -> Result<Self, Error> {
-    let transfer = Buffer::new(
-      allocator,
-      device,
-      block_size,
-      usage | vk::BufferUsageFlags::TRANSFER_SRC,
-      gpu_allocator::MemoryLocation::CpuToGpu,
-    )?;
-
-    let gpu = Buffer::new(
-      allocator,
-      device,
-      block_size,
-      usage | vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::TRANSFER_SRC,
-      gpu_allocator::MemoryLocation::GpuOnly,
-    )?;
-
-    let allocator = Allocator::new(block_size);
-
-    Ok(Self {
-      transfer,
-      gpu,
-      allocator,
-      block_size,
-    })
+impl Transfer {
+  pub fn buffer(&self) -> vk::CommandBuffer {
+    self.buffer
   }
 
-  fn cleanup(self, device: &ash::Device, allocator: &mut vulkan::Allocator) -> Result<(), Error> {
+  pub fn fence(&self) -> vk::Fence {
+    self.fence
+  }
+
+  pub fn wait(&self, device: &ash::Device) -> Result<(), vk::Result> {
     unsafe {
-      self.transfer.cleanup(device, allocator)?;
-      self.gpu.cleanup(device, allocator)
+      device.wait_for_fences(&[self.fence], true, u64::MAX)
     }
   }
-}
 
-fn buffer_copy_info(dst_offset: usize, size: usize) -> Vec<vk::BufferCopy> {
-  vec![vk::BufferCopy::default()
-    .dst_offset(dst_offset as u64)
-    .size(size as u64)]
-}
-
-fn buffer_copy(
-  src: &Buffer,
-  dst: &Buffer,
-  device: &ash::Device,
-  transfer_queue: vk::Queue,
-  command_buffer: vk::CommandBuffer,
-  fence: vk::Fence,
-  regions: &[vk::BufferCopy],
-) -> Result<(), vk::Result> {
-  let begin_info = vk::CommandBufferBeginInfo::default();
-  let buffers = [command_buffer];
-  let submits = [vk::SubmitInfo::default().command_buffers(&buffers)];
-
-  unsafe {
-    device.begin_command_buffer(command_buffer, &begin_info)?;
-    device.cmd_copy_buffer(command_buffer, src.buffer(), dst.buffer(), regions);
-    device.end_command_buffer(command_buffer)?;
-    device.queue_submit(transfer_queue, &submits, fence)
+  pub fn reset(&self, device: &ash::Device) -> Result<(), vk::Result> {
+    unsafe {
+      device.reset_fences(&[self.fence])
+    }
   }
 }

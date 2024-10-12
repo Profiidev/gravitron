@@ -83,19 +83,19 @@ impl Renderer {
 
     for pipeline in &config.shaders {
       if let PipelineType::Graphics(shader) = pipeline {
-        let cmd_mem = memory_manager
+        let (cmd_mem, _) = memory_manager
           .reserve_buffer_mem(draw_commands, cmd_block_size)
           .unwrap();
-        let count_mme = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
-        shader_mem.insert(shader.name.clone(), (cmd_mem, count_mme, 0));
+        let (count_mem, _) = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+        shader_mem.insert(shader.name.clone(), (cmd_mem, count_mem, 0));
       }
     }
 
-    let cmd_mem = memory_manager
+    let (cmd_mem, _) = memory_manager
       .reserve_buffer_mem(draw_commands, cmd_block_size)
       .unwrap();
-    let count_mme = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
-    shader_mem.insert("default".into(), (cmd_mem, count_mme, 0));
+    let (count_mem, _) = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+    shader_mem.insert("default".into(), (cmd_mem, count_mem, 0));
 
     Ok(Self {
       render_pass,
@@ -128,18 +128,11 @@ impl Renderer {
     pipeline_manager: &PipelineManager,
     memory_manager: &mut MemoryManager,
   ) -> Result<(), vk::Result> {
-    let buffer_changed = memory_manager.buffer_resize();
-    if !buffer_changed
-      && self
+    if self
         .buffers_updated
         .contains(&self.swap_chain.current_frame())
     {
       return Ok(());
-    }
-
-    if buffer_changed {
-      self.buffers_updated = Vec::new();
-      memory_manager.buffer_resize_reset();
     }
 
     let buffer = self
@@ -198,12 +191,16 @@ impl Renderer {
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<String, Vec<resources::model::InstanceData>>>,
   ) {
-    let cmd_new = self.model_manager.update_draw_buffer(
+    let (cmd_new, buffer_resized) = self.model_manager.update_draw_buffer(
       self.draw_commands,
       &mut self.commands,
       memory_manager,
       instances,
     );
+
+    if buffer_resized {
+      self.buffers_updated.clear();
+    }
 
     if cmd_new.is_empty() {
       return;
@@ -215,6 +212,8 @@ impl Renderer {
     let mut write_info = Vec::new();
     let mut write_data = Vec::new();
 
+    let mut buffer_resized = false;
+
     for (shader, cmd_new) in cmd_new {
       let (cmd_mem, count_mem, count) = self.shader_mem.get_mut(&shader).unwrap();
 
@@ -224,7 +223,7 @@ impl Renderer {
       if cmd_mem.size() < required_size {
         let new_size =
           (required_size as f32 / cmd_block_size as f32).ceil() as usize * cmd_block_size;
-        memory_manager.resize_buffer_mem(cmd_mem, new_size);
+        buffer_resized = buffer_resized || memory_manager.resize_buffer_mem(cmd_mem, new_size).unwrap();
         self.buffers_updated = Vec::new();
       }
 
@@ -248,6 +247,10 @@ impl Renderer {
 
       *count += cmd_new_len as u32;
       memory_manager.write_to_buffer(count_mem, &[*count]);
+    }
+
+    if buffer_resized {
+      self.buffers_updated.clear();
     }
 
     let write_data_slice = write_data.as_slice();
