@@ -235,8 +235,11 @@ impl ModelManager {
             copy_offset += copy_size;
           }
         } else {
-          let Some(mem) =
-            memory_manager.reserve_buffer_mem(self.instance_buffer, model.instance_alloc_size)
+          let instances_size = instance_size * instances.len();
+          let required_size = (instances_size as f32 / model.instance_alloc_size as f32).ceil()
+            as usize
+            * model.instance_alloc_size;
+          let Some(mem) = memory_manager.reserve_buffer_mem(self.instance_buffer, required_size)
           else {
             continue;
           };
