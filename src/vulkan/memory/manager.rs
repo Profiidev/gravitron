@@ -265,18 +265,12 @@ impl MemoryManager {
   }
 
   pub fn free_advanced_buffer_mem(&mut self, mem: AdvancedBufferMemory) {
-    let buffer = self
-      .advanced_buffers
-      .get_mut(&mem.buffer())
-      .unwrap();
+    let buffer = self.advanced_buffers.get_mut(&mem.buffer()).unwrap();
     buffer.free_buffer_mem(mem);
   }
 
   pub fn free_simple_buffer_mem(&mut self, mem: SimpleBufferMemory) {
-    let buffer = self
-      .simple_buffers
-      .get_mut(&mem.buffer())
-      .unwrap();
+    let buffer = self.simple_buffers.get_mut(&mem.buffer()).unwrap();
     buffer.free_buffer_mem(mem);
   }
 

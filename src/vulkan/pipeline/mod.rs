@@ -7,7 +7,7 @@ use crate::config::vulkan::{
 };
 
 use super::memory::{
-  manager::{BufferBlockSize, AdvancedBufferId, MemoryManager},
+  manager::{AdvancedBufferId, BufferBlockSize, MemoryManager},
   AdvancedBufferMemory,
 };
 

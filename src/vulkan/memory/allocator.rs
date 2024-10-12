@@ -55,14 +55,30 @@ impl Allocator {
     Self { free, size }
   }
 
-  pub fn alloc_advanced(&mut self, size: usize, buffer: AdvancedBufferId) -> Option<AdvancedBufferMemory> {
+  pub fn alloc_advanced(
+    &mut self,
+    size: usize,
+    buffer: AdvancedBufferId,
+  ) -> Option<AdvancedBufferMemory> {
     let offset = self.alloc(size)?;
-    Some(AdvancedBufferMemory { offset, size, buffer })
+    Some(AdvancedBufferMemory {
+      offset,
+      size,
+      buffer,
+    })
   }
 
-  pub fn alloc_simple(&mut self, size: usize, buffer: SimpleBufferId) -> Option<SimpleBufferMemory> {
+  pub fn alloc_simple(
+    &mut self,
+    size: usize,
+    buffer: SimpleBufferId,
+  ) -> Option<SimpleBufferMemory> {
     let offset = self.alloc(size)?;
-    Some(SimpleBufferMemory { offset, size, buffer })
+    Some(SimpleBufferMemory {
+      offset,
+      size,
+      buffer,
+    })
   }
 
   fn alloc(&mut self, size: usize) -> Option<usize> {

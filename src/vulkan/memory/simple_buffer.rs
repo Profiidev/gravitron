@@ -2,7 +2,11 @@ use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 
-use super::{allocator::{Allocator, SimpleBufferMemory}, buffer::Buffer, manager::SimpleBufferId};
+use super::{
+  allocator::{Allocator, SimpleBufferMemory},
+  buffer::Buffer,
+  manager::SimpleBufferId,
+};
 
 pub struct SimpleBuffer {
   id: SimpleBufferId,
