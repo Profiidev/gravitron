@@ -69,11 +69,11 @@ impl Renderer {
 
     let model_manager = ModelManager::new(memory_manager)?;
 
-    let draw_commands = memory_manager.create_buffer(
+    let draw_commands = memory_manager.create_advanced_buffer(
       vk::BufferUsageFlags::INDIRECT_BUFFER,
       BufferBlockSize::Medium,
     )?;
-    let draw_count = memory_manager.create_buffer(
+    let draw_count = memory_manager.create_advanced_buffer(
       vk::BufferUsageFlags::INDIRECT_BUFFER,
       BufferBlockSize::Small,
     )?;
@@ -84,17 +84,21 @@ impl Renderer {
     for pipeline in &config.shaders {
       if let PipelineType::Graphics(shader) = pipeline {
         let (cmd_mem, _) = memory_manager
-          .reserve_buffer_mem(draw_commands, cmd_block_size)
+          .reserve_advanced_buffer_mem(draw_commands, cmd_block_size)
           .unwrap();
-        let (count_mem, _) = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+        let (count_mem, _) = memory_manager
+          .reserve_advanced_buffer_mem(draw_count, 4)
+          .unwrap();
         shader_mem.insert(shader.name.clone(), (cmd_mem, count_mem, 0));
       }
     }
 
     let (cmd_mem, _) = memory_manager
-      .reserve_buffer_mem(draw_commands, cmd_block_size)
+      .reserve_advanced_buffer_mem(draw_commands, cmd_block_size)
       .unwrap();
-    let (count_mem, _) = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+    let (count_mem, _) = memory_manager
+      .reserve_advanced_buffer_mem(draw_count, 4)
+      .unwrap();
     shader_mem.insert("default".into(), (cmd_mem, count_mem, 0));
 
     Ok(Self {
@@ -153,8 +157,12 @@ impl Renderer {
           .unwrap()
           .record_command_buffer(buffer, &self.logical_device);
 
-        let draw_commands = memory_manager.get_vk_buffer(self.draw_commands).unwrap();
-        let draw_count = memory_manager.get_vk_buffer(self.draw_count).unwrap();
+        let draw_commands = memory_manager
+          .get_advanced_vk_buffer(self.draw_commands)
+          .unwrap();
+        let draw_count = memory_manager
+          .get_advanced_vk_buffer(self.draw_count)
+          .unwrap();
         let (cmd_mem, count_mem, _) = self.shader_mem.get(pipeline).unwrap();
         let max_draw_count = cmd_mem.size() / 20;
 
@@ -223,8 +231,10 @@ impl Renderer {
       if cmd_mem.size() < required_size {
         let new_size =
           (required_size as f32 / cmd_block_size as f32).ceil() as usize * cmd_block_size;
-        buffer_resized =
-          buffer_resized || memory_manager.resize_buffer_mem(cmd_mem, new_size).unwrap();
+        buffer_resized = buffer_resized
+          || memory_manager
+            .resize_advanced_buffer_mem(cmd_mem, new_size)
+            .unwrap();
         self.buffers_updated = Vec::new();
       }
 
@@ -247,7 +257,7 @@ impl Renderer {
       }
 
       *count += cmd_new_len as u32;
-      memory_manager.write_to_buffer(count_mem, &[*count]);
+      memory_manager.write_to_advanced_buffer(count_mem, &[*count]);
     }
 
     if buffer_resized {
@@ -255,7 +265,11 @@ impl Renderer {
     }
 
     let write_data_slice = write_data.as_slice();
-    memory_manager.write_to_buffer_direct(self.draw_commands, write_data_slice, &write_info);
+    memory_manager.write_to_advanced_buffer_direct(
+      self.draw_commands,
+      write_data_slice,
+      &write_info,
+    );
   }
 
   pub fn draw_frame(&mut self, device: &Device) {

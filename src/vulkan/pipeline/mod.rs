@@ -120,7 +120,7 @@ impl PipelineManager {
     mem: &BufferMemory,
     data: &[T],
   ) -> Option<()> {
-    memory_manager.write_to_buffer(mem, data);
+    memory_manager.write_to_advanced_buffer(mem, data);
 
     Some(())
   }
@@ -141,7 +141,7 @@ impl PipelineManager {
     let set = pipeline.descriptor_buffers.get(descriptor_set)?;
     let desc = set.get(descriptor)?;
 
-    Some(memory_manager.reserve_buffer_mem(*desc, size)?.0)
+    Some(memory_manager.reserve_advanced_buffer_mem(*desc, size)?.0)
   }
 
   pub fn pipeline_names(&self) -> Vec<&String> {
@@ -527,13 +527,13 @@ impl Pipeline {
       let mut offset = 0;
 
       for (i, descriptor) in descriptor_set.descriptors.iter().enumerate() {
-        let buffer = memory_manager.create_buffer(
+        let buffer = memory_manager.create_advanced_buffer(
           descriptor.buffer_usage,
           BufferBlockSize::Exact(descriptor.size as usize),
         )?;
 
         let buffer_info_descriptor = [vk::DescriptorBufferInfo::default()
-          .buffer(memory_manager.get_vk_buffer(buffer).unwrap())
+          .buffer(memory_manager.get_advanced_vk_buffer(buffer).unwrap())
           .offset(offset)
           .range(descriptor.size)];
         let write_desc_set = vk::WriteDescriptorSet::default()

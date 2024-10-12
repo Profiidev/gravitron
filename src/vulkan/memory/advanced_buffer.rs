@@ -9,7 +9,7 @@ use super::{
   BufferMemory,
 };
 
-pub struct ManagedBuffer {
+pub struct AdvancedBuffer {
   id: BufferId,
   transfer: Buffer,
   gpu: Buffer,
@@ -17,7 +17,7 @@ pub struct ManagedBuffer {
   block_size: usize,
 }
 
-impl ManagedBuffer {
+impl AdvancedBuffer {
   pub fn new(
     id: BufferId,
     allocator: &mut vulkan::Allocator,
@@ -52,6 +52,18 @@ impl ManagedBuffer {
     })
   }
 
+  fn resize_transfer_buffer(
+    &mut self,
+    size: usize,
+    device: &ash::Device,
+    allocator: &mut vulkan::Allocator,
+  ) {
+    if self.transfer.size() < size {
+      let new_size = (size as f32 / self.block_size as f32).ceil() as usize * self.block_size;
+      self.transfer.resize(new_size, device, allocator).ok();
+    }
+  }
+
   pub fn cleanup(
     self,
     device: &ash::Device,
@@ -68,27 +80,12 @@ impl ManagedBuffer {
     data: &[T],
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
-    transfer_queue: vk::Queue,
     transfer: &Transfer,
   ) -> Option<(BufferMemory, bool)> {
     let size = std::mem::size_of_val(data);
-    self.resize_transfer_buffer(size, device, allocator);
-    let (mem, buffer_resized) =
-      self.reserve_buffer_mem(size, device, allocator, transfer_queue, transfer)?;
-    self.transfer.fill(data).ok()?;
+    let (mem, buffer_resized) = self.reserve_buffer_mem(size, device, allocator, transfer)?;
 
-    transfer.reset(device).ok()?;
-
-    let regions = buffer_copy_info(mem.offset(), size);
-    buffer_copy(
-      &self.transfer,
-      &self.gpu,
-      device,
-      transfer_queue,
-      transfer,
-      &regions,
-    )
-    .ok()?;
+    self.write_to_buffer(&mem, data, device, allocator, transfer)?;
 
     Some((mem, buffer_resized))
   }
@@ -99,13 +96,12 @@ impl ManagedBuffer {
     data: &[T],
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
-    transfer_queue: vk::Queue,
     transfer: &Transfer,
   ) -> Option<()> {
     let size = std::mem::size_of_val(data);
     assert!(size <= mem.size());
     let regions = buffer_copy_info(mem.offset(), size);
-    self.write_to_buffer_direct(data, &regions, device, allocator, transfer_queue, transfer)
+    self.write_to_buffer_direct(data, &regions, device, allocator, transfer)
   }
 
   pub fn write_to_buffer_direct<T: Sized>(
@@ -114,7 +110,6 @@ impl ManagedBuffer {
     regions: &[vk::BufferCopy],
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
-    transfer_queue: vk::Queue,
     transfer: &Transfer,
   ) -> Option<()> {
     let size = std::mem::size_of_val(data);
@@ -127,7 +122,7 @@ impl ManagedBuffer {
       &self.transfer,
       &self.gpu,
       device,
-      transfer_queue,
+      transfer.queue(),
       transfer,
       regions,
     )
@@ -141,15 +136,11 @@ impl ManagedBuffer {
     size: usize,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
-    transfer_queue: vk::Queue,
     transfer: &Transfer,
   ) -> Option<(BufferMemory, bool)> {
-    let mut buffer_resized = false;
-    let mem = if let Some(mem) = self.allocator.alloc(size, self.id) {
-      mem
+    if let Some(mem) = self.allocator.alloc(size, self.id) {
+      Some((mem, false))
     } else {
-      buffer_resized = true;
-
       let additional_size =
         (size as f32 / self.block_size as f32).ceil() as usize * self.block_size;
       let new_gpu = Buffer::new(
@@ -157,7 +148,7 @@ impl ManagedBuffer {
         device,
         self.gpu.size() + additional_size,
         self.gpu.usage(),
-        gpu_allocator::MemoryLocation::GpuOnly,
+        self.gpu.location(),
       )
       .ok()?;
 
@@ -168,7 +159,7 @@ impl ManagedBuffer {
         &self.gpu,
         &new_gpu,
         device,
-        transfer_queue,
+        transfer.queue(),
         transfer,
         &regions,
       )
@@ -181,21 +172,9 @@ impl ManagedBuffer {
 
       self.allocator.grow(additional_size);
 
-      self.allocator.alloc(size, self.id).unwrap()
-    };
+      let mem = self.allocator.alloc(size, self.id).unwrap();
 
-    Some((mem, buffer_resized))
-  }
-
-  fn resize_transfer_buffer(
-    &mut self,
-    size: usize,
-    device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
-  ) {
-    if self.transfer.size() < size {
-      let new_size = (size as f32 / self.block_size as f32).ceil() as usize * self.block_size;
-      self.transfer.resize(new_size, device, allocator).ok();
+      Some((mem, true))
     }
   }
 
@@ -205,12 +184,10 @@ impl ManagedBuffer {
     size: usize,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
-    transfer_queue: vk::Queue,
     transfer: &Transfer,
   ) -> Option<bool> {
     assert!(mem.size() < size);
-    let (new_mem, buffer_resized) =
-      self.reserve_buffer_mem(size, device, allocator, transfer_queue, transfer)?;
+    let (new_mem, buffer_resized) = self.reserve_buffer_mem(size, device, allocator, transfer)?;
 
     transfer.reset(device).ok()?;
 
@@ -223,7 +200,7 @@ impl ManagedBuffer {
       &self.gpu,
       &self.gpu,
       device,
-      transfer_queue,
+      transfer.queue(),
       transfer,
       &regions,
     )

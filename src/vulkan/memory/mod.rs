@@ -2,6 +2,7 @@ mod allocator;
 mod buffer;
 mod image;
 pub mod manager;
-mod manged_buffer;
+mod advanced_buffer;
+mod simple_buffer;
 
 pub use allocator::BufferMemory;

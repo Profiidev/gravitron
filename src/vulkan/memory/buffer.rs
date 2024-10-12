@@ -6,7 +6,7 @@ use super::manager::Transfer;
 
 pub struct Buffer {
   buffer: vk::Buffer,
-  allocation: Option<vulkan::Allocation>,
+  allocation: vulkan::Allocation,
   size: usize,
   usage: vk::BufferUsageFlags,
   location: gpu_allocator::MemoryLocation,
@@ -24,37 +24,41 @@ impl Buffer {
 
     Ok(Self {
       buffer,
-      allocation: Some(allocation),
+      allocation,
       size,
       usage,
       location,
     })
   }
 
-  pub fn write<T: Sized>(&mut self, data: &[T], offset: usize) -> Result<(), vk::Result> {
-    let bytes_to_write = std::mem::size_of_val(data);
-    if bytes_to_write + offset > self.size {
+  pub fn write(
+    &mut self,
+    src_ptr: *const u8,
+    size: usize,
+    offset: usize,
+  ) -> Result<(), vk::Result> {
+    if size + offset > self.size {
       return Err(vk::Result::ERROR_OUT_OF_HOST_MEMORY);
     }
     let data_ptr = unsafe {
       self
         .allocation
-        .as_ref()
-        .unwrap()
         .mapped_ptr()
         .ok_or(vk::Result::ERROR_OUT_OF_HOST_MEMORY)?
         .byte_add(offset)
     }
-    .as_ptr() as *mut T;
+    .as_ptr() as *mut u8;
 
     unsafe {
-      data_ptr.copy_from_nonoverlapping(data.as_ptr(), data.len());
+      data_ptr.copy_from_nonoverlapping(src_ptr, size);
     }
     Ok(())
   }
 
   pub fn fill<T: Sized>(&mut self, data: &[T]) -> Result<(), vk::Result> {
-    self.write(data, 0)
+    let ptr = data.as_ptr() as *const u8;
+    let count = std::mem::size_of_val(data);
+    self.write(ptr, count, 0)
   }
 
   pub fn resize(
@@ -67,26 +71,27 @@ impl Buffer {
       return Ok(());
     }
 
-    unsafe {
-      device.destroy_buffer(self.buffer, None);
-      allocator.free(self.allocation.take().unwrap())?;
-    }
-
     let (buffer, allocation) = create_buffer(size, self.usage, self.location, device, allocator)?;
-    self.buffer = buffer;
-    self.allocation = Some(allocation);
+
+    let old_buffer = std::mem::replace(&mut self.buffer, buffer);
+    let old_allocation = std::mem::replace(&mut self.allocation, allocation);
     self.size = size;
+
+    unsafe {
+      device.destroy_buffer(old_buffer, None);
+      allocator.free(old_allocation)?;
+    }
 
     Ok(())
   }
 
   pub unsafe fn cleanup(
-    mut self,
+    self,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
   ) -> Result<(), Error> {
     device.destroy_buffer(self.buffer, None);
-    allocator.free(self.allocation.take().unwrap())?;
+    allocator.free(self.allocation)?;
     Ok(())
   }
 
@@ -100,6 +105,14 @@ impl Buffer {
 
   pub fn usage(&self) -> vk::BufferUsageFlags {
     self.usage
+  }
+
+  pub fn location(&self) -> gpu_allocator::MemoryLocation {
+    self.location
+  }
+
+  pub unsafe fn ptr(&self) -> Option<*const u8> {
+    Some(self.allocation.mapped_ptr()?.as_ptr() as *const u8)
   }
 }
 
