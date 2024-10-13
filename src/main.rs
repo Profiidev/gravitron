@@ -24,12 +24,6 @@ fn main() {
   let testing = GraphicsPipelineConfig::new("testing".to_string())
     .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader copy.frag").to_vec())
     .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
-      DescriptorType::UniformBuffer,
-      1,
-      ShaderStageFlags::VERTEX,
-      128,
-    )))
-    .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
       DescriptorType::StorageBuffer,
       1,
       ShaderStageFlags::FRAGMENT,

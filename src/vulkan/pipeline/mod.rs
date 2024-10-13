@@ -29,6 +29,26 @@ impl PipelineManager {
   ) -> Result<Self, Error> {
     pipelines.push(PipelineType::Graphics(Pipeline::default_shader()));
 
+    let default_descriptor = DescriptorSet::default().add_descriptor(Descriptor::new(DescriptorType::UniformBuffer, 1, vk::ShaderStageFlags::VERTEX, 128));
+
+    for pipeline in pipelines.iter_mut() {
+      match pipeline {
+        PipelineType::Graphics(g) => {
+          let mut descriptor_sets = Vec::with_capacity(g.descriptor_sets.len() + 1);
+          descriptor_sets.push(default_descriptor.clone());
+          descriptor_sets.append(&mut g.descriptor_sets);
+          g.descriptor_sets = descriptor_sets;
+        }
+        PipelineType::Compute(c) => {
+          let mut descriptor_sets = Vec::with_capacity(c.descriptor_sets.len() + 1);
+          descriptor_sets.push(default_descriptor.clone());
+          descriptor_sets.append(&mut c.descriptor_sets);
+          c.descriptor_sets = descriptor_sets;
+        }
+      }
+    }
+
+
     let mut descriptor_count = 0;
     let mut pool_sizes = vec![];
     for pipeline in &*pipelines {
@@ -164,12 +184,6 @@ impl Pipeline {
   pub fn default_shader() -> GraphicsPipelineConfig {
     GraphicsPipelineConfig::new("default".to_string())
       .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec())
-      .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
-        DescriptorType::UniformBuffer,
-        1,
-        vk::ShaderStageFlags::VERTEX,
-        128,
-      )))
       .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
         DescriptorType::StorageBuffer,
         1,
@@ -324,8 +338,6 @@ impl Pipeline {
           .format(vk::Format::R32_SFLOAT),
       );
     }
-    dbg!(&vertex_binding_descs);
-    dbg!(&vertex_attrib_descs);
 
     let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
       .vertex_binding_descriptions(&vertex_binding_descs)

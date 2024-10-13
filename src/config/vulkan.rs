@@ -105,7 +105,7 @@ impl ComputePipelineConfig {
   }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DescriptorSet {
   pub descriptors: Vec<Descriptor>,
 }
@@ -122,6 +122,7 @@ impl DescriptorSet {
   }
 }
 
+#[derive(Clone)]
 pub struct Descriptor {
   pub type_: vk::DescriptorType,
   pub buffer_usage: vk::BufferUsageFlags,
