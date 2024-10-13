@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-  vulkan::memory::{
-    manager::{AdvancedBufferId, BufferBlockSize, MemoryManager},
-    AdvancedBufferMemory,
-  },
+  vulkan::memory::{manager::{BufferBlockSize, BufferId, MemoryManager}, BufferMemory},
   Id,
 };
 use anyhow::Error;
@@ -15,19 +12,19 @@ pub type ModelId = Id;
 pub struct ModelManager {
   models: HashMap<ModelId, Model>,
   last_id: ModelId,
-  vertex_buffer: AdvancedBufferId,
-  index_buffer: AdvancedBufferId,
-  instance_buffer: AdvancedBufferId,
+  vertex_buffer: BufferId,
+  index_buffer: BufferId,
+  instance_buffer: BufferId,
 }
 
 pub const CUBE_MODEL: Id = 0;
 
 struct Model {
-  vertices: AdvancedBufferMemory,
-  indices: AdvancedBufferMemory,
+  vertices: BufferMemory,
+  indices: BufferMemory,
   index_len: u32,
   instance_alloc_size: usize,
-  instances: HashMap<String, (AdvancedBufferMemory, Vec<InstanceData>)>,
+  instances: HashMap<String, (BufferMemory, Vec<InstanceData>)>,
 }
 
 #[derive(Debug)]
@@ -93,10 +90,10 @@ impl ModelManager {
   ) -> Option<(ModelId, bool)> {
     let vertices_slice = vertex_data.as_slice();
     let (vertices, vert_resized) =
-      memory_manager.add_to_advanced_buffer(self.vertex_buffer, vertices_slice)?;
+      memory_manager.add_to_buffer(self.vertex_buffer, vertices_slice)?;
     let index_slice = index_data.as_slice();
     let (indices, index_resized) =
-      memory_manager.add_to_advanced_buffer(self.index_buffer, index_slice)?;
+      memory_manager.add_to_buffer(self.index_buffer, index_slice)?;
 
     let id = self.last_id;
     self.models.insert(
@@ -115,13 +112,13 @@ impl ModelManager {
     device: &ash::Device,
   ) {
     let vertex_buffer = memory_manager
-      .get_advanced_vk_buffer(self.vertex_buffer)
+      .get_vk_buffer(self.vertex_buffer)
       .unwrap();
     let index_buffer = memory_manager
-      .get_advanced_vk_buffer(self.index_buffer)
+      .get_vk_buffer(self.index_buffer)
       .unwrap();
     let instance_buffer = memory_manager
-      .get_advanced_vk_buffer(self.instance_buffer)
+      .get_vk_buffer(self.instance_buffer)
       .unwrap();
     unsafe {
       device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
@@ -132,7 +129,7 @@ impl ModelManager {
 
   pub fn update_draw_buffer(
     &mut self,
-    cmd_buffer: AdvancedBufferId,
+    cmd_buffer: BufferId,
     commands: &mut HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
@@ -207,7 +204,7 @@ impl ModelManager {
 
               buffer_resized = buffer_resized
                 || memory_manager
-                  .resize_advanced_buffer_mem(mem, new_size)
+                  .resize_buffer_mem(mem, new_size)
                   .unwrap();
               command.first_instance = (mem.offset() / instance_size) as u32;
             }
@@ -258,7 +255,7 @@ impl ModelManager {
             as usize
             * model.instance_alloc_size;
           let Some((mem, buffer_resize_local)) =
-            memory_manager.reserve_advanced_buffer_mem(self.instance_buffer, required_size)
+            memory_manager.reserve_buffer_mem(self.instance_buffer, required_size)
           else {
             continue;
           };
@@ -266,7 +263,7 @@ impl ModelManager {
           buffer_resized = buffer_resized || buffer_resize_local;
 
           let instances_slice = instances.as_slice();
-          memory_manager.write_to_advanced_buffer(&mem, instances_slice);
+          memory_manager.write_to_buffer(&mem, instances_slice);
 
           let cmd = vk::DrawIndexedIndirectCommand {
             index_count: model.index_len,
@@ -286,7 +283,7 @@ impl ModelManager {
     }
 
     if !instance_copies.is_empty() {
-      memory_manager.write_to_advanced_buffer_direct(
+      memory_manager.write_to_buffer_direct(
         self.instance_buffer,
         &instance_copies,
         &instance_copies_info,
@@ -294,7 +291,7 @@ impl ModelManager {
     }
 
     if !cmd_copies.is_empty() {
-      memory_manager.write_to_advanced_buffer_direct(cmd_buffer, &cmd_copies, &cmd_copies_info);
+      memory_manager.write_to_buffer_direct(cmd_buffer, &cmd_copies, &cmd_copies_info);
     }
 
     (cmd_new, buffer_resized)
@@ -303,8 +300,8 @@ impl ModelManager {
 
 impl Model {
   fn new(
-    vertices: AdvancedBufferMemory,
-    indices: AdvancedBufferMemory,
+    vertices: BufferMemory,
+    indices: BufferMemory,
     index_len: u32,
     instance_count: InstanceCount,
   ) -> Self {

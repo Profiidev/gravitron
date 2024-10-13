@@ -9,10 +9,7 @@ use crate::{
   ecs_resources::components::camera::Camera,
 };
 
-use super::memory::{
-  manager::{AdvancedBufferId, BufferBlockSize, MemoryManager},
-  AdvancedBufferMemory,
-};
+use super::memory::{manager::{BufferBlockSize, BufferId, MemoryManager}, BufferMemory};
 
 pub mod pools;
 
@@ -21,7 +18,7 @@ pub struct PipelineManager {
   descriptor_pool: vk::DescriptorPool,
   logical_device: ash::Device,
   default_desc_layouts: Vec<vk::DescriptorSetLayout>,
-  default_buffers: Vec<Vec<AdvancedBufferId>>,
+  default_buffers: Vec<Vec<BufferId>>,
 }
 
 impl PipelineManager {
@@ -152,10 +149,10 @@ impl PipelineManager {
   pub fn update_descriptor<T: Sized>(
     &self,
     memory_manager: &mut MemoryManager,
-    mem: &AdvancedBufferMemory,
+    mem: &BufferMemory,
     data: &[T],
   ) -> Option<()> {
-    memory_manager.write_to_advanced_buffer(mem, data);
+    memory_manager.write_to_buffer(mem, data);
 
     Some(())
   }
@@ -167,7 +164,7 @@ impl PipelineManager {
     descriptor_set: usize,
     descriptor: usize,
     size: usize,
-  ) -> Option<AdvancedBufferMemory> {
+  ) -> Option<BufferMemory> {
     let pipeline = self
       .pipelines
       .iter()
@@ -176,7 +173,7 @@ impl PipelineManager {
     let set = pipeline.descriptor_buffers.get(descriptor_set)?;
     let desc = set.get(descriptor)?;
 
-    Some(memory_manager.reserve_advanced_buffer_mem(*desc, size)?.0)
+    Some(memory_manager.reserve_buffer_mem(*desc, size)?.0)
   }
 
   pub fn pipeline_names(&self) -> Vec<&String> {
@@ -190,7 +187,7 @@ impl PipelineManager {
       size: 128,
     }];
     let data = [camera.view_matrix(), camera.projection_matrix()];
-    memory_manager.write_to_advanced_buffer_direct(self.default_buffers[0][0], &data, &regions);
+    memory_manager.write_to_buffer_direct(self.default_buffers[0][0], &data, &regions);
   }
 }
 
@@ -201,7 +198,7 @@ pub struct Pipeline {
   pipeline_bind_point: vk::PipelineBindPoint,
   descriptor_sets: Vec<vk::DescriptorSet>,
   descriptor_set_layouts: Vec<vk::DescriptorSetLayout>,
-  descriptor_buffers: Vec<Vec<AdvancedBufferId>>,
+  descriptor_buffers: Vec<Vec<BufferId>>,
   cache: vk::PipelineCache,
 }
 
@@ -497,7 +494,7 @@ impl Pipeline {
     (
       Vec<vk::DescriptorSetLayout>,
       Vec<vk::DescriptorSet>,
-      Vec<Vec<AdvancedBufferId>>,
+      Vec<Vec<BufferId>>,
     ),
     Error,
   > {
@@ -543,7 +540,7 @@ impl Pipeline {
         )?;
 
         let buffer_info_descriptor = [vk::DescriptorBufferInfo::default()
-          .buffer(memory_manager.get_advanced_vk_buffer(buffer).unwrap())
+          .buffer(memory_manager.get_vk_buffer(buffer).unwrap())
           .offset(offset)
           .range(descriptor.size)];
         let write_desc_set = vk::WriteDescriptorSet::default()

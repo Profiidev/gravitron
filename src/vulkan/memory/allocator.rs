@@ -1,17 +1,11 @@
 use std::collections::BTreeMap;
 
-use super::manager::{AdvancedBufferId, SimpleBufferId};
+use crate::Id;
 
-pub struct AdvancedBufferMemory {
+pub struct BufferMemory {
   offset: usize,
   size: usize,
-  buffer: AdvancedBufferId,
-}
-
-pub struct SimpleBufferMemory {
-  offset: usize,
-  size: usize,
-  buffer: SimpleBufferId,
+  buffer: Id,
 }
 
 pub struct Allocator {
@@ -19,7 +13,7 @@ pub struct Allocator {
   size: usize,
 }
 
-impl AdvancedBufferMemory {
+impl BufferMemory {
   pub fn offset(&self) -> usize {
     self.offset
   }
@@ -28,21 +22,7 @@ impl AdvancedBufferMemory {
     self.size
   }
 
-  pub fn buffer(&self) -> AdvancedBufferId {
-    self.buffer
-  }
-}
-
-impl SimpleBufferMemory {
-  pub fn offset(&self) -> usize {
-    self.offset
-  }
-
-  pub fn size(&self) -> usize {
-    self.size
-  }
-
-  pub fn buffer(&self) -> SimpleBufferId {
+  pub fn buffer(&self) -> Id {
     self.buffer
   }
 }
@@ -55,33 +35,7 @@ impl Allocator {
     Self { free, size }
   }
 
-  pub fn alloc_advanced(
-    &mut self,
-    size: usize,
-    buffer: AdvancedBufferId,
-  ) -> Option<AdvancedBufferMemory> {
-    let offset = self.alloc(size)?;
-    Some(AdvancedBufferMemory {
-      offset,
-      size,
-      buffer,
-    })
-  }
-
-  pub fn alloc_simple(
-    &mut self,
-    size: usize,
-    buffer: SimpleBufferId,
-  ) -> Option<SimpleBufferMemory> {
-    let offset = self.alloc(size)?;
-    Some(SimpleBufferMemory {
-      offset,
-      size,
-      buffer,
-    })
-  }
-
-  fn alloc(&mut self, size: usize) -> Option<usize> {
+  pub fn alloc(&mut self, size: usize, buffer: Id) -> Option<BufferMemory> {
     assert!(size > 0);
     let offset = self
       .free
@@ -93,7 +47,11 @@ impl Allocator {
       self.free.insert(offset + size, block_size - size);
     }
 
-    Some(offset)
+    Some(BufferMemory {
+      offset,
+      size,
+      buffer,
+    })
   }
 
   pub fn free(&mut self, offset: usize, size: usize) {

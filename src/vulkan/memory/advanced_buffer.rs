@@ -3,14 +3,15 @@ use ash::vk;
 use gpu_allocator::vulkan;
 
 use super::{
-  allocator::Allocator,
+  allocator::{Allocator, BufferMemory},
   buffer::{buffer_copy, buffer_copy_info, Buffer},
-  manager::{AdvancedBufferId, Transfer},
-  AdvancedBufferMemory,
+  manager::Transfer,
 };
 
+use crate::Id;
+
 pub struct AdvancedBuffer {
-  id: AdvancedBufferId,
+  id: Id,
   transfer: Buffer,
   gpu: Buffer,
   allocator: Allocator,
@@ -19,7 +20,7 @@ pub struct AdvancedBuffer {
 
 impl AdvancedBuffer {
   pub fn new(
-    id: AdvancedBufferId,
+    id: Id,
     allocator: &mut vulkan::Allocator,
     device: &ash::Device,
     usage: vk::BufferUsageFlags,
@@ -81,7 +82,7 @@ impl AdvancedBuffer {
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
-  ) -> Option<(AdvancedBufferMemory, bool)> {
+  ) -> Option<(BufferMemory, bool)> {
     let size = std::mem::size_of_val(data);
     let (mem, buffer_resized) = self.reserve_buffer_mem(size, device, allocator, transfer)?;
 
@@ -92,7 +93,7 @@ impl AdvancedBuffer {
 
   pub fn write_to_buffer<T: Sized>(
     &mut self,
-    mem: &AdvancedBufferMemory,
+    mem: &BufferMemory,
     data: &[T],
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
@@ -137,8 +138,8 @@ impl AdvancedBuffer {
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
-  ) -> Option<(AdvancedBufferMemory, bool)> {
-    if let Some(mem) = self.allocator.alloc_advanced(size, self.id) {
+  ) -> Option<(BufferMemory, bool)> {
+    if let Some(mem) = self.allocator.alloc(size, self.id) {
       Some((mem, false))
     } else {
       let additional_size =
@@ -172,7 +173,7 @@ impl AdvancedBuffer {
 
       self.allocator.grow(additional_size);
 
-      let mem = self.allocator.alloc_advanced(size, self.id).unwrap();
+      let mem = self.allocator.alloc(size, self.id).unwrap();
 
       Some((mem, true))
     }
@@ -180,7 +181,7 @@ impl AdvancedBuffer {
 
   pub fn resize_buffer_mem(
     &mut self,
-    mem: &mut AdvancedBufferMemory,
+    mem: &mut BufferMemory,
     size: usize,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
@@ -214,7 +215,7 @@ impl AdvancedBuffer {
     Some(buffer_resized)
   }
 
-  pub fn free_buffer_mem(&mut self, mem: AdvancedBufferMemory) {
+  pub fn free_buffer_mem(&mut self, mem: BufferMemory) {
     self.allocator.free(mem.offset(), mem.size());
   }
 
