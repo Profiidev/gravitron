@@ -1,9 +1,12 @@
 use anyhow::Error;
 use ash::vk;
 
-use crate::config::vulkan::{
-  ComputePipelineConfig, Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig,
-  PipelineType,
+use crate::{
+  config::vulkan::{
+    ComputePipelineConfig, Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig,
+    PipelineType,
+  },
+  ecs_resources::components::camera::Camera,
 };
 
 use super::memory::{
@@ -17,6 +20,8 @@ pub struct PipelineManager {
   pipelines: Vec<(String, Pipeline)>,
   descriptor_pool: vk::DescriptorPool,
   logical_device: ash::Device,
+  default_desc_layouts: Vec<vk::DescriptorSetLayout>,
+  default_buffers: Vec<Vec<AdvancedBufferId>>,
 }
 
 impl PipelineManager {
@@ -29,28 +34,17 @@ impl PipelineManager {
   ) -> Result<Self, Error> {
     pipelines.push(PipelineType::Graphics(Pipeline::default_shader()));
 
-    let default_descriptor = DescriptorSet::default().add_descriptor(Descriptor::new(DescriptorType::UniformBuffer, 1, vk::ShaderStageFlags::VERTEX, 128));
-
-    for pipeline in pipelines.iter_mut() {
-      match pipeline {
-        PipelineType::Graphics(g) => {
-          let mut descriptor_sets = Vec::with_capacity(g.descriptor_sets.len() + 1);
-          descriptor_sets.push(default_descriptor.clone());
-          descriptor_sets.append(&mut g.descriptor_sets);
-          g.descriptor_sets = descriptor_sets;
-        }
-        PipelineType::Compute(c) => {
-          let mut descriptor_sets = Vec::with_capacity(c.descriptor_sets.len() + 1);
-          descriptor_sets.push(default_descriptor.clone());
-          descriptor_sets.append(&mut c.descriptor_sets);
-          c.descriptor_sets = descriptor_sets;
-        }
-      }
-    }
-
-
-    let mut descriptor_count = 0;
+    let mut descriptor_count = 1;
     let mut pool_sizes = vec![];
+
+    let default_descriptor = Descriptor::new(
+      DescriptorType::UniformBuffer,
+      1,
+      vk::ShaderStageFlags::VERTEX,
+      128,
+    );
+    add_descriptor(&mut pool_sizes, &default_descriptor);
+
     for pipeline in &*pipelines {
       match pipeline {
         PipelineType::Graphics(c) => {
@@ -78,6 +72,15 @@ impl PipelineManager {
     let descriptor_pool =
       unsafe { logical_device.create_descriptor_pool(&descriptor_pool_create_info, None)? };
 
+    let default_desc_config = vec![DescriptorSet::default().add_descriptor(default_descriptor)];
+    let (default_desc_layouts, default_descs, default_buffers) =
+      Pipeline::get_descriptor_set_layouts(
+        &default_desc_config,
+        descriptor_pool,
+        logical_device,
+        memory_manager,
+      )?;
+
     let mut vk_pipelines = Vec::new();
     let mut i = 0;
     for pipeline in pipelines {
@@ -93,6 +96,8 @@ impl PipelineManager {
               memory_manager,
               swap_chain_extent,
               i,
+              &default_descs,
+              &default_desc_layouts,
             )?,
           ));
           i += 1;
@@ -115,6 +120,8 @@ impl PipelineManager {
       pipelines: vk_pipelines,
       descriptor_pool,
       logical_device: logical_device.clone(),
+      default_desc_layouts,
+      default_buffers,
     })
   }
 
@@ -124,6 +131,14 @@ impl PipelineManager {
         .logical_device
         .destroy_descriptor_pool(self.descriptor_pool, None);
     }
+    for layout in &self.default_desc_layouts {
+      unsafe {
+        self
+          .logical_device
+          .destroy_descriptor_set_layout(*layout, None);
+      }
+    }
+
     std::fs::create_dir_all("cache").unwrap();
     for (_, pipeline) in &mut self.pipelines {
       pipeline.destroy(&self.logical_device);
@@ -166,6 +181,16 @@ impl PipelineManager {
 
   pub fn pipeline_names(&self) -> Vec<&String> {
     self.pipelines.iter().map(|(n, _)| n).collect()
+  }
+
+  pub fn update_camera(&mut self, memory_manager: &mut MemoryManager, camera: &Camera) {
+    let regions = [vk::BufferCopy {
+      dst_offset: 0,
+      src_offset: 0,
+      size: 128,
+    }];
+    let data = [camera.view_matrix(), camera.projection_matrix()];
+    memory_manager.write_to_advanced_buffer_direct(self.default_buffers[0][0], &data, &regions);
   }
 }
 
@@ -249,6 +274,7 @@ impl Pipeline {
     })
   }
 
+  #[allow(clippy::too_many_arguments)]
   pub fn init_graphics_pipeline(
     logical_device: &ash::Device,
     render_pass: vk::RenderPass,
@@ -257,6 +283,8 @@ impl Pipeline {
     memory_manager: &mut MemoryManager,
     swapchain_extend: &vk::Extent2D,
     subpass: u32,
+    default_descs: &[vk::DescriptorSet],
+    default_desc_layouts: &[vk::DescriptorSetLayout],
   ) -> Result<Self, Error> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
@@ -399,8 +427,19 @@ impl Pipeline {
         memory_manager,
       )?;
 
+    let descriptor_sets = default_descs
+      .iter()
+      .copied()
+      .chain(descriptor_sets)
+      .collect();
+    let descriptor_layouts_used: Vec<vk::DescriptorSetLayout> = default_desc_layouts
+      .iter()
+      .copied()
+      .chain(descriptor_layouts.iter().copied())
+      .collect();
+
     let pipeline_layout_create_info =
-      vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
+      vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts_used);
     let pipeline_layout =
       unsafe { logical_device.create_pipeline_layout(&pipeline_layout_create_info, None) }?;
 

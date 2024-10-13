@@ -16,7 +16,10 @@ use pipeline::PipelineManager;
 use surface::Surface;
 use winit::window::Window;
 
-use crate::config::{app::AppConfig, vulkan::VulkanConfig};
+use crate::{
+  config::{app::AppConfig, vulkan::VulkanConfig},
+  ecs_resources::components::camera::Camera,
+};
 
 #[cfg(feature = "debug")]
 mod debug;
@@ -144,20 +147,23 @@ impl Vulkan {
     )
   }
 
-  pub fn update_command_buffer(&mut self) {
-    self
-      .renderer
-      .record_command_buffer(&self.pipeline_manager, &mut self.memory_manager)
-      .expect("Command Buffer Error");
-  }
-
-  pub fn update_draw_buffer(
+  pub fn update_draw_info(
     &mut self,
     instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
   ) {
     self
       .renderer
       .update_draw_buffer(&mut self.memory_manager, instances);
+    self
+      .renderer
+      .record_command_buffer(&self.pipeline_manager, &mut self.memory_manager)
+      .expect("Command Buffer Error");
+  }
+
+  pub fn update_camera(&mut self, camera: &Camera) {
+    self
+      .pipeline_manager
+      .update_camera(&mut self.memory_manager, camera);
   }
 
   pub fn destroy(&mut self) {
