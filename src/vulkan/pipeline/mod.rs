@@ -3,7 +3,7 @@ use ash::vk;
 
 use crate::config::vulkan::{
   ComputePipelineConfig, Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig,
-  PipelineType, ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
+  PipelineType,
 };
 
 use super::memory::{
@@ -162,28 +162,8 @@ pub struct Pipeline {
 
 impl Pipeline {
   pub fn default_shader() -> GraphicsPipelineConfig {
-    GraphicsPipelineConfig::new("default".to_string(), vk::PrimitiveTopology::TRIANGLE_LIST)
-      .set_vert_shader(ShaderConfig::new(
-        ShaderType::Vertex,
-        vk_shader_macros::include_glsl!("./shaders/shader.vert").to_vec(),
-      ))
-      .set_frag_shader(ShaderConfig::new(
-        ShaderType::Fragment,
-        vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec(),
-      ))
-      .add_input(
-        ShaderInputBindings::new(vk::VertexInputRate::VERTEX)
-          .add_variable(ShaderInputVariable::Vec3)
-          .add_variable(ShaderInputVariable::Vec3),
-      )
-      .add_input(
-        ShaderInputBindings::new(vk::VertexInputRate::INSTANCE)
-          .add_variable(ShaderInputVariable::Mat4)
-          .add_variable(ShaderInputVariable::Mat4)
-          .add_variable(ShaderInputVariable::Vec3)
-          .add_variable(ShaderInputVariable::Float)
-          .add_variable(ShaderInputVariable::Float),
-      )
+    GraphicsPipelineConfig::new("default".to_string())
+      .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec())
       .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
         DescriptorType::UniformBuffer,
         1,
@@ -206,11 +186,11 @@ impl Pipeline {
   ) -> Result<Self, Error> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
-    let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&pipeline.shader.code);
+    let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&pipeline.shader);
     let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
 
     let shader_stage_create_info = vk::PipelineShaderStageCreateInfo::default()
-      .stage(pipeline.shader.type_)
+      .stage(vk::ShaderStageFlags::COMPUTE)
       .module(shader_module)
       .name(&main_function_name);
 
@@ -267,26 +247,23 @@ impl Pipeline {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
     let mut shader_modules = vec![];
-    if let Some(shader) = &pipeline.vert_shader {
-      let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&shader.code);
-      let shader_module =
-        unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
-      shader_modules.push((shader_module, shader.type_));
-    }
+
+    let shader_create_info = vk::ShaderModuleCreateInfo::default()
+      .code(vk_shader_macros::include_glsl!("./shaders/shader.vert"));
+    let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
+    shader_modules.push((shader_module, vk::ShaderStageFlags::VERTEX));
 
     if let Some(shader) = &pipeline.geo_shader {
-      let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&shader.code);
+      let shader_create_info = vk::ShaderModuleCreateInfo::default().code(shader);
       let shader_module =
         unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
-      shader_modules.push((shader_module, shader.type_));
+      shader_modules.push((shader_module, vk::ShaderStageFlags::GEOMETRY));
     }
 
-    if let Some(shader) = &pipeline.frag_shader {
-      let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&shader.code);
-      let shader_module =
-        unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
-      shader_modules.push((shader_module, shader.type_));
-    }
+    let shader = &pipeline.frag_shader;
+    let shader_create_info = vk::ShaderModuleCreateInfo::default().code(shader);
+    let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
+    shader_modules.push((shader_module, vk::ShaderStageFlags::FRAGMENT));
 
     let mut shader_stages = vec![];
     for shader in &shader_modules {
@@ -297,84 +274,66 @@ impl Pipeline {
       shader_stages.push(shader_stage_create_info);
     }
 
+    let vertex_binding_descs = [
+      vk::VertexInputBindingDescription::default()
+        .binding(0)
+        .stride(24)
+        .input_rate(vk::VertexInputRate::VERTEX),
+      vk::VertexInputBindingDescription::default()
+        .binding(1)
+        .stride(148)
+        .input_rate(vk::VertexInputRate::INSTANCE),
+    ];
+
     let mut vertex_attrib_descs = vec![];
-    let mut vertex_binding_descs = vec![];
 
-    for (i, input) in pipeline.input.iter().enumerate() {
-      let mut current_offset = 0;
-
-      for variable in &input.variables {
-        let mut times_to_add = 1;
-        let mut size = 4;
-
-        let format = match variable {
-          ShaderInputVariable::Float => vk::Format::R32_SFLOAT,
-          ShaderInputVariable::Vec2 => {
-            size = 8;
-            vk::Format::R32G32_SFLOAT
-          }
-          ShaderInputVariable::Vec3 => {
-            size = 12;
-            vk::Format::R32G32B32_SFLOAT
-          }
-          ShaderInputVariable::Vec4 => {
-            size = 16;
-            vk::Format::R32G32B32A32_SFLOAT
-          }
-          ShaderInputVariable::Mat2 => {
-            size = 8;
-            times_to_add = 2;
-            vk::Format::R32G32_SFLOAT
-          }
-          ShaderInputVariable::Mat3 => {
-            size = 12;
-            times_to_add = 3;
-            vk::Format::R32G32B32_SFLOAT
-          }
-          ShaderInputVariable::Mat4 => {
-            size = 16;
-            times_to_add = 4;
-            vk::Format::R32G32B32A32_SFLOAT
-          }
-          ShaderInputVariable::Int => vk::Format::R32_SINT,
-          ShaderInputVariable::UInt => vk::Format::R32_UINT,
-          ShaderInputVariable::Double => {
-            size = 8;
-            vk::Format::R64_SFLOAT
-          }
-        };
-
-        for _ in 0..times_to_add {
-          vertex_attrib_descs.push(
-            vk::VertexInputAttributeDescription::default()
-              .binding(i as u32)
-              .location(vertex_attrib_descs.len() as u32)
-              .offset(current_offset)
-              .format(format),
-          );
-          current_offset += size;
-        }
-      }
-
-      vertex_binding_descs.push(
-        vk::VertexInputBindingDescription::default()
-          .binding(i as u32)
-          .stride(current_offset)
-          .input_rate(input.input_rate),
+    for i in 0..2 {
+      vertex_attrib_descs.push(
+        vk::VertexInputAttributeDescription::default()
+          .binding(0)
+          .location(i)
+          .offset(i * 12)
+          .format(vk::Format::R32G32B32_SFLOAT),
       );
     }
+
+    for i in 0..8 {
+      vertex_attrib_descs.push(
+        vk::VertexInputAttributeDescription::default()
+          .binding(1)
+          .location(i + 2)
+          .offset(i * 16)
+          .format(vk::Format::R32G32B32A32_SFLOAT),
+      );
+    }
+
+    vertex_attrib_descs.push(
+      vk::VertexInputAttributeDescription::default()
+        .binding(1)
+        .location(10)
+        .offset(128)
+        .format(vk::Format::R32G32B32_SFLOAT),
+    );
+
+    for i in 0..2 {
+      vertex_attrib_descs.push(
+        vk::VertexInputAttributeDescription::default()
+          .binding(1)
+          .location(11 + i)
+          .offset(140 + i * 4)
+          .format(vk::Format::R32_SFLOAT),
+      );
+    }
+    dbg!(&vertex_binding_descs);
+    dbg!(&vertex_attrib_descs);
 
     let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
       .vertex_binding_descriptions(&vertex_binding_descs)
       .vertex_attribute_descriptions(&vertex_attrib_descs);
-    let input_assembly_info =
-      vk::PipelineInputAssemblyStateCreateInfo::default().topology(pipeline.topology);
+    let input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo::default()
+      .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
 
-    let viewport_size = if let Some(viewport_size) = pipeline.viewport_size {
-      viewport_size
-    } else {
-      (swapchain_extend.width, swapchain_extend.height)
-    };
+    let viewport_size = (swapchain_extend.width, swapchain_extend.height);
 
     let viewport = [vk::Viewport::default()
       .x(0.0)

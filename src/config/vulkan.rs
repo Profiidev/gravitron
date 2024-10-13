@@ -1,6 +1,6 @@
 use ash::vk;
 
-pub use vk::{PrimitiveTopology, ShaderStageFlags, VertexInputRate};
+pub use vk::ShaderStageFlags;
 
 #[derive(Default)]
 pub struct VulkanConfig {
@@ -48,51 +48,28 @@ pub enum PipelineType {
 
 pub struct GraphicsPipelineConfig {
   pub name: String,
-  pub vert_shader: Option<ShaderConfig>,
-  pub geo_shader: Option<ShaderConfig>,
-  pub frag_shader: Option<ShaderConfig>,
-  pub input: Vec<ShaderInputBindings>,
-  pub topology: vk::PrimitiveTopology,
-  pub viewport_size: Option<(u32, u32)>,
+  pub geo_shader: Option<Vec<u32>>,
+  pub frag_shader: Vec<u32>,
   pub descriptor_sets: Vec<DescriptorSet>,
 }
 
 impl GraphicsPipelineConfig {
-  pub fn new(name: String, topology: vk::PrimitiveTopology) -> Self {
+  pub fn new(name: String) -> Self {
     Self {
       name,
-      vert_shader: None,
       geo_shader: None,
-      frag_shader: None,
-      input: Vec::new(),
-      topology,
-      viewport_size: None,
+      frag_shader: Vec::new(),
       descriptor_sets: Vec::new(),
     }
   }
 
-  pub fn set_viewport_size(mut self, viewport_size: (u32, u32)) -> Self {
-    self.viewport_size = Some(viewport_size);
-    self
-  }
-
-  pub fn set_vert_shader(mut self, shader: ShaderConfig) -> Self {
-    self.vert_shader = Some(shader);
-    self
-  }
-
-  pub fn set_geo_shader(mut self, shader: ShaderConfig) -> Self {
+  pub fn set_geo_shader(mut self, shader: Vec<u32>) -> Self {
     self.geo_shader = Some(shader);
     self
   }
 
-  pub fn set_frag_shader(mut self, shader: ShaderConfig) -> Self {
-    self.frag_shader = Some(shader);
-    self
-  }
-
-  pub fn add_input(mut self, input: ShaderInputBindings) -> Self {
-    self.input.push(input);
+  pub fn set_frag_shader(mut self, shader: Vec<u32>) -> Self {
+    self.frag_shader = shader;
     self
   }
 
@@ -104,7 +81,7 @@ impl GraphicsPipelineConfig {
 
 pub struct ComputePipelineConfig {
   pub name: String,
-  pub shader: ShaderConfig,
+  pub shader: Vec<u32>,
   pub descriptor_sets: Vec<DescriptorSet>,
 }
 
@@ -112,15 +89,12 @@ impl ComputePipelineConfig {
   pub fn new(name: String) -> Self {
     Self {
       name,
-      shader: ShaderConfig {
-        type_: vk::ShaderStageFlags::COMPUTE,
-        code: Vec::new(),
-      },
+      shader: Vec::new(),
       descriptor_sets: Vec::new(),
     }
   }
 
-  pub fn set_shader(mut self, shader: ShaderConfig) -> Self {
+  pub fn set_shader(mut self, shader: Vec<u32>) -> Self {
     self.shader = shader;
     self
   }
@@ -129,62 +103,6 @@ impl ComputePipelineConfig {
     self.descriptor_sets.push(descriptor_set);
     self
   }
-}
-
-pub struct ShaderConfig {
-  pub type_: vk::ShaderStageFlags,
-  pub code: Vec<u32>,
-}
-
-impl ShaderConfig {
-  pub fn new(type_: ShaderType, code: Vec<u32>) -> Self {
-    let type_ = match type_ {
-      ShaderType::Vertex => vk::ShaderStageFlags::VERTEX,
-      ShaderType::Fragment => vk::ShaderStageFlags::FRAGMENT,
-      ShaderType::Compute => vk::ShaderStageFlags::COMPUTE,
-      ShaderType::Geometry => vk::ShaderStageFlags::GEOMETRY,
-    };
-    Self { type_, code }
-  }
-}
-
-pub enum ShaderType {
-  Vertex,
-  Fragment,
-  Compute,
-  Geometry,
-}
-
-pub struct ShaderInputBindings {
-  pub input_rate: vk::VertexInputRate,
-  pub variables: Vec<ShaderInputVariable>,
-}
-
-impl ShaderInputBindings {
-  pub fn new(input_rate: vk::VertexInputRate) -> Self {
-    Self {
-      input_rate,
-      variables: Vec::new(),
-    }
-  }
-
-  pub fn add_variable(mut self, variable: ShaderInputVariable) -> Self {
-    self.variables.push(variable);
-    self
-  }
-}
-
-pub enum ShaderInputVariable {
-  Float,
-  Vec2,
-  Vec3,
-  Vec4,
-  Mat2,
-  Mat3,
-  Mat4,
-  Int,
-  UInt,
-  Double,
 }
 
 #[derive(Default)]

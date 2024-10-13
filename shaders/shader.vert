@@ -1,4 +1,5 @@
 #version 450
+#extension GL_EXT_debug_printf : enable
 
 layout (location=0) in vec3 position;
 layout (location=1) in vec3 normal;
@@ -27,6 +28,7 @@ void main() {
   fragNormal = transpose(mat3(inverse_model_matrix)) * normal;
   fragMetallic = metallic;
   fragRoughness = roughness;
+
 
   cameraPos =
     - ubo.view_matrix[3][0] * vec3(ubo.view_matrix[0][0], ubo.view_matrix[1][0], ubo.view_matrix[2][0])
