@@ -13,7 +13,7 @@ use crate::Id;
 
 use super::{
   advanced_buffer::AdvancedBuffer, allocator::BufferMemory, image::Image,
-  simple_buffer::SimpleBuffer
+  simple_buffer::SimpleBuffer,
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -158,7 +158,7 @@ impl MemoryManager {
         let buffer = self.advanced_buffers.get_mut(&buffer_id)?;
 
         buffer.reserve_buffer_mem(size, &self.device, &mut self.allocator, &transfer)
-      },
+      }
       BufferId::Simple(buffer_id) => {
         let buffer = self.simple_buffers.get_mut(&buffer_id)?;
 
@@ -181,7 +181,7 @@ impl MemoryManager {
 
         self.buffer_used.insert(buffer_id, transfer.fence);
         mem
-      },
+      }
       BufferId::Simple(buffer_id) => {
         let buffer = self.simple_buffers.get_mut(&buffer_id)?;
 
@@ -190,11 +190,7 @@ impl MemoryManager {
     }
   }
 
-  pub fn write_to_buffer<T: Sized>(
-    &mut self,
-    mem: &BufferMemory,
-    data: &[T],
-  ) -> Option<()> {
+  pub fn write_to_buffer<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
     let id = mem.buffer();
     let transfer = self.reserve_transfer(id).ok()?;
     if let Some(buffer) = self.advanced_buffers.get_mut(&id) {
@@ -220,11 +216,17 @@ impl MemoryManager {
         let transfer = self.reserve_transfer(buffer_id).ok()?;
         let buffer = self.advanced_buffers.get_mut(&buffer_id)?;
 
-        buffer.write_to_buffer_direct(data, regions, &self.device, &mut self.allocator, &transfer)?;
+        buffer.write_to_buffer_direct(
+          data,
+          regions,
+          &self.device,
+          &mut self.allocator,
+          &transfer,
+        )?;
 
         self.buffer_used.insert(buffer_id, transfer.fence);
         Some(())
-      },
+      }
       BufferId::Simple(buffer_id) => {
         let buffer = self.simple_buffers.get_mut(&buffer_id)?;
 
@@ -233,11 +235,7 @@ impl MemoryManager {
     }
   }
 
-  pub fn resize_buffer_mem(
-    &mut self,
-    mem: &mut BufferMemory,
-    size: usize,
-  ) -> Option<bool> {
+  pub fn resize_buffer_mem(&mut self, mem: &mut BufferMemory, size: usize) -> Option<bool> {
     if self.advanced_buffers.contains_key(&mem.buffer()) {
       let transfer = self.reserve_transfer(mem.buffer()).ok()?;
       let buffer = self.advanced_buffers.get_mut(&mem.buffer()).unwrap();
@@ -261,12 +259,8 @@ impl MemoryManager {
 
   pub fn get_vk_buffer(&self, buffer_id: BufferId) -> Option<vk::Buffer> {
     match buffer_id {
-      BufferId::Advanced(buffer_id) => {
-        Some(self.advanced_buffers.get(&buffer_id)?.vk_buffer())
-      },
-      BufferId::Simple(buffer_id) => {
-        Some(self.simple_buffers.get(&buffer_id)?.vk_buffer())
-      }
+      BufferId::Advanced(buffer_id) => Some(self.advanced_buffers.get(&buffer_id)?.vk_buffer()),
+      BufferId::Simple(buffer_id) => Some(self.simple_buffers.get(&buffer_id)?.vk_buffer()),
     }
   }
 
@@ -276,12 +270,8 @@ impl MemoryManager {
 
   pub fn get_buffer_size(&self, buffer_id: BufferId) -> Option<usize> {
     match buffer_id {
-      BufferId::Advanced(buffer_id) => {
-        Some(self.advanced_buffers.get(&buffer_id)?.size())
-      },
-      BufferId::Simple(buffer_id) => {
-        Some(self.simple_buffers.get(&buffer_id)?.size())
-      }
+      BufferId::Advanced(buffer_id) => Some(self.advanced_buffers.get(&buffer_id)?.size()),
+      BufferId::Simple(buffer_id) => Some(self.simple_buffers.get(&buffer_id)?.size()),
     }
   }
 

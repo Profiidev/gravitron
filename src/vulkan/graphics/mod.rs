@@ -14,7 +14,10 @@ use super::{
   device::Device,
   error::RendererInitError,
   instance::InstanceDevice,
-  memory::{manager::{BufferBlockSize, BufferId, MemoryManager}, BufferMemory},
+  memory::{
+    manager::{BufferBlockSize, BufferId, MemoryManager},
+    BufferMemory,
+  },
   pipeline::{pools::Pools, PipelineManager},
   surface::Surface,
 };
@@ -83,9 +86,7 @@ impl Renderer {
         let (cmd_mem, _) = memory_manager
           .reserve_buffer_mem(draw_commands, cmd_block_size)
           .unwrap();
-        let (count_mem, _) = memory_manager
-          .reserve_buffer_mem(draw_count, 4)
-          .unwrap();
+        let (count_mem, _) = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
         shader_mem.insert(shader.name.clone(), (cmd_mem, count_mem, 0));
       }
     }
@@ -93,9 +94,7 @@ impl Renderer {
     let (cmd_mem, _) = memory_manager
       .reserve_buffer_mem(draw_commands, cmd_block_size)
       .unwrap();
-    let (count_mem, _) = memory_manager
-      .reserve_buffer_mem(draw_count, 4)
-      .unwrap();
+    let (count_mem, _) = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
     shader_mem.insert("default".into(), (cmd_mem, count_mem, 0));
 
     Ok(Self {
@@ -154,12 +153,8 @@ impl Renderer {
           .unwrap()
           .record_command_buffer(buffer, &self.logical_device);
 
-        let draw_commands = memory_manager
-          .get_vk_buffer(self.draw_commands)
-          .unwrap();
-        let draw_count = memory_manager
-          .get_vk_buffer(self.draw_count)
-          .unwrap();
+        let draw_commands = memory_manager.get_vk_buffer(self.draw_commands).unwrap();
+        let draw_count = memory_manager.get_vk_buffer(self.draw_count).unwrap();
         let (cmd_mem, count_mem, _) = self.shader_mem.get(pipeline).unwrap();
         let max_draw_count = cmd_mem.size() / 20;
 
@@ -228,10 +223,8 @@ impl Renderer {
       if cmd_mem.size() < required_size {
         let new_size =
           (required_size as f32 / cmd_block_size as f32).ceil() as usize * cmd_block_size;
-        buffer_resized = buffer_resized
-          || memory_manager
-            .resize_buffer_mem(cmd_mem, new_size)
-            .unwrap();
+        buffer_resized =
+          buffer_resized || memory_manager.resize_buffer_mem(cmd_mem, new_size).unwrap();
         self.buffers_updated = Vec::new();
       }
 
@@ -262,11 +255,7 @@ impl Renderer {
     }
 
     let write_data_slice = write_data.as_slice();
-    memory_manager.write_to_buffer_direct(
-      self.draw_commands,
-      write_data_slice,
-      &write_info,
-    );
+    memory_manager.write_to_buffer_direct(self.draw_commands, write_data_slice, &write_info);
   }
 
   pub fn draw_frame(&mut self, device: &Device) {

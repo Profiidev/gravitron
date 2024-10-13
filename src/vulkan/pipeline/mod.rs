@@ -9,7 +9,10 @@ use crate::{
   ecs_resources::components::camera::Camera,
 };
 
-use super::memory::{manager::{BufferBlockSize, BufferId, MemoryManager}, BufferMemory};
+use super::memory::{
+  manager::{BufferBlockSize, BufferId, MemoryManager},
+  BufferMemory,
+};
 
 pub mod pools;
 

@@ -120,11 +120,7 @@ impl Vulkan {
     self.renderer.draw_frame(&self.device);
   }
 
-  pub fn update_descriptor<T: Sized>(
-    &mut self,
-    mem: &BufferMemory,
-    data: &[T],
-  ) -> Option<()> {
+  pub fn update_descriptor<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
     self
       .pipeline_manager
       .update_descriptor(&mut self.memory_manager, mem, data)

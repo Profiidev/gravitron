@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-  vulkan::memory::{manager::{BufferBlockSize, BufferId, MemoryManager}, BufferMemory},
+  vulkan::memory::{
+    manager::{BufferBlockSize, BufferId, MemoryManager},
+    BufferMemory,
+  },
   Id,
 };
 use anyhow::Error;
@@ -92,8 +95,7 @@ impl ModelManager {
     let (vertices, vert_resized) =
       memory_manager.add_to_buffer(self.vertex_buffer, vertices_slice)?;
     let index_slice = index_data.as_slice();
-    let (indices, index_resized) =
-      memory_manager.add_to_buffer(self.index_buffer, index_slice)?;
+    let (indices, index_resized) = memory_manager.add_to_buffer(self.index_buffer, index_slice)?;
 
     let id = self.last_id;
     self.models.insert(
@@ -111,15 +113,9 @@ impl ModelManager {
     command_buffer: vk::CommandBuffer,
     device: &ash::Device,
   ) {
-    let vertex_buffer = memory_manager
-      .get_vk_buffer(self.vertex_buffer)
-      .unwrap();
-    let index_buffer = memory_manager
-      .get_vk_buffer(self.index_buffer)
-      .unwrap();
-    let instance_buffer = memory_manager
-      .get_vk_buffer(self.instance_buffer)
-      .unwrap();
+    let vertex_buffer = memory_manager.get_vk_buffer(self.vertex_buffer).unwrap();
+    let index_buffer = memory_manager.get_vk_buffer(self.index_buffer).unwrap();
+    let instance_buffer = memory_manager.get_vk_buffer(self.instance_buffer).unwrap();
     unsafe {
       device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
       device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
@@ -202,10 +198,8 @@ impl ModelManager {
                 as usize
                 * model.instance_alloc_size;
 
-              buffer_resized = buffer_resized
-                || memory_manager
-                  .resize_buffer_mem(mem, new_size)
-                  .unwrap();
+              buffer_resized =
+                buffer_resized || memory_manager.resize_buffer_mem(mem, new_size).unwrap();
               command.first_instance = (mem.offset() / instance_size) as u32;
             }
           }
