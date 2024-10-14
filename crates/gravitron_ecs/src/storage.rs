@@ -135,9 +135,9 @@ impl<'a> Storage<'a> {
     archetype.entity_ids.swap_remove(record.row);
     archetype.rows.swap_remove(record.row);
 
-    if let Some(swaped) = archetype.entity_ids.get(record.row) {
-      let swaped_record = self.entity_index.get_mut(swaped).unwrap();
-      swaped_record.row = record.row;
+    if let Some(swapped) = archetype.entity_ids.get(record.row) {
+      let swapped_record = self.entity_index.get_mut(swapped).unwrap();
+      swapped_record.row = record.row;
     }
 
     self.entity_ids_free.push(entity);
@@ -233,9 +233,9 @@ impl<'a> Storage<'a> {
     record.row = to.rows.len() - 1;
     record.archetype = UnsafeArchetypeCell::new(to);
 
-    if let Some(swaped) = from.entity_ids.get(old_row) {
-      let swaped_record = self.entity_index.get_mut(swaped).unwrap();
-      swaped_record.row = old_row;
+    if let Some(swapped) = from.entity_ids.get(old_row) {
+      let swapped_record = self.entity_index.get_mut(swapped).unwrap();
+      swapped_record.row = old_row;
     }
   }
 
@@ -288,9 +288,9 @@ impl<'a> Storage<'a> {
     record.row = to.rows.len() - 1;
     record.archetype = UnsafeArchetypeCell::new(to);
 
-    if let Some(swaped) = from.entity_ids.get(old_row) {
-      let swaped_record = self.entity_index.get_mut(swaped).unwrap();
-      swaped_record.row = old_row;
+    if let Some(swapped) = from.entity_ids.get(old_row) {
+      let swapped_record = self.entity_index.get_mut(swapped).unwrap();
+      swapped_record.row = old_row;
     }
   }
 
