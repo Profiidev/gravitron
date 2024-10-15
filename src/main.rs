@@ -24,7 +24,11 @@ fn main() {
     .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader copy.frag").to_vec())
     .add_descriptor_set(
       DescriptorSet::default()
-        .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144)),
+        .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144))
+          .add_descriptor(DescriptorType::new_image(
+            ShaderStageFlags::FRAGMENT,
+            "./assets/image.png",
+          )),
     );
   let vulkan = VulkanConfig::default().add_graphics_pipeline(testing);
   let config = EngineConfig::default().set_vulkan_config(vulkan);
@@ -58,9 +62,9 @@ fn main() {
 
   let mut camera_transform = Transform::default();
   camera_transform.set_rotation(
-    -std::f32::consts::FRAC_PI_4,
-    std::f32::consts::FRAC_PI_4 * 3.0,
     0.0,
+    std::f32::consts::FRAC_PI_4 * 3.0,
+    -std::f32::consts::FRAC_PI_4,
   );
   camera_transform.set_position(math::Vec3::new(10.0, 10.0, 10.0));
   builder.create_entity((

@@ -82,7 +82,7 @@ impl Camera {
     self.view_matrix = glam::Mat4::look_at_rh(
       transform.position(),
       transform.position() + transform.rotation() * glam::Vec3::X,
-      -(transform.rotation() * glam::Vec3::Y),
+      transform.rotation() * -glam::Vec3::Y,
     );
   }
 

@@ -212,10 +212,6 @@ impl Pipeline {
             vk::ShaderStageFlags::FRAGMENT,
             144,
           ))
-          .add_descriptor(DescriptorType::new_image(
-            vk::ShaderStageFlags::FRAGMENT,
-            "./assets/image.png",
-          )),
       )
   }
 
@@ -321,7 +317,7 @@ impl Pipeline {
     let vertex_binding_descs = [
       vk::VertexInputBindingDescription::default()
         .binding(0)
-        .stride(24)
+        .stride(32)
         .input_rate(vk::VertexInputRate::VERTEX),
       vk::VertexInputBindingDescription::default()
         .binding(1)
@@ -341,11 +337,19 @@ impl Pipeline {
       );
     }
 
+    vertex_attrib_descs.push(
+      vk::VertexInputAttributeDescription::default()
+        .binding(0)
+        .location(2)
+        .offset(24)
+        .format(vk::Format::R32G32_SFLOAT),
+    );
+
     for i in 0..8 {
       vertex_attrib_descs.push(
         vk::VertexInputAttributeDescription::default()
           .binding(1)
-          .location(i + 2)
+          .location(i + 3)
           .offset(i * 16)
           .format(vk::Format::R32G32B32A32_SFLOAT),
       );
@@ -354,7 +358,7 @@ impl Pipeline {
     vertex_attrib_descs.push(
       vk::VertexInputAttributeDescription::default()
         .binding(1)
-        .location(10)
+        .location(11)
         .offset(128)
         .format(vk::Format::R32G32B32_SFLOAT),
     );
@@ -363,7 +367,7 @@ impl Pipeline {
       vertex_attrib_descs.push(
         vk::VertexInputAttributeDescription::default()
           .binding(1)
-          .location(11 + i)
+          .location(12 + i)
           .offset(140 + i * 4)
           .format(vk::Format::R32_SFLOAT),
       );

@@ -6,14 +6,17 @@ layout (set=1, binding=0) buffer readonly StorageBufferObject {
   vec3 data[];
 } sbo;
 
+layout (set=1, binding=1) uniform sampler2D tex;
+
 layout (location = 0) out vec4 fragColor;
 
 layout (location = 0) in vec3 fragColorIn;
 layout (location = 1) in vec3 fragNormalIn;
-layout (location = 2) in vec4 fragWorldPosIn;
-layout (location = 3) in vec3 cameraPosIn;
-layout (location = 4) in float metallic;
-layout (location = 5) in float roughness;
+layout (location = 2) in vec2 fragUvIn;
+layout (location = 3) in vec4 fragWorldPosIn;
+layout (location = 4) in vec3 cameraPosIn;
+layout (location = 5) in float metallic;
+layout (location = 6) in float roughness;
 
 struct DirectionalLight {
   vec3 direction_to_light;
@@ -90,5 +93,5 @@ void main() {
   }
 
   fragColor = vec4(l / (1 + l), 1.0);
-  fragColor = vec4(1.0, 1.0, 1.0, 1.0);
+  fragColor = texture(tex, fragUvIn);
 }

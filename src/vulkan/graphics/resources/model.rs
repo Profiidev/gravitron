@@ -36,6 +36,7 @@ struct Model {
 pub struct VertexData {
   position: glam::Vec3,
   normal: glam::Vec3,
+  uv: glam::Vec2,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -311,48 +312,56 @@ impl Model {
 }
 
 fn cube() -> (Vec<VertexData>, Vec<u32>) {
-  let lbf = VertexData {
+  let btl = VertexData {
     position: glam::Vec3::new(-1.0, 1.0, -1.0),
     normal: glam::Vec3::new(0.0, 0.0, -1.0),
+    uv: glam::Vec2::new(1.0, 0.0),
   };
-  let lbb = VertexData {
+  let btr = VertexData {
     position: glam::Vec3::new(-1.0, 1.0, 1.0),
     normal: glam::Vec3::new(0.0, 0.0, 1.0),
+    uv: glam::Vec2::new(0.0, 0.0),
   };
-  let ltf = VertexData {
+  let bbl = VertexData {
     position: glam::Vec3::new(-1.0, -1.0, -1.0),
     normal: glam::Vec3::new(0.0, 0.0, -1.0),
+    uv: glam::Vec2::new(1.0, 1.0),
   };
-  let ltb = VertexData {
+  let bbr = VertexData {
     position: glam::Vec3::new(-1.0, -1.0, 1.0),
     normal: glam::Vec3::new(0.0, 0.0, 1.0),
+    uv: glam::Vec2::new(0.0, 1.0),
   };
-  let rbf = VertexData {
+  let ftl = VertexData {
     position: glam::Vec3::new(1.0, 1.0, -1.0),
     normal: glam::Vec3::new(0.0, 0.0, -1.0),
+    uv: glam::Vec2::new(0.0, 0.0),
   };
-  let rbb = VertexData {
+  let ftr = VertexData {
     position: glam::Vec3::new(1.0, 1.0, 1.0),
     normal: glam::Vec3::new(0.0, 0.0, 1.0),
+    uv: glam::Vec2::new(1.0, 0.0),
   };
-  let rtf = VertexData {
+  let fbl = VertexData {
     position: glam::Vec3::new(1.0, -1.0, -1.0),
     normal: glam::Vec3::new(0.0, 0.0, -1.0),
+    uv: glam::Vec2::new(0.0, 1.0),
   };
-  let rtb = VertexData {
+  let fbr = VertexData {
     position: glam::Vec3::new(1.0, -1.0, 1.0),
     normal: glam::Vec3::new(0.0, 0.0, 1.0),
+    uv: glam::Vec2::new(1.0, 1.0),
   };
 
   (
-    vec![lbf, lbb, ltf, ltb, rbf, rbb, rtf, rtb],
+    vec![btl, btr, bbl, bbr, ftl, ftr, fbl, fbr],
     vec![
-      0, 1, 5, 0, 5, 4, //bottom
-      2, 7, 3, 2, 6, 7, //top
-      0, 6, 2, 0, 4, 6, //front
-      1, 3, 7, 1, 7, 5, //back
-      0, 2, 1, 1, 2, 3, //left
-      4, 5, 6, 5, 7, 6, //right
+      2, 3, 7, 2, 7, 6, //bottom
+      0, 5, 1, 0, 4, 5, //top
+      2, 4, 0, 2, 6, 4, //front
+      3, 1, 5, 3, 5, 7, //back
+      2, 0, 3, 3, 0, 1, //left
+      6, 7, 4, 7, 5, 4, //right
     ],
   )
 }
