@@ -31,11 +31,8 @@ pub struct MemoryManager {
   last_image_id: Id,
   allocator: ManuallyDrop<vulkan::Allocator>,
   device: ash::Device,
-  command_buffers: Vec<vk::CommandBuffer>,
-  fences: Vec<vk::Fence>,
-  transfer_queue: vk::Queue,
-  graphics_queue: vk::Queue,
-  graphics_buffer: (vk::CommandBuffer, vk::Fence),
+  transfers: Vec<Transfer>,
+  graphics_transfer: Transfer,
 }
 
 impl MemoryManager {
@@ -55,14 +52,27 @@ impl MemoryManager {
       pools.create_command_buffers(logical_device, 5, CommandBufferType::Transfer)?;
 
     let fence_create_info = vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
-    let mut fences = Vec::new();
-    for _ in 0..command_buffers.len() {
-      fences.push(unsafe { logical_device.create_fence(&fence_create_info, None)? });
+
+    let mut transfers = Vec::new();
+    let queue = device.get_queues().transfer();
+
+    for buffer in command_buffers {
+      transfers.push(Transfer {
+        buffer,
+        fence: unsafe { logical_device.create_fence(&fence_create_info, None)? },
+        queue,
+      });
     }
 
     let graphics_buffer =
       pools.create_command_buffers(logical_device, 1, CommandBufferType::Graphics)?[0];
     let fence = unsafe { logical_device.create_fence(&fence_create_info, None)? };
+
+    let graphics_transfer = Transfer {
+      buffer: graphics_buffer,
+      fence,
+      queue: device.get_queues().graphics(),
+    };
 
     Ok(Self {
       buffers: HashMap::new(),
@@ -72,11 +82,8 @@ impl MemoryManager {
       last_image_id: 0,
       allocator: ManuallyDrop::new(allocator),
       device: logical_device.clone(),
-      command_buffers,
-      fences,
-      transfer_queue: device.get_queues().transfer(),
-      graphics_queue: device.get_queues().graphics(),
-      graphics_buffer: (graphics_buffer, fence),
+      transfers,
+      graphics_transfer,
     })
   }
 
@@ -142,13 +149,8 @@ impl MemoryManager {
 
   pub fn create_texture<P: AsRef<Path>>(&mut self, path: P) -> Result<ImageId, Error> {
     let id = ImageId::Texture(self.last_image_id);
-    let transfer = Transfer {
-      buffer: self.graphics_buffer.0,
-      fence: self.graphics_buffer.1,
-      queue: self.graphics_queue,
-    };
 
-    let texture = Texture::new(path, &self.device, &mut self.allocator, &transfer)?;
+    let texture = Texture::new(path, &self.device, &mut self.allocator, &self.graphics_transfer)?;
 
     self.images.insert(id, ImageType::Texture(texture));
 
@@ -290,38 +292,32 @@ impl MemoryManager {
       }
     }
 
-    let mut cmd_index = None;
-    while cmd_index.is_none() {
-      for i in 0..self.command_buffers.len() {
-        if unsafe { self.device.get_fence_status(self.fences[i])? } {
-          cmd_index = Some(i);
+    let mut transfer_found = None;
+    while transfer_found.is_none() {
+      for transfer in &self.transfers {
+        if unsafe { self.device.get_fence_status(transfer.fence())? } {
+          transfer_found = Some(transfer.clone());
           break;
         }
       }
     }
-    let index = cmd_index.unwrap();
-    let command_buffer = self.command_buffers[index];
-    let fence = self.fences[index];
+    let transfer = transfer_found.unwrap();
 
-    if let Some((&done, _)) = self.buffer_used.iter().find(|(_, &f)| fence == f) {
+    if let Some((&done, _)) = self.buffer_used.iter().find(|(_, &f)| transfer.fence() == f) {
       self.buffer_used.remove(&done);
     }
 
-    Ok(Transfer {
-      buffer: command_buffer,
-      fence,
-      queue: self.transfer_queue,
-    })
+    Ok(transfer)
   }
 
   pub fn cleanup(&mut self) -> Result<(), Error> {
-    for &fence in &self.fences {
+    for transfer in &self.transfers {
       unsafe {
-        self.device.destroy_fence(fence, None);
+        self.device.destroy_fence(transfer.fence(), None);
       }
     }
     unsafe {
-      self.device.destroy_fence(self.graphics_buffer.1, None);
+      self.device.destroy_fence(self.graphics_transfer.fence(), None);
     }
     for (_, buffer) in std::mem::take(&mut self.buffers) {
       buffer.cleanup(&self.device, &mut self.allocator)?;
@@ -347,6 +343,7 @@ impl From<BufferBlockSize> for usize {
   }
 }
 
+#[derive(Clone)]
 pub struct Transfer {
   buffer: vk::CommandBuffer,
   fence: vk::Fence,
