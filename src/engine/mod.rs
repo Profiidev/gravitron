@@ -47,7 +47,7 @@ impl Gravitron {
     let time_per_frame = Duration::from_secs(1) / self.fps;
 
     self.app_run.signal();
-    let world = unsafe { self.ecs.world_cell.world_mut() };
+    let world = unsafe { self.ecs.get_world_cell().world_mut() };
 
     loop {
       let elapsed = last_frame.elapsed();

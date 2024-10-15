@@ -24,7 +24,6 @@ type SystemId = Id;
 pub struct ECS {
   scheduler: Scheduler,
   world: World,
-  pub world_cell: UnsafeWorldCell<'static>,
 }
 
 pub struct ECSBuilder<K: Ord + Hash + Clone = usize> {
@@ -52,6 +51,10 @@ impl ECS {
 
   pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
     self.world.get_resource_mut()
+  }
+
+  pub fn get_world_cell(&mut self) -> UnsafeWorldCell<'static> {
+    UnsafeWorldCell::new(&mut self.world)
   }
 }
 
@@ -84,13 +87,10 @@ impl<K: Ord + Hash + Clone> ECSBuilder<K> {
     self.world.create_entity(entity)
   }
 
-  pub fn build(mut self) -> ECS {
-    let world_cell = UnsafeWorldCell::new(&mut self.world);
-
+  pub fn build(self) -> ECS {
     ECS {
       scheduler: self.scheduler.build(self.sync_system_exec),
       world: self.world,
-      world_cell,
     }
   }
 }
