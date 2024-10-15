@@ -1,5 +1,4 @@
 #version 450
-#extension GL_EXT_debug_printf : enable
 
 layout (set=1, binding=0) buffer readonly StorageBufferObject {
   float num_directional_lights;
@@ -92,7 +91,6 @@ void main() {
     l += compute_radiance(irradiance, to_light, normal, direction_to_camera, fragColorIn);
   }
 
-  debugPrintfEXT("My float is %f", texture(tex, vec2(0.5, 0.5)));
   fragColor = vec4(l / (1 + l), 1.0);
   fragColor = vec4(fragColorIn, 1.0);
   fragColor = texture(tex, vec2(0.5, 0.5));

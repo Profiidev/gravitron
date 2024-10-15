@@ -1,0 +1,67 @@
+use anyhow::Error;
+use gpu_allocator::vulkan;
+
+use crate::Id;
+
+use super::{
+  advanced_buffer::AdvancedBuffer, image::Image, simple_buffer::SimpleBuffer, texture::Texture,
+};
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum BufferId {
+  Advanced(Id),
+  Simple(Id),
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ImageId {
+  Simple(Id),
+  Texture(Id),
+}
+
+pub const BUFFER_BLOCK_SIZE_LARGE: usize = 1024 * 1024 * 64;
+pub const BUFFER_BLOCK_SIZE_MEDIUM: usize = 1024 * 64;
+pub const BUFFER_BLOCK_SIZE_SMALL: usize = 64;
+
+pub enum BufferBlockSize {
+  Large,
+  Medium,
+  Small,
+  Exact(usize),
+}
+
+pub enum BufferType {
+  Simple(SimpleBuffer),
+  Advanced(AdvancedBuffer),
+}
+
+pub enum ImageType {
+  Simple(Image),
+  Texture(Texture),
+}
+
+impl BufferType {
+  pub fn cleanup(
+    self,
+    device: &ash::Device,
+    allocator: &mut vulkan::Allocator,
+  ) -> Result<(), Error> {
+    match self {
+      BufferType::Advanced(buffer) => buffer.cleanup(device, allocator),
+      BufferType::Simple(buffer) => buffer.cleanup(device, allocator),
+    }
+  }
+}
+
+impl ImageType {
+  pub fn cleanup(
+    self,
+    device: &ash::Device,
+    allocator: &mut vulkan::Allocator,
+  ) -> Result<(), Error> {
+    match self {
+      ImageType::Texture(texture) => texture.cleanup(device, allocator),
+      ImageType::Simple(image) => image.cleanup(device, allocator),
+    }
+  }
+}

@@ -6,12 +6,11 @@ use super::{
   allocator::{Allocator, BufferMemory},
   buffer::{buffer_copy, buffer_copy_info, Buffer},
   manager::Transfer,
+  types::BufferId,
 };
 
-use crate::Id;
-
 pub struct AdvancedBuffer {
-  id: Id,
+  id: BufferId,
   transfer: Buffer,
   gpu: Buffer,
   allocator: Allocator,
@@ -20,7 +19,7 @@ pub struct AdvancedBuffer {
 
 impl AdvancedBuffer {
   pub fn new(
-    id: Id,
+    id: BufferId,
     allocator: &mut vulkan::Allocator,
     device: &ash::Device,
     usage: vk::BufferUsageFlags,

@@ -5,12 +5,11 @@ use gpu_allocator::vulkan;
 use super::{
   allocator::{Allocator, BufferMemory},
   buffer::Buffer,
+  types::BufferId,
 };
 
-use crate::Id;
-
 pub struct SimpleBuffer {
-  id: Id,
+  id: BufferId,
   buffer: Buffer,
   allocator: Allocator,
   block_size: usize,
@@ -18,7 +17,7 @@ pub struct SimpleBuffer {
 
 impl SimpleBuffer {
   pub fn new(
-    id: Id,
+    id: BufferId,
     allocator: &mut vulkan::Allocator,
     device: &ash::Device,
     usage: vk::BufferUsageFlags,

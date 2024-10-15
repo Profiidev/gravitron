@@ -6,7 +6,7 @@ use crate::{
   vulkan::{
     device::Device,
     instance::InstanceDevice,
-    memory::manager::{ImageId, MemoryManager},
+    memory::{manager::MemoryManager, types::ImageId},
     pipeline::pools::{CommandBufferType, Pools},
     surface::Surface,
   },

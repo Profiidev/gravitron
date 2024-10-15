@@ -15,7 +15,8 @@ use super::{
   error::RendererInitError,
   instance::InstanceDevice,
   memory::{
-    manager::{BufferBlockSize, BufferId, MemoryManager},
+    manager::MemoryManager,
+    types::{BufferBlockSize, BufferId},
     BufferMemory,
   },
   pipeline::{pools::Pools, PipelineManager},

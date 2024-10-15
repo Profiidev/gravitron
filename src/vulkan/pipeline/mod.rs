@@ -11,7 +11,8 @@ use crate::{
 };
 
 use super::memory::{
-  manager::{BufferBlockSize, BufferId, MemoryManager},
+  manager::MemoryManager,
+  types::{BufferBlockSize, BufferId},
   BufferMemory,
 };
 
