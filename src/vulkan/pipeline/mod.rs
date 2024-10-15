@@ -1,10 +1,11 @@
+use std::collections::HashMap;
+
 use anyhow::Error;
 use ash::vk;
 
 use crate::{
   config::vulkan::{
-    ComputePipelineConfig, Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig,
-    PipelineType,
+    ComputePipelineConfig, DescriptorSet, DescriptorType, GraphicsPipelineConfig, PipelineType,
   },
   ecs_resources::components::camera::Camera,
 };
@@ -21,7 +22,7 @@ pub struct PipelineManager {
   descriptor_pool: vk::DescriptorPool,
   logical_device: ash::Device,
   default_desc_layouts: Vec<vk::DescriptorSetLayout>,
-  default_buffers: Vec<Vec<BufferId>>,
+  default_buffers: HashMap<usize, HashMap<usize, BufferId>>,
 }
 
 impl PipelineManager {
@@ -37,12 +38,7 @@ impl PipelineManager {
     let mut descriptor_count = 1;
     let mut pool_sizes = vec![];
 
-    let default_descriptor = Descriptor::new(
-      DescriptorType::UniformBuffer,
-      1,
-      vk::ShaderStageFlags::VERTEX,
-      128,
-    );
+    let default_descriptor = DescriptorType::new_uniform(vk::ShaderStageFlags::VERTEX, 128);
     add_descriptor(&mut pool_sizes, &default_descriptor);
 
     for pipeline in &*pipelines {
@@ -173,8 +169,8 @@ impl PipelineManager {
       .iter()
       .find(|(n, _)| n == pipeline_name)
       .map(|(_, p)| p)?;
-    let set = pipeline.descriptor_buffers.get(descriptor_set)?;
-    let desc = set.get(descriptor)?;
+    let set = pipeline.descriptor_buffers.get(&descriptor_set)?;
+    let desc = set.get(&descriptor)?;
 
     Some(memory_manager.reserve_buffer_mem(*desc, size)?.0)
   }
@@ -190,7 +186,7 @@ impl PipelineManager {
       size: 128,
     }];
     let data = [camera.view_matrix(), camera.projection_matrix()];
-    memory_manager.write_to_buffer_direct(self.default_buffers[0][0], &data, &regions);
+    memory_manager.write_to_buffer_direct(self.default_buffers[&0][&0], &data, &regions);
   }
 }
 
@@ -201,7 +197,7 @@ pub struct Pipeline {
   pipeline_bind_point: vk::PipelineBindPoint,
   descriptor_sets: Vec<vk::DescriptorSet>,
   descriptor_set_layouts: Vec<vk::DescriptorSetLayout>,
-  descriptor_buffers: Vec<Vec<BufferId>>,
+  descriptor_buffers: HashMap<usize, HashMap<usize, BufferId>>,
   cache: vk::PipelineCache,
 }
 
@@ -209,12 +205,17 @@ impl Pipeline {
   pub fn default_shader() -> GraphicsPipelineConfig {
     GraphicsPipelineConfig::new("default".to_string())
       .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec())
-      .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
-        DescriptorType::StorageBuffer,
-        1,
-        vk::ShaderStageFlags::FRAGMENT,
-        144,
-      )))
+      .add_descriptor_set(
+        DescriptorSet::default()
+          .add_descriptor(DescriptorType::new_storage(
+            vk::ShaderStageFlags::FRAGMENT,
+            144,
+          ))
+          .add_descriptor(DescriptorType::new_image(
+            vk::ShaderStageFlags::FRAGMENT,
+            "./assets/image.png",
+          )),
+      )
   }
 
   pub fn init_compute_pipeline(
@@ -497,7 +498,7 @@ impl Pipeline {
     (
       Vec<vk::DescriptorSetLayout>,
       Vec<vk::DescriptorSet>,
-      Vec<Vec<BufferId>>,
+      HashMap<usize, HashMap<usize, BufferId>>,
     ),
     Error,
   > {
@@ -507,13 +508,26 @@ impl Pipeline {
       let mut descriptor_set_layout_binding_descs = vec![];
 
       for (i, descriptor) in descriptor_set.descriptors.iter().enumerate() {
-        descriptor_set_layout_binding_descs.push(
-          vk::DescriptorSetLayoutBinding::default()
-            .binding(i as u32)
-            .descriptor_type(descriptor.type_)
-            .descriptor_count(descriptor.descriptor_count)
-            .stage_flags(descriptor.stage),
-        );
+        match descriptor {
+          DescriptorType::StorageBuffer(desc) | DescriptorType::UniformBuffer(desc) => {
+            descriptor_set_layout_binding_descs.push(
+              vk::DescriptorSetLayoutBinding::default()
+                .binding(i as u32)
+                .descriptor_type(desc.type_)
+                .descriptor_count(1)
+                .stage_flags(desc.stage),
+            );
+          }
+          DescriptorType::Image(desc) => {
+            descriptor_set_layout_binding_descs.push(
+              vk::DescriptorSetLayoutBinding::default()
+                .binding(i as u32)
+                .descriptor_type(desc.type_)
+                .descriptor_count(1)
+                .stage_flags(desc.stage),
+            );
+          }
+        }
       }
 
       let descriptor_set_layout_create_info =
@@ -530,38 +544,60 @@ impl Pipeline {
     let descriptor_sets =
       unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info)? };
 
-    let mut descriptor_buffers = vec![];
+    let mut descriptor_buffers = HashMap::new();
 
     for (j, descriptor_set) in descriptor_sets_config.iter().enumerate() {
-      let mut buffers = vec![];
-      let mut offset = 0;
+      let mut buffers = HashMap::new();
 
       for (i, descriptor) in descriptor_set.descriptors.iter().enumerate() {
-        let buffer = memory_manager.create_advanced_buffer(
-          descriptor.buffer_usage,
-          BufferBlockSize::Exact(descriptor.size as usize),
-        )?;
+        match descriptor {
+          DescriptorType::StorageBuffer(desc) | DescriptorType::UniformBuffer(desc) => {
+            let buffer = memory_manager.create_advanced_buffer(
+              desc.buffer_usage,
+              BufferBlockSize::Exact(desc.size as usize),
+            )?;
 
-        let buffer_info_descriptor = [vk::DescriptorBufferInfo::default()
-          .buffer(memory_manager.get_vk_buffer(buffer).unwrap())
-          .offset(offset)
-          .range(descriptor.size)];
-        let write_desc_set = vk::WriteDescriptorSet::default()
-          .dst_set(descriptor_sets[j])
-          .dst_binding(i as u32)
-          .descriptor_type(descriptor.type_)
-          .buffer_info(&buffer_info_descriptor);
+            buffers.insert(i, buffer);
 
-        unsafe {
-          logical_device.update_descriptor_sets(&[write_desc_set], &[]);
+            let buffer_info_descriptor = [vk::DescriptorBufferInfo::default()
+              .buffer(memory_manager.get_vk_buffer(buffer).unwrap())
+              .offset(0)
+              .range(desc.size)];
+
+            let write_desc_set = vk::WriteDescriptorSet::default()
+              .dst_set(descriptor_sets[j])
+              .dst_binding(i as u32)
+              .descriptor_type(desc.type_)
+              .buffer_info(&buffer_info_descriptor);
+
+            unsafe {
+              logical_device.update_descriptor_sets(&[write_desc_set], &[]);
+            }
+          }
+          DescriptorType::Image(desc) => {
+            let texture = memory_manager.create_texture(&desc.path)?;
+            let view = memory_manager.get_vk_image_view(texture).unwrap();
+            let sampler = memory_manager.get_vk_sampler(texture).unwrap();
+
+            let image_info = [vk::DescriptorImageInfo::default()
+              .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+              .image_view(view)
+              .sampler(sampler)];
+
+            let write_desc_set = vk::WriteDescriptorSet::default()
+              .dst_binding(i as u32)
+              .dst_set(descriptor_sets[j])
+              .descriptor_type(desc.type_)
+              .image_info(&image_info);
+
+            unsafe {
+              logical_device.update_descriptor_sets(&[write_desc_set], &[]);
+            }
+          }
         }
-
-        buffers.push(buffer);
-
-        offset += descriptor.size;
       }
 
-      descriptor_buffers.push(buffers);
+      descriptor_buffers.insert(j, buffers);
     }
 
     Ok((descriptor_layouts, descriptor_sets, descriptor_buffers))
@@ -610,14 +646,20 @@ impl Pipeline {
   }
 }
 
-fn add_descriptor(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, desc: &Descriptor) {
-  if let Some(pool) = pool_sizes.iter_mut().find(|s| s.ty == desc.type_) {
-    pool.descriptor_count += 1;
-  } else {
-    pool_sizes.push(
-      vk::DescriptorPoolSize::default()
-        .ty(desc.type_)
-        .descriptor_count(1),
-    );
+fn add_descriptor(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, desc: &DescriptorType) {
+  match desc {
+    DescriptorType::StorageBuffer(desc) | DescriptorType::UniformBuffer(desc) => {
+      internal_add(pool_sizes, desc.type_);
+    }
+    DescriptorType::Image(desc) => {
+      internal_add(pool_sizes, desc.type_);
+    }
+  }
+  fn internal_add(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, ty: vk::DescriptorType) {
+    if let Some(pool) = pool_sizes.iter_mut().find(|s| s.ty == ty) {
+      pool.descriptor_count += 1;
+    } else {
+      pool_sizes.push(vk::DescriptorPoolSize::default().ty(ty).descriptor_count(1));
+    }
   }
 }

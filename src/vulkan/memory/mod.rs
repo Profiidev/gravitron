@@ -4,5 +4,6 @@ mod buffer;
 mod image;
 pub mod manager;
 mod simple_buffer;
+mod texture;
 
 pub use allocator::BufferMemory;

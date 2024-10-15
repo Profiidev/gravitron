@@ -107,57 +107,78 @@ impl ComputePipelineConfig {
 
 #[derive(Default, Clone)]
 pub struct DescriptorSet {
-  pub descriptors: Vec<Descriptor>,
+  pub descriptors: Vec<DescriptorType>,
 }
 
+#[derive(Clone)]
 pub enum DescriptorType {
-  UniformBuffer,
-  StorageBuffer,
+  UniformBuffer(BufferDescriptor),
+  StorageBuffer(BufferDescriptor),
+  Image(ImageDescriptor),
+}
+
+impl DescriptorType {
+  pub fn new_storage(stage: vk::ShaderStageFlags, size: u64) -> Self {
+    BufferDescriptor::new_storage(stage, size)
+  }
+
+  pub fn new_uniform(stage: vk::ShaderStageFlags, size: u64) -> Self {
+    BufferDescriptor::new_uniform(stage, size)
+  }
+
+  pub fn new_image(stage: vk::ShaderStageFlags, path: &str) -> Self {
+    ImageDescriptor::new_image(stage, path)
+  }
 }
 
 impl DescriptorSet {
-  pub fn add_descriptor(mut self, layout: Descriptor) -> Self {
+  pub fn add_descriptor(mut self, layout: DescriptorType) -> Self {
     self.descriptors.push(layout);
     self
   }
 }
 
 #[derive(Clone)]
-pub struct Descriptor {
+pub struct BufferDescriptor {
   pub type_: vk::DescriptorType,
   pub buffer_usage: vk::BufferUsageFlags,
-  pub descriptor_count: u32,
   pub stage: vk::ShaderStageFlags,
   pub size: u64,
 }
 
-impl Descriptor {
-  pub fn new(
-    type_: DescriptorType,
-    descriptor_count: u32,
-    stage: vk::ShaderStageFlags,
-    size: u64,
-  ) -> Self {
-    let (type_, buffer_usage) = convert_type(type_);
-    Self {
-      type_,
-      buffer_usage,
-      descriptor_count,
+impl BufferDescriptor {
+  pub fn new_storage(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType {
+    DescriptorType::StorageBuffer(Self {
+      type_: vk::DescriptorType::STORAGE_BUFFER,
+      buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
       stage,
       size,
-    }
+    })
+  }
+
+  pub fn new_uniform(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType {
+    DescriptorType::UniformBuffer(Self {
+      type_: vk::DescriptorType::UNIFORM_BUFFER,
+      buffer_usage: vk::BufferUsageFlags::UNIFORM_BUFFER,
+      stage,
+      size,
+    })
   }
 }
 
-fn convert_type(type_: DescriptorType) -> (vk::DescriptorType, vk::BufferUsageFlags) {
-  match type_ {
-    DescriptorType::StorageBuffer => (
-      vk::DescriptorType::STORAGE_BUFFER,
-      vk::BufferUsageFlags::STORAGE_BUFFER,
-    ),
-    DescriptorType::UniformBuffer => (
-      vk::DescriptorType::UNIFORM_BUFFER,
-      vk::BufferUsageFlags::UNIFORM_BUFFER,
-    ),
+#[derive(Clone)]
+pub struct ImageDescriptor {
+  pub type_: vk::DescriptorType,
+  pub stage: vk::ShaderStageFlags,
+  pub path: String,
+}
+
+impl ImageDescriptor {
+  pub fn new_image(stage: vk::ShaderStageFlags, path: &str) -> DescriptorType {
+    DescriptorType::Image(Self {
+      type_: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+      stage,
+      path: path.to_string(),
+    })
   }
 }

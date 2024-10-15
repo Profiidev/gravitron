@@ -1,10 +1,13 @@
 #version 450
+#extension GL_EXT_debug_printf : enable
 
 layout (set=1, binding=0) buffer readonly StorageBufferObject {
   float num_directional_lights;
   float num_point_lights;
   vec3 data[];
 } sbo;
+
+layout (set=1, binding=1) uniform sampler2D tex;
 
 layout (location = 0) out vec4 fragColor;
 
@@ -89,6 +92,8 @@ void main() {
     l += compute_radiance(irradiance, to_light, normal, direction_to_camera, fragColorIn);
   }
 
+  debugPrintfEXT("My float is %f", texture(tex, vec2(0.5, 0.5)));
   fragColor = vec4(l / (1 + l), 1.0);
   fragColor = vec4(fragColorIn, 1.0);
+  fragColor = texture(tex, vec2(0.5, 0.5));
 }

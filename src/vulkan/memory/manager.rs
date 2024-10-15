@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem::ManuallyDrop};
+use std::{collections::HashMap, mem::ManuallyDrop, path::Path};
 
 use anyhow::Error;
 use ash::vk;
@@ -13,7 +13,7 @@ use crate::Id;
 
 use super::{
   advanced_buffer::AdvancedBuffer, allocator::BufferMemory, image::Image,
-  simple_buffer::SimpleBuffer,
+  simple_buffer::SimpleBuffer, texture::Texture,
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -22,8 +22,11 @@ pub enum BufferId {
   Simple(Id),
 }
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ImageId(Id);
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ImageId {
+  Simple(Id),
+  Texture(Id),
+}
 
 pub const BUFFER_BLOCK_SIZE_LARGE: usize = 1024 * 1024 * 64;
 pub const BUFFER_BLOCK_SIZE_MEDIUM: usize = 1024 * 64;
@@ -41,13 +44,16 @@ pub struct MemoryManager {
   simple_buffers: HashMap<Id, SimpleBuffer>,
   buffer_used: HashMap<Id, vk::Fence>,
   last_buffer_id: Id,
-  images: HashMap<ImageId, Image>,
+  images: HashMap<Id, Image>,
+  texture: HashMap<Id, Texture>,
   last_image_id: Id,
   allocator: ManuallyDrop<vulkan::Allocator>,
   device: ash::Device,
   command_buffers: Vec<vk::CommandBuffer>,
   fences: Vec<vk::Fence>,
   transfer_queue: vk::Queue,
+  graphics_queue: vk::Queue,
+  graphics_buffer: (vk::CommandBuffer, vk::Fence),
 }
 
 impl MemoryManager {
@@ -72,18 +78,25 @@ impl MemoryManager {
       fences.push(unsafe { logical_device.create_fence(&fence_create_info, None)? });
     }
 
+    let graphics_buffer =
+      pools.create_command_buffers(logical_device, 1, CommandBufferType::Graphics)?[0];
+    let fence = unsafe { logical_device.create_fence(&fence_create_info, None)? };
+
     Ok(Self {
       advanced_buffers: HashMap::new(),
       simple_buffers: HashMap::new(),
       buffer_used: HashMap::new(),
       last_buffer_id: 0,
       images: HashMap::new(),
+      texture: HashMap::new(),
       last_image_id: 0,
       allocator: ManuallyDrop::new(allocator),
       device: logical_device.clone(),
       command_buffers,
       fences,
       transfer_queue: device.get_queues().transfer(),
+      graphics_queue: device.get_queues().graphics(),
+      graphics_buffer: (graphics_buffer, fence),
     })
   }
 
@@ -131,7 +144,7 @@ impl MemoryManager {
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
   ) -> Result<ImageId, Error> {
-    let id = ImageId(self.last_image_id);
+    let id = ImageId::Simple(self.last_image_id);
 
     let image = Image::new(
       &self.device,
@@ -141,7 +154,23 @@ impl MemoryManager {
       image_view_info,
     )?;
 
-    self.images.insert(id, image);
+    self.images.insert(self.last_image_id, image);
+
+    self.last_image_id += 1;
+    Ok(id)
+  }
+
+  pub fn create_texture<P: AsRef<Path>>(&mut self, path: P) -> Result<ImageId, Error> {
+    let id = ImageId::Texture(self.last_image_id);
+    let transfer = Transfer {
+      buffer: self.graphics_buffer.0,
+      fence: self.graphics_buffer.1,
+      queue: self.graphics_queue,
+    };
+
+    let texture = Texture::new(path, &self.device, &mut self.allocator, &transfer)?;
+
+    self.texture.insert(self.last_image_id, texture);
 
     self.last_image_id += 1;
     Ok(id)
@@ -265,7 +294,17 @@ impl MemoryManager {
   }
 
   pub fn get_vk_image_view(&self, image_id: ImageId) -> Option<vk::ImageView> {
-    Some(self.images.get(&image_id)?.image_view())
+    match image_id {
+      ImageId::Simple(id) => Some(self.images.get(&id)?.image_view()),
+      ImageId::Texture(id) => Some(self.texture.get(&id)?.image_view()),
+    }
+  }
+
+  pub fn get_vk_sampler(&self, image_id: ImageId) -> Option<vk::Sampler> {
+    match image_id {
+      ImageId::Texture(id) => Some(self.texture.get(&id)?.sampler()),
+      _ => None,
+    }
   }
 
   pub fn get_buffer_size(&self, buffer_id: BufferId) -> Option<usize> {
@@ -312,6 +351,9 @@ impl MemoryManager {
         self.device.destroy_fence(fence, None);
       }
     }
+    unsafe {
+      self.device.destroy_fence(self.graphics_buffer.1, None);
+    }
     for (_, buffer) in std::mem::take(&mut self.advanced_buffers) {
       buffer.cleanup(&self.device, &mut self.allocator)?;
     }
@@ -320,6 +362,9 @@ impl MemoryManager {
     }
     for (_, image) in std::mem::take(&mut self.images) {
       image.cleanup(&self.device, &mut self.allocator)?;
+    }
+    for (_, texture) in std::mem::take(&mut self.texture) {
+      texture.cleanup(&self.device, &mut self.allocator)?;
     }
     unsafe {
       ManuallyDrop::drop(&mut self.allocator);

@@ -1,8 +1,7 @@
 use gravitron::{
   config::{
     vulkan::{
-      Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig, ShaderStageFlags,
-      VulkanConfig,
+      DescriptorSet, DescriptorType, GraphicsPipelineConfig, ShaderStageFlags, VulkanConfig,
     },
     EngineConfig,
   },
@@ -23,12 +22,10 @@ use gravitron_ecs::commands::Commands;
 fn main() {
   let testing = GraphicsPipelineConfig::new("testing".to_string())
     .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader copy.frag").to_vec())
-    .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
-      DescriptorType::StorageBuffer,
-      1,
-      ShaderStageFlags::FRAGMENT,
-      144,
-    )));
+    .add_descriptor_set(
+      DescriptorSet::default()
+        .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144)),
+    );
   let vulkan = VulkanConfig::default().add_graphics_pipeline(testing);
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config).add_system(test);
