@@ -207,11 +207,10 @@ impl Pipeline {
     GraphicsPipelineConfig::new("default".to_string())
       .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec())
       .add_descriptor_set(
-        DescriptorSet::default()
-          .add_descriptor(DescriptorType::new_storage(
-            vk::ShaderStageFlags::FRAGMENT,
-            144,
-          ))
+        DescriptorSet::default().add_descriptor(DescriptorType::new_storage(
+          vk::ShaderStageFlags::FRAGMENT,
+          144,
+        )),
       )
   }
 

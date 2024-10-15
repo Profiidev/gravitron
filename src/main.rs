@@ -25,10 +25,10 @@ fn main() {
     .add_descriptor_set(
       DescriptorSet::default()
         .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144))
-          .add_descriptor(DescriptorType::new_image(
-            ShaderStageFlags::FRAGMENT,
-            "./assets/image.png",
-          )),
+        .add_descriptor(DescriptorType::new_image(
+          ShaderStageFlags::FRAGMENT,
+          "./assets/image.png",
+        )),
     );
   let vulkan = VulkanConfig::default().add_graphics_pipeline(testing);
   let config = EngineConfig::default().set_vulkan_config(vulkan);
