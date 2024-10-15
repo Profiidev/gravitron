@@ -26,7 +26,7 @@ impl EngineCommands {
 
   pub fn execute(&mut self, ecs: &mut ECS) {
     if self.shutdown {
-      let vulkan = &mut *ecs.get_resource_mut::<Vulkan>().unwrap();
+      let vulkan = ecs.get_resource_mut::<Vulkan>().unwrap();
       vulkan.destroy();
 
       self.shutdown_signal.signal();

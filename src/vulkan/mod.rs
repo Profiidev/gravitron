@@ -1,18 +1,24 @@
-use std::{collections::HashMap, mem::ManuallyDrop};
+use std::collections::HashMap;
 
 use anyhow::Error;
 #[cfg(feature = "debug")]
 use debug::Debugger;
 use device::Device;
-use gpu_allocator::vulkan;
-use graphics::{resources::model::InstanceData, Renderer};
+use graphics::{
+  resources::model::{InstanceData, ModelId},
+  Renderer,
+};
 use instance::{InstanceDevice, InstanceDeviceConfig};
+use memory::{manager::MemoryManager, BufferMemory};
+use pipeline::pools::Pools;
+use pipeline::PipelineManager;
 use surface::Surface;
 use winit::window::Window;
 
-use crate::config::{app::AppConfig, vulkan::VulkanConfig};
-use crate::ecs_resources::components::camera::Camera;
-use crate::Id;
+use crate::{
+  config::{app::AppConfig, vulkan::VulkanConfig},
+  ecs_resources::components::camera::Camera,
+};
 
 #[cfg(feature = "debug")]
 mod debug;
@@ -20,7 +26,8 @@ mod device;
 pub mod error;
 pub mod graphics;
 mod instance;
-mod shader;
+pub mod memory;
+mod pipeline;
 mod surface;
 
 pub struct Vulkan {
@@ -29,12 +36,12 @@ pub struct Vulkan {
   #[cfg(feature = "debug")]
   debugger: Debugger,
   instance: InstanceDevice,
-  #[allow(dead_code)]
-  window: Window,
   surface: Surface,
   device: Device,
   renderer: Renderer,
-  allocator: ManuallyDrop<vulkan::Allocator>,
+  pools: Pools,
+  memory_manager: MemoryManager,
+  pipeline_manager: PipelineManager,
 }
 
 impl Vulkan {
@@ -58,7 +65,7 @@ impl Vulkan {
     #[cfg(feature = "debug")]
     let debugger = Debugger::init(&entry, instance.get_instance(), debugger_info)?;
 
-    let surface = Surface::init(&entry, instance.get_instance(), &window)?;
+    let surface = Surface::init(&entry, instance.get_instance(), window)?;
     let device = Device::init(
       instance.get_instance(),
       instance.get_physical_device(),
@@ -66,34 +73,41 @@ impl Vulkan {
       &config.renderer,
     )?;
 
-    let mut allocator = vulkan::Allocator::new(&vulkan::AllocatorCreateDesc {
-      device: device.get_device().clone(),
-      physical_device: instance.get_physical_device(),
-      instance: instance.get_instance().clone(),
-      debug_settings: Default::default(),
-      buffer_device_address: false,
-      allocation_sizes: Default::default(),
-    })?;
+    let mut pools = Pools::init(device.get_device(), device.get_queue_families())?;
 
-    let renderer = Renderer::init(
+    let mut memory_manager = MemoryManager::new(&instance, &device, &mut pools)?;
+
+    let mut renderer = Renderer::init(
       &instance,
       &device,
-      &mut allocator,
+      &mut memory_manager,
       &surface,
       &mut config,
       app_config,
+      &mut pools,
     )?;
+
+    let pipeline_manager = PipelineManager::init(
+      device.get_device(),
+      renderer.render_pass(),
+      &renderer.swapchain().get_extent(),
+      &mut config.shaders,
+      &mut memory_manager,
+    )?;
+
+    renderer.record_command_buffer(&pipeline_manager, &mut memory_manager)?;
 
     Ok(Vulkan {
       entry,
       #[cfg(feature = "debug")]
       debugger,
       instance,
-      window,
       surface,
       device,
       renderer,
-      allocator: ManuallyDrop::new(allocator),
+      memory_manager,
+      pools,
+      pipeline_manager,
     })
   }
 
@@ -102,21 +116,49 @@ impl Vulkan {
     self.renderer.wait_for_draw_start(device);
   }
 
-  pub fn draw_frame(&mut self, instances: &HashMap<Id, Vec<InstanceData>>) {
-    self
-      .renderer
-      .draw_frame(instances, &self.device, &mut self.allocator);
+  pub fn draw_frame(&mut self) {
+    self.renderer.draw_frame(&self.device);
   }
 
-  pub fn record_command_buffer(&self, instances: &HashMap<Id, Vec<InstanceData>>) {
+  pub fn update_descriptor<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
+    self
+      .pipeline_manager
+      .update_descriptor(&mut self.memory_manager, mem, data)
+  }
+
+  pub fn create_descriptor_mem(
+    &mut self,
+    pipeline_name: &str,
+    descriptor_set: usize,
+    descriptor: usize,
+    size: usize,
+  ) -> Option<BufferMemory> {
+    self.pipeline_manager.create_descriptor_mem(
+      &mut self.memory_manager,
+      pipeline_name,
+      descriptor_set,
+      descriptor,
+      size,
+    )
+  }
+
+  pub fn update_draw_info(
+    &mut self,
+    instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
+  ) {
     self
       .renderer
-      .record_command_buffer(instances, self.device.get_device())
+      .update_draw_buffer(&mut self.memory_manager, instances);
+    self
+      .renderer
+      .record_command_buffer(&self.pipeline_manager, &mut self.memory_manager)
       .expect("Command Buffer Error");
   }
 
   pub fn update_camera(&mut self, camera: &Camera) {
-    self.renderer.update_camera(camera);
+    self
+      .pipeline_manager
+      .update_camera(&mut self.memory_manager, camera);
   }
 
   pub fn destroy(&mut self) {
@@ -128,12 +170,13 @@ impl Vulkan {
         .expect("Unable to wait for device idle");
     }
 
-    self
-      .renderer
-      .destroy(self.device.get_device(), &mut self.allocator);
+    self.pipeline_manager.destroy();
+    self.renderer.destroy();
+    self.memory_manager.cleanup().unwrap();
     unsafe {
-      ManuallyDrop::drop(&mut self.allocator);
+      self.pools.cleanup();
     }
+
     self.device.destroy();
     self.surface.destroy();
 

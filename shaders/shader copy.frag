@@ -6,6 +6,8 @@ layout (set=1, binding=0) buffer readonly StorageBufferObject {
   vec3 data[];
 } sbo;
 
+layout (set=1, binding=1) uniform sampler2D tex;
+
 layout (location = 0) out vec4 fragColor;
 
 layout (location = 0) in vec3 fragColorIn;
@@ -91,5 +93,5 @@ void main() {
   }
 
   fragColor = vec4(l / (1 + l), 1.0);
-  fragColor = vec4(fragColorIn, 1.0);
+  fragColor = texture(tex, fragUvIn);
 }

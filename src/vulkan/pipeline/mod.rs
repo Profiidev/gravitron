@@ -2,73 +2,28 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use ash::vk;
-use gpu_allocator::vulkan;
 
 use crate::{
   config::vulkan::{
-    ComputePipelineConfig, Descriptor, DescriptorSet, DescriptorType, GraphicsPipelineConfig,
-    PipelineType, ShaderConfig, ShaderInputBindings, ShaderInputVariable, ShaderType,
+    ComputePipelineConfig, DescriptorSet, DescriptorType, GraphicsPipelineConfig, PipelineType,
   },
   ecs_resources::components::camera::Camera,
-  vulkan::shader::buffer::Buffer,
 };
 
-pub fn init_render_pass(
-  logical_device: &ash::Device,
-  format: vk::Format,
-) -> Result<vk::RenderPass, vk::Result> {
-  let attachment = [
-    vk::AttachmentDescription::default()
-      .format(format)
-      .samples(vk::SampleCountFlags::TYPE_1)
-      .load_op(vk::AttachmentLoadOp::CLEAR)
-      .store_op(vk::AttachmentStoreOp::STORE)
-      .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-      .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-      .initial_layout(vk::ImageLayout::UNDEFINED)
-      .final_layout(vk::ImageLayout::PRESENT_SRC_KHR),
-    vk::AttachmentDescription::default()
-      .format(vk::Format::D32_SFLOAT)
-      .samples(vk::SampleCountFlags::TYPE_1)
-      .load_op(vk::AttachmentLoadOp::CLEAR)
-      .store_op(vk::AttachmentStoreOp::DONT_CARE)
-      .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-      .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-      .initial_layout(vk::ImageLayout::UNDEFINED)
-      .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL),
-  ];
+use super::memory::{
+  manager::MemoryManager,
+  types::{BufferBlockSize, BufferId},
+  BufferMemory,
+};
 
-  let color_attachment_ref = [vk::AttachmentReference::default()
-    .attachment(0)
-    .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)];
-  let depth_attachment_ref = vk::AttachmentReference::default()
-    .attachment(1)
-    .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-
-  let subpass = [vk::SubpassDescription::default()
-    .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-    .depth_stencil_attachment(&depth_attachment_ref)
-    .color_attachments(&color_attachment_ref)];
-
-  let subpass_dependency = [vk::SubpassDependency::default()
-    .src_subpass(vk::SUBPASS_EXTERNAL)
-    .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-    .dst_subpass(0)
-    .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-    .dst_access_mask(
-      vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-    )];
-
-  let render_pass_create_info = vk::RenderPassCreateInfo::default()
-    .attachments(&attachment)
-    .subpasses(&subpass)
-    .dependencies(&subpass_dependency);
-  unsafe { logical_device.create_render_pass(&render_pass_create_info, None) }
-}
+pub mod pools;
 
 pub struct PipelineManager {
-  pipelines: HashMap<String, Pipeline>,
+  pipelines: Vec<(String, Pipeline)>,
   descriptor_pool: vk::DescriptorPool,
+  logical_device: ash::Device,
+  default_desc_layouts: Vec<vk::DescriptorSetLayout>,
+  default_buffers: HashMap<usize, HashMap<usize, BufferId>>,
 }
 
 impl PipelineManager {
@@ -77,14 +32,16 @@ impl PipelineManager {
     render_pass: vk::RenderPass,
     swap_chain_extent: &vk::Extent2D,
     pipelines: &mut Vec<PipelineType>,
-    allocator: &mut vulkan::Allocator,
+    memory_manager: &mut MemoryManager,
   ) -> Result<Self, Error> {
-    pipelines.push(PipelineType::Graphics(Pipeline::default_shader(
-      swap_chain_extent,
-    )));
+    pipelines.push(PipelineType::Graphics(Pipeline::default_shader()));
 
-    let mut descriptor_count = 0;
+    let mut descriptor_count = 1;
     let mut pool_sizes = vec![];
+
+    let default_descriptor = DescriptorType::new_uniform(vk::ShaderStageFlags::VERTEX, 128);
+    add_descriptor(&mut pool_sizes, &default_descriptor);
+
     for pipeline in &*pipelines {
       match pipeline {
         PipelineType::Graphics(c) => {
@@ -112,26 +69,46 @@ impl PipelineManager {
     let descriptor_pool =
       unsafe { logical_device.create_descriptor_pool(&descriptor_pool_create_info, None)? };
 
-    let mut vk_pipelines = HashMap::new();
+    let default_desc_config = vec![DescriptorSet::default().add_descriptor(default_descriptor)];
+    let (default_desc_layouts, default_descs, default_buffers) =
+      Pipeline::get_descriptor_set_layouts(
+        &default_desc_config,
+        descriptor_pool,
+        logical_device,
+        memory_manager,
+      )?;
+
+    let mut vk_pipelines = Vec::new();
+    let mut i = 0;
     for pipeline in pipelines {
       match pipeline {
         PipelineType::Graphics(config) => {
-          vk_pipelines.insert(
+          vk_pipelines.push((
             config.name.clone(),
             Pipeline::init_graphics_pipeline(
               logical_device,
               render_pass,
               config,
               descriptor_pool,
-              allocator,
+              memory_manager,
+              swap_chain_extent,
+              i,
+              &default_descs,
+              &default_desc_layouts,
             )?,
-          );
+          ));
+          i += 1;
         }
         PipelineType::Compute(config) => {
-          vk_pipelines.insert(
+          vk_pipelines.push((
             config.name.clone(),
-            Pipeline::init_compute_pipeline(logical_device, config, descriptor_pool, allocator)?,
-          );
+            Pipeline::init_compute_pipeline(
+              logical_device,
+              config,
+              descriptor_pool,
+              memory_manager,
+            )?,
+          ));
         }
       }
     }
@@ -139,29 +116,78 @@ impl PipelineManager {
     Ok(Self {
       pipelines: vk_pipelines,
       descriptor_pool,
+      logical_device: logical_device.clone(),
+      default_desc_layouts,
+      default_buffers,
     })
   }
 
-  pub fn destroy(&mut self, logical_device: &ash::Device, allocator: &mut vulkan::Allocator) {
+  pub fn destroy(&mut self) {
     unsafe {
-      logical_device.destroy_descriptor_pool(self.descriptor_pool, None);
+      self
+        .logical_device
+        .destroy_descriptor_pool(self.descriptor_pool, None);
     }
+    for layout in &self.default_desc_layouts {
+      unsafe {
+        self
+          .logical_device
+          .destroy_descriptor_set_layout(*layout, None);
+      }
+    }
+
     std::fs::create_dir_all("cache").unwrap();
-    for pipeline in self.pipelines.values_mut() {
-      pipeline.destroy(logical_device, allocator);
+    for (_, pipeline) in &mut self.pipelines {
+      pipeline.destroy(&self.logical_device);
     }
   }
 
   pub fn get_pipeline(&self, name: &str) -> Option<&Pipeline> {
-    self.pipelines.get(name)
+    Some(&self.pipelines.iter().find(|(n, _)| n == name)?.1)
   }
 
-  pub fn update_camera(&mut self, camera: &Camera) {
-    for pipeline in self.pipelines.values_mut() {
-      pipeline.descriptor_buffers[0][0]
-        .fill(&[camera.view_matrix(), camera.projection_matrix()])
-        .unwrap();
-    }
+  pub fn update_descriptor<T: Sized>(
+    &self,
+    memory_manager: &mut MemoryManager,
+    mem: &BufferMemory,
+    data: &[T],
+  ) -> Option<()> {
+    memory_manager.write_to_buffer(mem, data);
+
+    Some(())
+  }
+
+  pub fn create_descriptor_mem(
+    &self,
+    memory_manager: &mut MemoryManager,
+    pipeline_name: &str,
+    descriptor_set: usize,
+    descriptor: usize,
+    size: usize,
+  ) -> Option<BufferMemory> {
+    let pipeline = self
+      .pipelines
+      .iter()
+      .find(|(n, _)| n == pipeline_name)
+      .map(|(_, p)| p)?;
+    let set = pipeline.descriptor_buffers.get(&descriptor_set)?;
+    let desc = set.get(&descriptor)?;
+
+    Some(memory_manager.reserve_buffer_mem(*desc, size)?.0)
+  }
+
+  pub fn pipeline_names(&self) -> Vec<&String> {
+    self.pipelines.iter().map(|(n, _)| n).collect()
+  }
+
+  pub fn update_camera(&mut self, memory_manager: &mut MemoryManager, camera: &Camera) {
+    let regions = [vk::BufferCopy {
+      dst_offset: 0,
+      src_offset: 0,
+      size: 128,
+    }];
+    let data = [camera.view_matrix(), camera.projection_matrix()];
+    memory_manager.write_to_buffer_direct(self.default_buffers[&0][&0], &data, &regions);
   }
 }
 
@@ -172,65 +198,35 @@ pub struct Pipeline {
   pipeline_bind_point: vk::PipelineBindPoint,
   descriptor_sets: Vec<vk::DescriptorSet>,
   descriptor_set_layouts: Vec<vk::DescriptorSetLayout>,
-  descriptor_buffers: Vec<Vec<Buffer>>,
+  descriptor_buffers: HashMap<usize, HashMap<usize, BufferId>>,
   cache: vk::PipelineCache,
 }
 
 impl Pipeline {
-  pub fn default_shader(extend: &vk::Extent2D) -> GraphicsPipelineConfig {
-    GraphicsPipelineConfig::new(
-      "default".to_string(),
-      vk::PrimitiveTopology::TRIANGLE_LIST,
-      (extend.width, extend.height),
-    )
-    .add_shader(ShaderConfig::new(
-      ShaderType::Vertex,
-      vk_shader_macros::include_glsl!("./shaders/shader.vert").to_vec(),
-    ))
-    .add_shader(ShaderConfig::new(
-      ShaderType::Fragment,
-      vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec(),
-    ))
-    .add_input(
-      ShaderInputBindings::new(vk::VertexInputRate::VERTEX)
-        .add_variable(ShaderInputVariable::Vec3)
-        .add_variable(ShaderInputVariable::Vec3),
-    )
-    .add_input(
-      ShaderInputBindings::new(vk::VertexInputRate::INSTANCE)
-        .add_variable(ShaderInputVariable::Mat4)
-        .add_variable(ShaderInputVariable::Mat4)
-        .add_variable(ShaderInputVariable::Vec3)
-        .add_variable(ShaderInputVariable::Float)
-        .add_variable(ShaderInputVariable::Float),
-    )
-    .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
-      DescriptorType::UniformBuffer,
-      1,
-      vk::ShaderStageFlags::VERTEX,
-      128,
-    )))
-    .add_descriptor_set(DescriptorSet::default().add_descriptor(Descriptor::new(
-      DescriptorType::StorageBuffer,
-      1,
-      vk::ShaderStageFlags::FRAGMENT,
-      144,
-    )))
+  pub fn default_shader() -> GraphicsPipelineConfig {
+    GraphicsPipelineConfig::new("default".to_string())
+      .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec())
+      .add_descriptor_set(
+        DescriptorSet::default().add_descriptor(DescriptorType::new_storage(
+          vk::ShaderStageFlags::FRAGMENT,
+          144,
+        )),
+      )
   }
 
   pub fn init_compute_pipeline(
     logical_device: &ash::Device,
     pipeline: &ComputePipelineConfig,
     descriptor_pool: vk::DescriptorPool,
-    allocator: &mut vulkan::Allocator,
+    memory_manager: &mut MemoryManager,
   ) -> Result<Self, Error> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
-    let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&pipeline.shader.code);
+    let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&pipeline.shader);
     let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
 
     let shader_stage_create_info = vk::PipelineShaderStageCreateInfo::default()
-      .stage(pipeline.shader.type_)
+      .stage(vk::ShaderStageFlags::COMPUTE)
       .module(shader_module)
       .name(&main_function_name);
 
@@ -239,7 +235,7 @@ impl Pipeline {
         &pipeline.descriptor_sets,
         descriptor_pool,
         logical_device,
-        allocator,
+        memory_manager,
       )?;
 
     let pipeline_layout_create_info =
@@ -269,28 +265,44 @@ impl Pipeline {
       pipeline_layout,
       pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
       descriptor_sets,
-      descriptor_set_layouts: descriptor_layouts,
+      descriptor_set_layouts: descriptor_layouts.to_vec(),
       descriptor_buffers,
       cache: pipeline_cache,
     })
   }
 
+  #[allow(clippy::too_many_arguments)]
   pub fn init_graphics_pipeline(
     logical_device: &ash::Device,
     render_pass: vk::RenderPass,
     pipeline: &GraphicsPipelineConfig,
     descriptor_pool: vk::DescriptorPool,
-    allocator: &mut vulkan::Allocator,
+    memory_manager: &mut MemoryManager,
+    swapchain_extend: &vk::Extent2D,
+    subpass: u32,
+    default_descs: &[vk::DescriptorSet],
+    default_desc_layouts: &[vk::DescriptorSetLayout],
   ) -> Result<Self, Error> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
     let mut shader_modules = vec![];
-    for shader in &pipeline.shaders {
-      let shader_create_info = vk::ShaderModuleCreateInfo::default().code(&shader.code);
+
+    let shader_create_info = vk::ShaderModuleCreateInfo::default()
+      .code(vk_shader_macros::include_glsl!("./shaders/shader.vert"));
+    let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
+    shader_modules.push((shader_module, vk::ShaderStageFlags::VERTEX));
+
+    if let Some(shader) = &pipeline.geo_shader {
+      let shader_create_info = vk::ShaderModuleCreateInfo::default().code(shader);
       let shader_module =
         unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
-      shader_modules.push((shader_module, shader.type_));
+      shader_modules.push((shader_module, vk::ShaderStageFlags::GEOMETRY));
     }
+
+    let shader = &pipeline.frag_shader;
+    let shader_create_info = vk::ShaderModuleCreateInfo::default().code(shader);
+    let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
+    shader_modules.push((shader_module, vk::ShaderStageFlags::FRAGMENT));
 
     let mut shader_stages = vec![];
     for shader in &shader_modules {
@@ -301,91 +313,85 @@ impl Pipeline {
       shader_stages.push(shader_stage_create_info);
     }
 
+    let vertex_binding_descs = [
+      vk::VertexInputBindingDescription::default()
+        .binding(0)
+        .stride(32)
+        .input_rate(vk::VertexInputRate::VERTEX),
+      vk::VertexInputBindingDescription::default()
+        .binding(1)
+        .stride(148)
+        .input_rate(vk::VertexInputRate::INSTANCE),
+    ];
+
     let mut vertex_attrib_descs = vec![];
-    let mut vertex_binding_descs = vec![];
 
-    for (i, input) in pipeline.input.iter().enumerate() {
-      let mut current_offset = 0;
+    for i in 0..2 {
+      vertex_attrib_descs.push(
+        vk::VertexInputAttributeDescription::default()
+          .binding(0)
+          .location(i)
+          .offset(i * 12)
+          .format(vk::Format::R32G32B32_SFLOAT),
+      );
+    }
 
-      for variable in &input.variables {
-        let mut times_to_add = 1;
-        let mut size = 4;
+    vertex_attrib_descs.push(
+      vk::VertexInputAttributeDescription::default()
+        .binding(0)
+        .location(2)
+        .offset(24)
+        .format(vk::Format::R32G32_SFLOAT),
+    );
 
-        let format = match variable {
-          ShaderInputVariable::Float => vk::Format::R32_SFLOAT,
-          ShaderInputVariable::Vec2 => {
-            size = 8;
-            vk::Format::R32G32_SFLOAT
-          }
-          ShaderInputVariable::Vec3 => {
-            size = 12;
-            vk::Format::R32G32B32_SFLOAT
-          }
-          ShaderInputVariable::Vec4 => {
-            size = 16;
-            vk::Format::R32G32B32A32_SFLOAT
-          }
-          ShaderInputVariable::Mat2 => {
-            size = 8;
-            times_to_add = 2;
-            vk::Format::R32G32_SFLOAT
-          }
-          ShaderInputVariable::Mat3 => {
-            size = 12;
-            times_to_add = 3;
-            vk::Format::R32G32B32_SFLOAT
-          }
-          ShaderInputVariable::Mat4 => {
-            size = 16;
-            times_to_add = 4;
-            vk::Format::R32G32B32A32_SFLOAT
-          }
-          ShaderInputVariable::Int => vk::Format::R32_SINT,
-          ShaderInputVariable::UInt => vk::Format::R32_UINT,
-          ShaderInputVariable::Double => {
-            size = 8;
-            vk::Format::R64_SFLOAT
-          }
-        };
+    for i in 0..8 {
+      vertex_attrib_descs.push(
+        vk::VertexInputAttributeDescription::default()
+          .binding(1)
+          .location(i + 3)
+          .offset(i * 16)
+          .format(vk::Format::R32G32B32A32_SFLOAT),
+      );
+    }
 
-        for _ in 0..times_to_add {
-          vertex_attrib_descs.push(
-            vk::VertexInputAttributeDescription::default()
-              .binding(i as u32)
-              .location(vertex_attrib_descs.len() as u32)
-              .offset(current_offset)
-              .format(format),
-          );
-          current_offset += size;
-        }
-      }
+    vertex_attrib_descs.push(
+      vk::VertexInputAttributeDescription::default()
+        .binding(1)
+        .location(11)
+        .offset(128)
+        .format(vk::Format::R32G32B32_SFLOAT),
+    );
 
-      vertex_binding_descs.push(
-        vk::VertexInputBindingDescription::default()
-          .binding(i as u32)
-          .stride(current_offset)
-          .input_rate(input.input_rate),
+    for i in 0..2 {
+      vertex_attrib_descs.push(
+        vk::VertexInputAttributeDescription::default()
+          .binding(1)
+          .location(12 + i)
+          .offset(140 + i * 4)
+          .format(vk::Format::R32_SFLOAT),
       );
     }
 
     let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
       .vertex_binding_descriptions(&vertex_binding_descs)
       .vertex_attribute_descriptions(&vertex_attrib_descs);
-    let input_assembly_info =
-      vk::PipelineInputAssemblyStateCreateInfo::default().topology(pipeline.topology);
+    let input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo::default()
+      .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
+
+    let viewport_size = (swapchain_extend.width, swapchain_extend.height);
 
     let viewport = [vk::Viewport::default()
       .x(0.0)
       .y(0.0)
-      .width(pipeline.viewport_size.0 as f32)
-      .height(pipeline.viewport_size.1 as f32)
+      .width(viewport_size.0 as f32)
+      .height(viewport_size.1 as f32)
       .min_depth(0.0)
       .max_depth(1.0)];
     let scissor = [vk::Rect2D::default()
       .offset(vk::Offset2D::default())
       .extent(vk::Extent2D {
-        width: pipeline.viewport_size.0,
-        height: pipeline.viewport_size.1,
+        width: viewport_size.0,
+        height: viewport_size.1,
       })];
 
     let viewport_info = vk::PipelineViewportStateCreateInfo::default()
@@ -423,11 +429,22 @@ impl Pipeline {
         &pipeline.descriptor_sets,
         descriptor_pool,
         logical_device,
-        allocator,
+        memory_manager,
       )?;
 
+    let descriptor_sets = default_descs
+      .iter()
+      .copied()
+      .chain(descriptor_sets)
+      .collect();
+    let descriptor_layouts_used: Vec<vk::DescriptorSetLayout> = default_desc_layouts
+      .iter()
+      .copied()
+      .chain(descriptor_layouts.iter().copied())
+      .collect();
+
     let pipeline_layout_create_info =
-      vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
+      vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts_used);
     let pipeline_layout =
       unsafe { logical_device.create_pipeline_layout(&pipeline_layout_create_info, None) }?;
 
@@ -447,7 +464,7 @@ impl Pipeline {
       .color_blend_state(&color_blend_info)
       .layout(pipeline_layout)
       .render_pass(render_pass)
-      .subpass(0);
+      .subpass(subpass);
 
     let pipeline_cache = Self::create_shader_cache(logical_device, &pipeline.name)?;
 
@@ -469,7 +486,7 @@ impl Pipeline {
       pipeline_layout,
       pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
       descriptor_sets,
-      descriptor_set_layouts: descriptor_layouts,
+      descriptor_set_layouts: descriptor_layouts.to_vec(),
       descriptor_buffers,
       cache: pipeline_cache,
     })
@@ -480,12 +497,12 @@ impl Pipeline {
     descriptor_sets_config: &Vec<DescriptorSet>,
     descriptor_pool: vk::DescriptorPool,
     logical_device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
+    memory_manager: &mut MemoryManager,
   ) -> Result<
     (
       Vec<vk::DescriptorSetLayout>,
       Vec<vk::DescriptorSet>,
-      Vec<Vec<Buffer>>,
+      HashMap<usize, HashMap<usize, BufferId>>,
     ),
     Error,
   > {
@@ -495,13 +512,26 @@ impl Pipeline {
       let mut descriptor_set_layout_binding_descs = vec![];
 
       for (i, descriptor) in descriptor_set.descriptors.iter().enumerate() {
-        descriptor_set_layout_binding_descs.push(
-          vk::DescriptorSetLayoutBinding::default()
-            .binding(i as u32)
-            .descriptor_type(descriptor.type_)
-            .descriptor_count(descriptor.descriptor_count)
-            .stage_flags(descriptor.stage),
-        );
+        match descriptor {
+          DescriptorType::StorageBuffer(desc) | DescriptorType::UniformBuffer(desc) => {
+            descriptor_set_layout_binding_descs.push(
+              vk::DescriptorSetLayoutBinding::default()
+                .binding(i as u32)
+                .descriptor_type(desc.type_)
+                .descriptor_count(1)
+                .stage_flags(desc.stage),
+            );
+          }
+          DescriptorType::Image(desc) => {
+            descriptor_set_layout_binding_descs.push(
+              vk::DescriptorSetLayoutBinding::default()
+                .binding(i as u32)
+                .descriptor_type(desc.type_)
+                .descriptor_count(1)
+                .stage_flags(desc.stage),
+            );
+          }
+        }
       }
 
       let descriptor_set_layout_create_info =
@@ -518,41 +548,60 @@ impl Pipeline {
     let descriptor_sets =
       unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info)? };
 
-    let mut descriptor_buffers = vec![];
+    let mut descriptor_buffers = HashMap::new();
 
     for (j, descriptor_set) in descriptor_sets_config.iter().enumerate() {
-      let mut buffers = vec![];
-      let mut offset = 0;
+      let mut buffers = HashMap::new();
 
       for (i, descriptor) in descriptor_set.descriptors.iter().enumerate() {
-        let buffer = Buffer::new(
-          allocator,
-          logical_device,
-          descriptor.size,
-          descriptor.buffer_usage,
-          gpu_allocator::MemoryLocation::CpuToGpu,
-        )?;
+        match descriptor {
+          DescriptorType::StorageBuffer(desc) | DescriptorType::UniformBuffer(desc) => {
+            let buffer = memory_manager.create_advanced_buffer(
+              desc.buffer_usage,
+              BufferBlockSize::Exact(desc.size as usize),
+            )?;
 
-        let buffer_info_descriptor = [vk::DescriptorBufferInfo::default()
-          .buffer(buffer.buffer())
-          .offset(offset)
-          .range(descriptor.size)];
-        let write_desc_set = vk::WriteDescriptorSet::default()
-          .dst_set(descriptor_sets[j])
-          .dst_binding(i as u32)
-          .descriptor_type(descriptor.type_)
-          .buffer_info(&buffer_info_descriptor);
+            buffers.insert(i, buffer);
 
-        unsafe {
-          logical_device.update_descriptor_sets(&[write_desc_set], &[]);
+            let buffer_info_descriptor = [vk::DescriptorBufferInfo::default()
+              .buffer(memory_manager.get_vk_buffer(buffer).unwrap())
+              .offset(0)
+              .range(desc.size)];
+
+            let write_desc_set = vk::WriteDescriptorSet::default()
+              .dst_set(descriptor_sets[j])
+              .dst_binding(i as u32)
+              .descriptor_type(desc.type_)
+              .buffer_info(&buffer_info_descriptor);
+
+            unsafe {
+              logical_device.update_descriptor_sets(&[write_desc_set], &[]);
+            }
+          }
+          DescriptorType::Image(desc) => {
+            let texture = memory_manager.create_texture(&desc.path)?;
+            let view = memory_manager.get_vk_image_view(texture).unwrap();
+            let sampler = memory_manager.get_vk_sampler(texture).unwrap();
+
+            let image_info = [vk::DescriptorImageInfo::default()
+              .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+              .image_view(view)
+              .sampler(sampler)];
+
+            let write_desc_set = vk::WriteDescriptorSet::default()
+              .dst_binding(i as u32)
+              .dst_set(descriptor_sets[j])
+              .descriptor_type(desc.type_)
+              .image_info(&image_info);
+
+            unsafe {
+              logical_device.update_descriptor_sets(&[write_desc_set], &[]);
+            }
+          }
         }
-
-        buffers.push(buffer);
-
-        offset += descriptor.size;
       }
 
-      descriptor_buffers.push(buffers);
+      descriptor_buffers.insert(j, buffers);
     }
 
     Ok((descriptor_layouts, descriptor_sets, descriptor_buffers))
@@ -570,13 +619,8 @@ impl Pipeline {
     unsafe { logical_device.create_pipeline_cache(&pipeline_cache_create_info, None) }
   }
 
-  pub fn destroy(&mut self, logical_device: &ash::Device, allocator: &mut vulkan::Allocator) {
+  pub fn destroy(&mut self, logical_device: &ash::Device) {
     unsafe {
-      for buffers in &mut self.descriptor_buffers {
-        for buffer in std::mem::take(buffers) {
-          buffer.cleanup(logical_device, allocator).unwrap();
-        }
-      }
       for layout in &self.descriptor_set_layouts {
         logical_device.destroy_descriptor_set_layout(*layout, None);
       }
@@ -606,14 +650,20 @@ impl Pipeline {
   }
 }
 
-fn add_descriptor(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, desc: &Descriptor) {
-  if let Some(pool) = pool_sizes.iter_mut().find(|s| s.ty == desc.type_) {
-    pool.descriptor_count += 1;
-  } else {
-    pool_sizes.push(
-      vk::DescriptorPoolSize::default()
-        .ty(desc.type_)
-        .descriptor_count(1),
-    );
+fn add_descriptor(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, desc: &DescriptorType) {
+  match desc {
+    DescriptorType::StorageBuffer(desc) | DescriptorType::UniformBuffer(desc) => {
+      internal_add(pool_sizes, desc.type_);
+    }
+    DescriptorType::Image(desc) => {
+      internal_add(pool_sizes, desc.type_);
+    }
+  }
+  fn internal_add(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, ty: vk::DescriptorType) {
+    if let Some(pool) = pool_sizes.iter_mut().find(|s| s.ty == ty) {
+      pool.descriptor_count += 1;
+    } else {
+      pool_sizes.push(vk::DescriptorPoolSize::default().ty(ty).descriptor_count(1));
+    }
   }
 }
