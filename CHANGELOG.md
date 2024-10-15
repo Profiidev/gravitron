@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2024-10-15
+
+### 🚀 Features
+
+- First working meshrenderer
+- Added delta time
+- Added systemstages
+- Switched to global gpu managment
+- Added Descriptor updating
+- Added BufferBlockSize for easier control
+- Indirect indexed drawing
+- Added buffermemory resize to memorymanager
+- Added simple buffer for smaller memory amount
+- Distinct types for buffers
+- Image sampler in descriptor
+- Added uvs to models
+
+### 🐛 Bug Fixes
+
+- Corrected roation of transfrom
+- Removed remaining code errors for buffer rework
+- Smarter instancedata sizing and worng instancedata sizing
+- Loaded correct index data
+- Memory manager not destroying fences
+- Incorrect shader mem creation
+- Insufficent memory allocation for large amount of new instances
+- Wrong copy of modified instance data
+- Wrong instance index in draw command
+- Wrong drawcmd copy
+- Wrong isntance id after mem resize
+- Wrong access using unsafe world cell
+
+### 🚜 Refactor
+
+- Removed old render code
+- Only compile trace logs if using debug feature
+- Moved render pass to new file
+- Moved managed buffer to seperate file
+- Made vertex shader hardcoded
+- Hardcoded default descriptor
+- Reduced camera data to one buffer
+- Unified advanced and simple buffer types into one
+- Unified buffer and image memory types
+
+
 ## [0.2.0] - 2024-10-02
 
 ### 🚀 Features
