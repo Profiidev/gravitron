@@ -1,24 +1,34 @@
 use std::collections::HashMap;
 
-use crate::Id;
+use crate::{
+  vulkan::memory::{
+    manager::MemoryManager,
+    types::{BufferBlockSize, BufferId},
+    BufferMemory,
+  },
+  Id,
+};
 use anyhow::Error;
 use ash::vk;
-use gpu_allocator::vulkan;
 
-use crate::vulkan::shader::buffer::Buffer;
+pub type ModelId = Id;
 
 pub struct ModelManager {
-  models: Vec<Model>,
+  models: HashMap<ModelId, Model>,
+  last_id: ModelId,
+  vertex_buffer: BufferId,
+  index_buffer: BufferId,
+  instance_buffer: BufferId,
 }
 
 pub const CUBE_MODEL: Id = 0;
 
-pub struct Model {
-  //vertex_data: Vec<VertexData>,
-  index_data: Vec<u32>,
-  vertex_buffer: Option<Buffer>,
-  index_buffer: Option<Buffer>,
-  instance_buffer: Option<Buffer>,
+struct Model {
+  vertices: BufferMemory,
+  indices: BufferMemory,
+  index_len: u32,
+  instance_alloc_size: usize,
+  instances: HashMap<String, (BufferMemory, Vec<InstanceData>)>,
 }
 
 #[derive(Debug)]
@@ -26,9 +36,10 @@ pub struct Model {
 pub struct VertexData {
   position: glam::Vec3,
   normal: glam::Vec3,
+  uv: glam::Vec2,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 #[repr(C, packed)]
 pub struct InstanceData {
   model_matrix: glam::Mat4,
@@ -38,226 +49,321 @@ pub struct InstanceData {
   roughness: f32,
 }
 
-impl ModelManager {
-  pub fn new(device: &ash::Device, allocator: &mut vulkan::Allocator) -> Self {
-    let models = vec![cube(device, allocator)];
+pub enum InstanceCount {
+  High,
+  Medium,
+  Low,
+  Exact(usize),
+}
 
-    ModelManager { models }
+impl ModelManager {
+  pub fn new(memory_manager: &mut MemoryManager) -> Result<Self, Error> {
+    let vertex_buffer = memory_manager
+      .create_advanced_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, BufferBlockSize::Large)?;
+    let index_buffer = memory_manager
+      .create_advanced_buffer(vk::BufferUsageFlags::INDEX_BUFFER, BufferBlockSize::Large)?;
+    let instance_buffer = memory_manager
+      .create_advanced_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, BufferBlockSize::Large)?;
+
+    let mut manager = ModelManager {
+      models: HashMap::new(),
+      last_id: 0,
+      vertex_buffer,
+      index_buffer,
+      instance_buffer,
+    };
+
+    let (vertex_data, index_data) = cube();
+    manager
+      .add_model(
+        memory_manager,
+        vertex_data,
+        index_data,
+        InstanceCount::Medium,
+      )
+      .unwrap();
+
+    Ok(manager)
   }
 
   pub fn add_model(
     &mut self,
+    memory_manager: &mut MemoryManager,
     vertex_data: Vec<VertexData>,
     index_data: Vec<u32>,
-    device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
-  ) -> Result<Id, Error> {
-    self
-      .models
-      .push(Model::new(vertex_data, index_data, device, allocator)?);
-    Ok(self.models.len() as Id - 1)
-  }
+    instance_count: InstanceCount,
+  ) -> Option<(ModelId, bool)> {
+    let vertices_slice = vertex_data.as_slice();
+    let (vertices, vert_resized) =
+      memory_manager.add_to_buffer(self.vertex_buffer, vertices_slice)?;
+    let index_slice = index_data.as_slice();
+    let (indices, index_resized) = memory_manager.add_to_buffer(self.index_buffer, index_slice)?;
 
-  pub fn cleanup(&mut self, device: &ash::Device, allocator: &mut vulkan::Allocator) {
-    for model in &mut self.models {
-      model.cleanup(device, allocator).unwrap();
-    }
-  }
+    let id = self.last_id;
+    self.models.insert(
+      id,
+      Model::new(vertices, indices, index_data.len() as u32, instance_count),
+    );
+    self.last_id += 1;
 
-  pub fn update_instance_buffer(
-    &mut self,
-    instances: &HashMap<Id, Vec<InstanceData>>,
-    device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
-  ) -> Result<(), Error> {
-    for (i, model) in self.models.iter_mut().enumerate() {
-      if let Some(instance) = instances.get(&(i as Id)) {
-        model.update_instance_buffer(instance, device, allocator)?;
-      }
-    }
-    Ok(())
+    Some((id, vert_resized || index_resized))
   }
 
   pub fn record_command_buffer(
     &self,
-    instances: &HashMap<Id, Vec<InstanceData>>,
+    memory_manager: &MemoryManager,
     command_buffer: vk::CommandBuffer,
     device: &ash::Device,
   ) {
-    for (i, model) in self.models.iter().enumerate() {
-      if let Some(instance) = instances.get(&(i as Id)) {
-        model.record_command_buffer(instance.len() as u32, command_buffer, device);
+    let vertex_buffer = memory_manager.get_vk_buffer(self.vertex_buffer).unwrap();
+    let index_buffer = memory_manager.get_vk_buffer(self.index_buffer).unwrap();
+    let instance_buffer = memory_manager.get_vk_buffer(self.instance_buffer).unwrap();
+    unsafe {
+      device.cmd_bind_vertex_buffers(command_buffer, 0, &[vertex_buffer], &[0]);
+      device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+      device.cmd_bind_vertex_buffers(command_buffer, 1, &[instance_buffer], &[0]);
+    }
+  }
+
+  pub fn update_draw_buffer(
+    &mut self,
+    cmd_buffer: BufferId,
+    commands: &mut HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
+    memory_manager: &mut MemoryManager,
+    instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
+  ) -> (
+    HashMap<String, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>>,
+    bool,
+  ) {
+    let instance_size = std::mem::size_of::<InstanceData>();
+    let mut copy_offset = 0;
+    let mut instance_copies_info = Vec::new();
+    let mut instance_copies = Vec::new();
+
+    let cmd_size = size_of::<vk::DrawIndexedIndirectCommand>() as u64;
+    let mut cmd_copies_info = Vec::new();
+    let mut cmd_copies = Vec::new();
+    let mut cmd_new = HashMap::new();
+
+    let mut buffer_resized = false;
+
+    for (model_id, shaders) in commands.iter_mut() {
+      if !instances.contains_key(model_id) {
+        for (cmd, offset) in shaders.values_mut() {
+          if cmd.instance_count > 0 {
+            cmd.instance_count = 0;
+            cmd_copies_info.push(vk::BufferCopy {
+              size: cmd_size,
+              src_offset: cmd_copies.len() as u64 * cmd_size,
+              dst_offset: *offset,
+            });
+            cmd_copies.push(*cmd);
+          }
+        }
       }
     }
+
+    for (model_id, shaders) in instances {
+      let Some(model) = self.models.get_mut(&model_id) else {
+        continue;
+      };
+      let model_commands = commands.entry(model_id).or_default();
+
+      for (shader, (cmd, offset)) in model_commands.iter_mut() {
+        if !shaders.contains_key(shader) && cmd.instance_count > 0 {
+          cmd.instance_count = 0;
+          cmd_copies_info.push(vk::BufferCopy {
+            size: cmd_size,
+            src_offset: cmd_copies.len() as u64 * cmd_size,
+            dst_offset: *offset,
+          });
+          cmd_copies.push(*cmd);
+        }
+      }
+
+      for (shader, instances) in shaders {
+        if let Some((mem, model_instances)) = model.instances.get_mut(&shader) {
+          let (command, offset) = model_commands.get_mut(&shader).unwrap();
+
+          if model_instances.len() != instances.len() {
+            command.instance_count = instances.len() as u32;
+            cmd_copies_info.push(vk::BufferCopy {
+              size: cmd_size,
+              src_offset: cmd_copies.len() as u64 * cmd_size,
+              dst_offset: *offset,
+            });
+            cmd_copies.push(*command);
+
+            let instances_size = instance_size * instances.len();
+            if instances_size > mem.size() {
+              let new_size = (instances_size as f32 / model.instance_alloc_size as f32).ceil()
+                as usize
+                * model.instance_alloc_size;
+
+              buffer_resized =
+                buffer_resized || memory_manager.resize_buffer_mem(mem, new_size).unwrap();
+              command.first_instance = (mem.offset() / instance_size) as u32;
+            }
+          }
+
+          let mut to_copy = Vec::new();
+          for (i, instance) in instances.iter().enumerate() {
+            if let Some(other_instance) = model_instances.get_mut(i) {
+              if other_instance == instance && !to_copy.is_empty() {
+                let copy_size = (instance_size * to_copy.len()) as u64;
+
+                instance_copies_info.push(vk::BufferCopy {
+                  dst_offset: (mem.offset() + instance_size * (i - to_copy.len())) as u64,
+                  src_offset: copy_offset,
+                  size: copy_size,
+                });
+                instance_copies.extend(to_copy);
+
+                copy_offset += copy_size;
+                to_copy = Vec::new();
+              } else if other_instance != instance {
+                to_copy.push(instance.clone());
+                *other_instance = instance.clone();
+              }
+            } else {
+              to_copy.push(instance.clone());
+              model_instances.push(instance.clone());
+            };
+          }
+
+          if !to_copy.is_empty() {
+            let copy_size = (std::mem::size_of::<InstanceData>() * to_copy.len()) as u64;
+
+            instance_copies_info.push(vk::BufferCopy {
+              dst_offset: (mem.offset()
+                + std::mem::size_of::<InstanceData>() * (instances.len() - to_copy.len()))
+                as u64,
+              src_offset: copy_offset,
+              size: copy_size,
+            });
+            instance_copies.extend(to_copy);
+
+            copy_offset += copy_size;
+          }
+        } else {
+          let instances_size = instance_size * instances.len();
+          let required_size = (instances_size as f32 / model.instance_alloc_size as f32).ceil()
+            as usize
+            * model.instance_alloc_size;
+          let Some((mem, buffer_resize_local)) =
+            memory_manager.reserve_buffer_mem(self.instance_buffer, required_size)
+          else {
+            continue;
+          };
+
+          buffer_resized = buffer_resized || buffer_resize_local;
+
+          let instances_slice = instances.as_slice();
+          memory_manager.write_to_buffer(&mem, instances_slice);
+
+          let cmd = vk::DrawIndexedIndirectCommand {
+            index_count: model.index_len,
+            instance_count: instances.len() as u32,
+            first_index: model.indices.offset() as u32,
+            vertex_offset: model.vertices.offset() as i32,
+            first_instance: (mem.offset() / instance_size) as u32,
+          };
+
+          let shader_cmd: &mut Vec<(u64, vk::DrawIndexedIndirectCommand)> =
+            cmd_new.entry(shader.clone()).or_default();
+          shader_cmd.push((model_id, cmd));
+
+          model.instances.insert(shader, (mem, instances));
+        }
+      }
+    }
+
+    if !instance_copies.is_empty() {
+      memory_manager.write_to_buffer_direct(
+        self.instance_buffer,
+        &instance_copies,
+        &instance_copies_info,
+      );
+    }
+
+    if !cmd_copies.is_empty() {
+      memory_manager.write_to_buffer_direct(cmd_buffer, &cmd_copies, &cmd_copies_info);
+    }
+
+    (cmd_new, buffer_resized)
   }
 }
 
 impl Model {
   fn new(
-    vertex_data: Vec<VertexData>,
-    index_data: Vec<u32>,
-    device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
-  ) -> Result<Self, Error> {
-    let vertex_data_slice = vertex_data.as_slice();
-    let mut vertex_buffer = Buffer::new(
-      allocator,
-      device,
-      std::mem::size_of_val(vertex_data_slice) as u64,
-      vk::BufferUsageFlags::VERTEX_BUFFER,
-      gpu_allocator::MemoryLocation::CpuToGpu,
-    )?;
-    vertex_buffer.fill(vertex_data_slice)?;
-
-    let index_data_slice = index_data.as_slice();
-    let mut index_buffer = Buffer::new(
-      allocator,
-      device,
-      std::mem::size_of_val(index_data_slice) as u64,
-      vk::BufferUsageFlags::INDEX_BUFFER,
-      gpu_allocator::MemoryLocation::CpuToGpu,
-    )?;
-    index_buffer.fill(index_data_slice)?;
-
-    let instance_buffer = Buffer::new(
-      allocator,
-      device,
-      std::mem::size_of::<InstanceData>() as u64 * 2,
-      vk::BufferUsageFlags::VERTEX_BUFFER,
-      gpu_allocator::MemoryLocation::CpuToGpu,
-    )?;
-
-    Ok(Self {
-      //vertex_data,
-      index_data,
-      vertex_buffer: Some(vertex_buffer),
-      index_buffer: Some(index_buffer),
-      instance_buffer: Some(instance_buffer),
-    })
-  }
-
-  fn cleanup(
-    &mut self,
-    device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
-  ) -> Result<(), Error> {
-    if let Some(buffer) = self.vertex_buffer.take() {
-      unsafe {
-        buffer.cleanup(device, allocator)?;
-      }
-    }
-    if let Some(buffer) = self.index_buffer.take() {
-      unsafe {
-        buffer.cleanup(device, allocator)?;
-      }
-    }
-    if let Some(buffer) = self.instance_buffer.take() {
-      unsafe {
-        buffer.cleanup(device, allocator)?;
-      }
-    }
-    Ok(())
-  }
-
-  fn update_instance_buffer(
-    &mut self,
-    instances: &[InstanceData],
-    device: &ash::Device,
-    allocator: &mut vulkan::Allocator,
-  ) -> Result<(), Error> {
-    self.instance_buffer.as_mut().unwrap().resize(
-      std::mem::size_of_val(instances) as u64,
-      device,
-      allocator,
-    )?;
-    Ok(self.instance_buffer.as_mut().unwrap().fill(instances)?)
-  }
-
-  pub fn record_command_buffer(
-    &self,
-    instance_count: u32,
-    command_buffer: vk::CommandBuffer,
-    device: &ash::Device,
-  ) {
-    unsafe {
-      device.cmd_bind_vertex_buffers(
-        command_buffer,
-        0,
-        &[self.vertex_buffer.as_ref().unwrap().buffer()],
-        &[0],
-      );
-      device.cmd_bind_index_buffer(
-        command_buffer,
-        self.index_buffer.as_ref().unwrap().buffer(),
-        0,
-        vk::IndexType::UINT32,
-      );
-      device.cmd_bind_vertex_buffers(
-        command_buffer,
-        1,
-        &[self.instance_buffer.as_ref().unwrap().buffer()],
-        &[0],
-      );
-      device.cmd_draw_indexed(
-        command_buffer,
-        self.index_data.len() as u32,
-        instance_count,
-        0,
-        0,
-        0,
-      );
+    vertices: BufferMemory,
+    indices: BufferMemory,
+    index_len: u32,
+    instance_count: InstanceCount,
+  ) -> Self {
+    Self {
+      vertices,
+      index_len,
+      indices,
+      instance_alloc_size: usize::from(instance_count) * std::mem::size_of::<InstanceData>(),
+      instances: HashMap::new(),
     }
   }
 }
 
-fn cube(device: &ash::Device, allocator: &mut vulkan::Allocator) -> Model {
-  let lbf = VertexData {
+fn cube() -> (Vec<VertexData>, Vec<u32>) {
+  let btl = VertexData {
     position: glam::Vec3::new(-1.0, 1.0, -1.0),
     normal: glam::Vec3::new(0.0, 0.0, -1.0),
+    uv: glam::Vec2::new(1.0, 0.0),
   };
-  let lbb = VertexData {
+  let btr = VertexData {
     position: glam::Vec3::new(-1.0, 1.0, 1.0),
     normal: glam::Vec3::new(0.0, 0.0, 1.0),
+    uv: glam::Vec2::new(0.0, 0.0),
   };
-  let ltf = VertexData {
+  let bbl = VertexData {
     position: glam::Vec3::new(-1.0, -1.0, -1.0),
     normal: glam::Vec3::new(0.0, 0.0, -1.0),
+    uv: glam::Vec2::new(1.0, 1.0),
   };
-  let ltb = VertexData {
+  let bbr = VertexData {
     position: glam::Vec3::new(-1.0, -1.0, 1.0),
     normal: glam::Vec3::new(0.0, 0.0, 1.0),
+    uv: glam::Vec2::new(0.0, 1.0),
   };
-  let rbf = VertexData {
+  let ftl = VertexData {
     position: glam::Vec3::new(1.0, 1.0, -1.0),
     normal: glam::Vec3::new(0.0, 0.0, -1.0),
+    uv: glam::Vec2::new(0.0, 0.0),
   };
-  let rbb = VertexData {
+  let ftr = VertexData {
     position: glam::Vec3::new(1.0, 1.0, 1.0),
     normal: glam::Vec3::new(0.0, 0.0, 1.0),
+    uv: glam::Vec2::new(1.0, 0.0),
   };
-  let rtf = VertexData {
+  let fbl = VertexData {
     position: glam::Vec3::new(1.0, -1.0, -1.0),
     normal: glam::Vec3::new(0.0, 0.0, -1.0),
+    uv: glam::Vec2::new(0.0, 1.0),
   };
-  let rtb = VertexData {
+  let fbr = VertexData {
     position: glam::Vec3::new(1.0, -1.0, 1.0),
     normal: glam::Vec3::new(0.0, 0.0, 1.0),
+    uv: glam::Vec2::new(1.0, 1.0),
   };
 
-  Model::new(
-    vec![lbf, lbb, ltf, ltb, rbf, rbb, rtf, rtb],
+  (
+    vec![btl, btr, bbl, bbr, ftl, ftr, fbl, fbr],
     vec![
-      0, 1, 5, 0, 5, 4, //bottom
-      2, 7, 3, 2, 6, 7, //top
-      0, 6, 2, 0, 4, 6, //front
-      1, 3, 7, 1, 7, 5, //back
-      0, 2, 1, 1, 2, 3, //left
-      4, 5, 6, 5, 7, 6, //right
+      2, 3, 7, 2, 7, 6, //bottom
+      0, 5, 1, 0, 4, 5, //top
+      2, 4, 0, 2, 6, 4, //front
+      3, 1, 5, 3, 5, 7, //back
+      2, 0, 3, 3, 0, 1, //left
+      6, 7, 4, 7, 5, 4, //right
     ],
-    device,
-    allocator,
   )
-  .unwrap()
 }
 
 impl InstanceData {
@@ -274,6 +380,17 @@ impl InstanceData {
       color,
       metallic,
       roughness,
+    }
+  }
+}
+
+impl From<InstanceCount> for usize {
+  fn from(value: InstanceCount) -> Self {
+    match value {
+      InstanceCount::High => 1000,
+      InstanceCount::Medium => 100,
+      InstanceCount::Low => 10,
+      InstanceCount::Exact(count) => count,
     }
   }
 }

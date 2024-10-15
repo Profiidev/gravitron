@@ -2,11 +2,12 @@
 
 layout (location=0) in vec3 position;
 layout (location=1) in vec3 normal;
-layout (location=2) in mat4 model_matrix;
-layout (location=6) in mat4 inverse_model_matrix;
-layout (location=10) in vec3 colour;
-layout (location=11) in float metallic;
-layout (location=12) in float roughness;
+layout (location=2) in vec2 uv;
+layout (location=3) in mat4 model_matrix;
+layout (location=7) in mat4 inverse_model_matrix;
+layout (location=11) in vec3 colour;
+layout (location=12) in float metallic;
+layout (location=13) in float roughness;
 
 layout(set=0, binding=0) uniform UniformBufferObject {
   mat4 view_matrix;
@@ -15,16 +16,18 @@ layout(set=0, binding=0) uniform UniformBufferObject {
 
 layout (location=0) out vec3 fragColor;
 layout (location=1) out vec3 fragNormal;
-layout (location=2) out vec4 fragWorldPos;
-layout (location=3) out vec3 cameraPos;
-layout (location=4) out float fragMetallic;
-layout (location=5) out float fragRoughness;
+layout (location=2) out vec2 fragUv;
+layout (location=3) out vec4 fragWorldPos;
+layout (location=4) out vec3 cameraPos;
+layout (location=5) out float fragMetallic;
+layout (location=6) out float fragRoughness;
 
 void main() {
   fragWorldPos = model_matrix * vec4(position,1.0);
-  gl_Position = ubo.projection_matrix * ubo.view_matrix * model_matrix * vec4(position,1.0);
+  gl_Position = ubo.projection_matrix * ubo.view_matrix * fragWorldPos;
   fragColor = colour;
   fragNormal = transpose(mat3(inverse_model_matrix)) * normal;
+  fragUv = uv;
   fragMetallic = metallic;
   fragRoughness = roughness;
 

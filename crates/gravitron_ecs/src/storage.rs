@@ -5,6 +5,7 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+#[cfg(feature = "debug")]
 use log::trace;
 
 use crate::{components::Component, ArchetypeId, ComponentId, EntityId};
@@ -85,6 +86,7 @@ impl<'a> Storage<'a> {
   }
 
   pub fn create_entity_with_id(&mut self, mut comps: Vec<Box<dyn Component>>, id: EntityId) {
+    #[cfg(feature = "debug")]
     trace!("Creating Entity {}", id);
 
     comps.sort_unstable_by_key(|c| c.id());
@@ -110,6 +112,7 @@ impl<'a> Storage<'a> {
   }
 
   pub fn reserve_entity_id(&mut self) -> EntityId {
+    #[cfg(feature = "debug")]
     trace!("Reserving EntityId");
     //lock
     let _lock = self.reserve_lock.lock().unwrap();
@@ -124,6 +127,7 @@ impl<'a> Storage<'a> {
   }
 
   pub fn remove_entity(&mut self, entity: EntityId) {
+    #[cfg(feature = "debug")]
     trace!("Removing Entity {}", entity);
     let record = self.entity_index.remove(&entity).unwrap();
     let archetype = unsafe { record.archetype.archetype_mut() };
@@ -131,15 +135,16 @@ impl<'a> Storage<'a> {
     archetype.entity_ids.swap_remove(record.row);
     archetype.rows.swap_remove(record.row);
 
-    if let Some(swaped) = archetype.entity_ids.get(record.row) {
-      let swaped_record = self.entity_index.get_mut(swaped).unwrap();
-      swaped_record.row = record.row;
+    if let Some(swapped) = archetype.entity_ids.get(record.row) {
+      let swapped_record = self.entity_index.get_mut(swapped).unwrap();
+      swapped_record.row = record.row;
     }
 
     self.entity_ids_free.push(entity);
   }
 
   pub fn create_archetype(&mut self, type_: Type) {
+    #[cfg(feature = "debug")]
     trace!("Creating Archetype {:?}", type_);
 
     let archetype = Archetype {
@@ -180,6 +185,7 @@ impl<'a> Storage<'a> {
   }
 
   pub fn add_comp(&mut self, entity: EntityId, comp: Box<dyn Component>) {
+    #[cfg(feature = "debug")]
     trace!("Adding Component {:?} to Entity {}", comp.id(), entity);
 
     let record = self.entity_index.get_mut(&entity).unwrap();
@@ -227,13 +233,14 @@ impl<'a> Storage<'a> {
     record.row = to.rows.len() - 1;
     record.archetype = UnsafeArchetypeCell::new(to);
 
-    if let Some(swaped) = from.entity_ids.get(old_row) {
-      let swaped_record = self.entity_index.get_mut(swaped).unwrap();
-      swaped_record.row = old_row;
+    if let Some(swapped) = from.entity_ids.get(old_row) {
+      let swapped_record = self.entity_index.get_mut(swapped).unwrap();
+      swapped_record.row = old_row;
     }
   }
 
   pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
+    #[cfg(feature = "debug")]
     trace!("Removing Component {:?} from Entity {}", comp, entity);
 
     let record = self.entity_index.get_mut(&entity).unwrap();
@@ -281,9 +288,9 @@ impl<'a> Storage<'a> {
     record.row = to.rows.len() - 1;
     record.archetype = UnsafeArchetypeCell::new(to);
 
-    if let Some(swaped) = from.entity_ids.get(old_row) {
-      let swaped_record = self.entity_index.get_mut(swaped).unwrap();
-      swaped_record.row = old_row;
+    if let Some(swapped) = from.entity_ids.get(old_row) {
+      let swapped_record = self.entity_index.get_mut(swapped).unwrap();
+      swapped_record.row = old_row;
     }
   }
 
