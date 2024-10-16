@@ -126,8 +126,8 @@ impl DescriptorType {
     BufferDescriptor::new_uniform(stage, size)
   }
 
-  pub fn new_image(stage: vk::ShaderStageFlags, path: &str) -> Self {
-    ImageDescriptor::new_image(stage, path)
+  pub fn new_image(stage: vk::ShaderStageFlags, paths: Vec<&str>) -> Self {
+    ImageDescriptor::new_image(stage, paths)
   }
 }
 
@@ -170,15 +170,15 @@ impl BufferDescriptor {
 pub struct ImageDescriptor {
   pub type_: vk::DescriptorType,
   pub stage: vk::ShaderStageFlags,
-  pub path: String,
+  pub paths: Vec<String>,
 }
 
 impl ImageDescriptor {
-  pub fn new_image(stage: vk::ShaderStageFlags, path: &str) -> DescriptorType {
+  pub fn new_image(stage: vk::ShaderStageFlags, paths: Vec<&str>) -> DescriptorType {
     DescriptorType::Image(Self {
       type_: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
       stage,
-      path: path.to_string(),
+      paths: paths.into_iter().map(|s| s.to_string()).collect()
     })
   }
 }

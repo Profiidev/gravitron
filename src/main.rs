@@ -27,7 +27,7 @@ fn main() {
         .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144))
         .add_descriptor(DescriptorType::new_image(
           ShaderStageFlags::FRAGMENT,
-          "./assets/image.png",
+          vec!["./assets/image.png"],
         )),
     );
   let vulkan = VulkanConfig::default().add_graphics_pipeline(testing);
@@ -52,7 +52,6 @@ fn main() {
     MeshRenderer {
       model_id: 0,
       material: Material {
-        color: math::Vec3::new(0.0, 1.0, 1.0),
         shader: "testing".into(),
         ..Default::default()
       },

@@ -527,7 +527,7 @@ impl Pipeline {
               vk::DescriptorSetLayoutBinding::default()
                 .binding(i as u32)
                 .descriptor_type(desc.type_)
-                .descriptor_count(1)
+                .descriptor_count(desc.paths.len() as u32)
                 .stage_flags(desc.stage),
             );
           }
@@ -579,20 +579,23 @@ impl Pipeline {
             }
           }
           DescriptorType::Image(desc) => {
-            let texture = memory_manager.create_texture(&desc.path)?;
-            let view = memory_manager.get_vk_image_view(texture).unwrap();
-            let sampler = memory_manager.get_vk_sampler(texture).unwrap();
+            let mut image_infos = Vec::new();
+            for path in &desc.paths {
+              let texture = memory_manager.create_texture(path)?;
+              let view = memory_manager.get_vk_image_view(texture).unwrap();
+              let sampler = memory_manager.get_vk_sampler(texture).unwrap();
 
-            let image_info = [vk::DescriptorImageInfo::default()
-              .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-              .image_view(view)
-              .sampler(sampler)];
+              image_infos.push(vk::DescriptorImageInfo::default()
+                .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                .image_view(view)
+                .sampler(sampler));
+            }
 
             let write_desc_set = vk::WriteDescriptorSet::default()
               .dst_binding(i as u32)
               .dst_set(descriptor_sets[j])
               .descriptor_type(desc.type_)
-              .image_info(&image_info);
+              .image_info(&image_infos);
 
             unsafe {
               logical_device.update_descriptor_sets(&[write_desc_set], &[]);
