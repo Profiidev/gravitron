@@ -20,6 +20,8 @@ use crate::{
   ecs_resources::components::camera::Camera,
 };
 
+pub use vk_shader_macros::{glsl, include_glsl};
+
 #[cfg(feature = "debug")]
 mod debug;
 mod device;

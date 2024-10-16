@@ -8,6 +8,7 @@ use gravitron::{
   ecs::{
     systems::{query::Query, resources::Res},
     Component,
+    commands::Commands,
   },
   ecs_resources::{
     components::{camera::CameraBuilder, renderer::MeshRenderer, transform::Transform},
@@ -17,7 +18,6 @@ use gravitron::{
   math,
   vulkan::graphics::resources::material::Material,
 };
-use gravitron_ecs::commands::Commands;
 
 fn main() {
   let testing = GraphicsPipelineConfig::new("testing".to_string())
