@@ -1,11 +1,13 @@
 use gravitron::{
   config::{
     vulkan::{
-      DescriptorSet, DescriptorType, GraphicsPipelineConfig, ShaderStageFlags, VulkanConfig,
+      DescriptorSet, DescriptorType, GraphicsPipelineConfig, ImageConfig, ShaderStageFlags,
+      VulkanConfig,
     },
     EngineConfig,
   },
   ecs::{
+    commands::Commands,
     systems::{query::Query, resources::Res},
     Component,
   },
@@ -17,20 +19,21 @@ use gravitron::{
   math,
   vulkan::graphics::resources::material::Material,
 };
-use gravitron_ecs::commands::Commands;
 
 fn main() {
   let testing = GraphicsPipelineConfig::new("testing".to_string())
-    .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader copy.frag").to_vec())
+    .set_frag_shader(vk_shader_macros::include_glsl!("./testing/shader.frag").to_vec())
     .add_descriptor_set(
       DescriptorSet::default()
         .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144))
         .add_descriptor(DescriptorType::new_image(
           ShaderStageFlags::FRAGMENT,
-          "./assets/image.png",
+          vec![ImageConfig::Path("./testing/image.png")],
         )),
     );
-  let vulkan = VulkanConfig::default().add_graphics_pipeline(testing);
+  let vulkan = VulkanConfig::default()
+    .add_graphics_pipeline(testing)
+    .add_texture(ImageConfig::Path("./testing/image.png"));
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config).add_system(test);
   let mut transform = Transform::default();
@@ -52,7 +55,6 @@ fn main() {
     MeshRenderer {
       model_id: 0,
       material: Material {
-        color: math::Vec3::new(0.0, 1.0, 1.0),
         shader: "testing".into(),
         ..Default::default()
       },
@@ -92,7 +94,7 @@ fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mu
   let renderer = MeshRenderer {
     model_id: 0,
     material: Material {
-      color: glam::Vec3::new(0.5, 0.5, 0.5),
+      texture_id: 1,
       ..Default::default()
     },
   };
