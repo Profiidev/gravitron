@@ -8,10 +8,10 @@ use gravitron::{
   },
   ecs::{
     commands::Commands,
-    systems::{query::Query, resources::Res},
-    Component,
     components::{camera::CameraBuilder, renderer::MeshRenderer, transform::Transform},
     resources::engine_info::EngineInfo,
+    systems::{query::Query, resources::Res},
+    Component,
   },
   engine::Gravitron,
   math,
