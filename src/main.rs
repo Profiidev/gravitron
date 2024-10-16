@@ -21,18 +21,18 @@ use gravitron_ecs::commands::Commands;
 
 fn main() {
   let testing = GraphicsPipelineConfig::new("testing".to_string())
-    .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader copy.frag").to_vec())
+    .set_frag_shader(vk_shader_macros::include_glsl!("./testing/shader.frag").to_vec())
     .add_descriptor_set(
       DescriptorSet::default()
         .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144))
         .add_descriptor(DescriptorType::new_image(
           ShaderStageFlags::FRAGMENT,
-          vec!["./assets/image.png"],
+          vec!["./testing/image.png"],
         )),
     );
   let vulkan = VulkanConfig::default()
     .add_graphics_pipeline(testing)
-    .add_texture("./assets/image.png");
+    .add_texture("./testing/image.png");
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config).add_system(test);
   let mut transform = Transform::default();
