@@ -219,7 +219,7 @@ pub struct Pipeline {
 impl Pipeline {
   pub fn default_shader() -> GraphicsPipelineConfig {
     GraphicsPipelineConfig::new("default".to_string())
-      .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec())
+      .set_frag_shader(vk_shader_macros::include_glsl!("./assets/shader.frag").to_vec())
       .add_descriptor_set(
         DescriptorSet::default().add_descriptor(DescriptorType::new_storage(
           vk::ShaderStageFlags::FRAGMENT,
@@ -302,7 +302,7 @@ impl Pipeline {
     let mut shader_modules = vec![];
 
     let shader_create_info = vk::ShaderModuleCreateInfo::default()
-      .code(vk_shader_macros::include_glsl!("./shaders/shader.vert"));
+      .code(vk_shader_macros::include_glsl!("./assets/shader.vert"));
     let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
     shader_modules.push((shader_module, vk::ShaderStageFlags::VERTEX));
 
