@@ -391,7 +391,7 @@ impl Pipeline {
         .binding(1)
         .location(14)
         .offset(148)
-        .format(vk::Format::R32_UINT)
+        .format(vk::Format::R32_UINT),
     );
 
     let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()

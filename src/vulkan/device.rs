@@ -159,18 +159,18 @@ impl Queues {
     ];
     device_extension_name_ptrs.extend(config.device_extensions.iter().map(|ext| ext.as_ptr()));
 
-    let mut indexing = vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::default()
-        .runtime_descriptor_array(true);
+    let mut indexing =
+      vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::default().runtime_descriptor_array(true);
 
     let features = config.device_features.fill_mode_non_solid(true);
     let mut features2 = vk::PhysicalDeviceFeatures2::default()
-        .features(features)
-        .push_next(&mut indexing);
+      .features(features)
+      .push_next(&mut indexing);
 
     let device_create_info = vk::DeviceCreateInfo::default()
       .queue_create_infos(&queue_create_infos)
       .enabled_extension_names(&device_extension_name_ptrs)
-    .push_next(&mut features2);
+      .push_next(&mut features2);
 
     let logical_device =
       unsafe { instance.create_device(physical_device, &device_create_info, None) }?;
