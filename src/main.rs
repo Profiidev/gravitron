@@ -10,8 +10,6 @@ use gravitron::{
     commands::Commands,
     systems::{query::Query, resources::Res},
     Component,
-  },
-  ecs_resources::{
     components::{camera::CameraBuilder, renderer::MeshRenderer, transform::Transform},
     resources::engine_info::EngineInfo,
   },

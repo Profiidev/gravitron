@@ -5,9 +5,9 @@ use log::{trace, warn};
 
 use crate::ecs::{systems::query::Query, systems::resources::ResMut};
 
-use crate::ecs_resources::components::camera::Camera;
-use crate::ecs_resources::components::renderer::MeshRenderer;
-use crate::ecs_resources::components::transform::Transform;
+use crate::ecs::components::camera::Camera;
+use crate::ecs::components::renderer::MeshRenderer;
+use crate::ecs::components::transform::Transform;
 use crate::vulkan::graphics::resources::model::{InstanceData, ModelId};
 use crate::vulkan::Vulkan;
 

@@ -16,7 +16,7 @@ use window::Window;
 
 use crate::{
   config::EngineConfig,
-  ecs_resources::{
+  ecs::{
     resources::{engine_commands::EngineCommands, engine_info::EngineInfo},
     systems::{add_systems, stages::SystemStage},
   },

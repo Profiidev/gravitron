@@ -17,7 +17,7 @@ use winit::window::Window;
 
 use crate::{
   config::{app::AppConfig, vulkan::VulkanConfig},
-  ecs_resources::components::camera::Camera,
+  ecs::components::camera::Camera,
 };
 
 pub use vk_shader_macros::{glsl, include_glsl};

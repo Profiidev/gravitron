@@ -8,7 +8,7 @@ use crate::{
     ComputePipelineConfig, DescriptorSet, DescriptorType, GraphicsPipelineConfig, ImageConfig,
     PipelineType,
   },
-  ecs_resources::components::camera::Camera,
+  ecs::components::camera::Camera,
 };
 
 use super::memory::{
