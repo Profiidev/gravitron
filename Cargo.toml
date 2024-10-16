@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/gravitron_ecs", "crates/gravitron_utils"]
+members = ["crates/gravitron_ecs", "crates/gravitron_macro_utils", "crates/gravitron_utils"]
 
 [package]
 name = "gravitron"
