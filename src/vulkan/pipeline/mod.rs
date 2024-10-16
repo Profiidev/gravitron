@@ -40,6 +40,9 @@ impl PipelineManager {
     let mut descriptor_count = 1;
     let mut pool_sizes = vec![];
 
+    let mut textures_used = vec!["./assets/default.png"];
+    textures_used.extend(textures);
+
     let default_descriptor_set = DescriptorSet::default()
       .add_descriptor(DescriptorType::new_uniform(
         vk::ShaderStageFlags::VERTEX,
@@ -47,7 +50,7 @@ impl PipelineManager {
       ))
       .add_descriptor(DescriptorType::new_image(
         vk::ShaderStageFlags::FRAGMENT,
-        textures,
+        textures_used,
       ));
     for desc in &default_descriptor_set.descriptors {
       add_descriptor(&mut pool_sizes, desc);
@@ -331,7 +334,7 @@ impl Pipeline {
         .input_rate(vk::VertexInputRate::VERTEX),
       vk::VertexInputBindingDescription::default()
         .binding(1)
-        .stride(148)
+        .stride(152)
         .input_rate(vk::VertexInputRate::INSTANCE),
     ];
 
@@ -382,6 +385,14 @@ impl Pipeline {
           .format(vk::Format::R32_SFLOAT),
       );
     }
+
+    vertex_attrib_descs.push(
+      vk::VertexInputAttributeDescription::default()
+        .binding(1)
+        .location(14)
+        .offset(148)
+        .format(vk::Format::R32_UINT)
+    );
 
     let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
       .vertex_binding_descriptions(&vertex_binding_descs)

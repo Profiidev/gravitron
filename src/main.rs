@@ -93,7 +93,7 @@ fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mu
   let renderer = MeshRenderer {
     model_id: 0,
     material: Material {
-      color: glam::Vec3::new(0.5, 0.5, 0.5),
+      texture_id: 1,
       ..Default::default()
     },
   };

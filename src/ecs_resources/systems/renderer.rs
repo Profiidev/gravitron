@@ -45,6 +45,7 @@ pub fn renderer_recording(
       material.color,
       material.metallic,
       material.roughness,
+      material.texture_id,
     ));
   }
 

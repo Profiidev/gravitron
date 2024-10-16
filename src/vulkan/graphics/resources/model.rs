@@ -47,6 +47,7 @@ pub struct InstanceData {
   color: glam::Vec3,
   metallic: f32,
   roughness: f32,
+  texture_id: u32,
 }
 
 pub enum InstanceCount {
@@ -373,6 +374,7 @@ impl InstanceData {
     color: glam::Vec3,
     metallic: f32,
     roughness: f32,
+    texture_id: u32,
   ) -> Self {
     Self {
       model_matrix,
@@ -380,6 +382,7 @@ impl InstanceData {
       color,
       metallic,
       roughness,
+      texture_id,
     }
   }
 }
