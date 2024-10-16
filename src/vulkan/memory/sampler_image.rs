@@ -6,12 +6,12 @@ use gpu_allocator::vulkan;
 
 use super::{buffer::Buffer, image::Image, manager::Transfer};
 
-pub struct Texture {
+pub struct SamplerImage {
   image: Image,
   sampler: vk::Sampler,
 }
 
-impl Texture {
+impl SamplerImage {
   pub fn new<P: AsRef<Path>>(
     path: P,
     device: &ash::Device,

@@ -92,6 +92,7 @@ impl Vulkan {
       renderer.render_pass(),
       &renderer.swapchain().get_extent(),
       &mut config.shaders,
+      config.textures,
       &mut memory_manager,
     )?;
 

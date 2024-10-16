@@ -6,6 +6,7 @@ pub use vk::ShaderStageFlags;
 pub struct VulkanConfig {
   pub renderer: RendererConfig<'static>,
   pub shaders: Vec<PipelineType>,
+  pub textures: Vec<&'static str>,
 }
 
 impl VulkanConfig {
@@ -21,6 +22,16 @@ impl VulkanConfig {
 
   pub fn add_compute_pipeline(mut self, pipeline: ComputePipelineConfig) -> Self {
     self.shaders.push(PipelineType::Compute(pipeline));
+    self
+  }
+
+  pub fn add_texture(mut self, texture_path: &'static str) -> Self {
+    self.textures.push(texture_path);
+    self
+  }
+
+  pub fn add_textures(mut self, texture_paths: Vec<&'static str>) -> Self {
+    self.textures.extend(texture_paths);
     self
   }
 }
@@ -178,7 +189,7 @@ impl ImageDescriptor {
     DescriptorType::Image(Self {
       type_: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
       stage,
-      paths: paths.into_iter().map(|s| s.to_string()).collect()
+      paths: paths.iter().map(|&s| s.to_string()).collect(),
     })
   }
 }

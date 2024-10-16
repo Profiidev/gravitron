@@ -1,5 +1,7 @@
 #version 450
 
+layout (set=0, binding=1) uniform sampler2D textures[];
+
 layout (set=1, binding=0) buffer readonly StorageBufferObject {
   float num_directional_lights;
   float num_point_lights;

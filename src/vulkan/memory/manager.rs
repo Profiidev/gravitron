@@ -15,8 +15,8 @@ use super::{
   advanced_buffer::AdvancedBuffer,
   allocator::BufferMemory,
   image::Image,
+  sampler_image::SamplerImage,
   simple_buffer::SimpleBuffer,
-  texture::Texture,
   types::{
     BufferBlockSize, BufferId, BufferType, ImageId, ImageType, BUFFER_BLOCK_SIZE_LARGE,
     BUFFER_BLOCK_SIZE_MEDIUM, BUFFER_BLOCK_SIZE_SMALL,
@@ -147,12 +147,17 @@ impl MemoryManager {
     Ok(id)
   }
 
-  pub fn create_texture<P: AsRef<Path>>(&mut self, path: P) -> Result<ImageId, Error> {
-    let id = ImageId::Texture(self.last_image_id);
+  pub fn create_sampler_image<P: AsRef<Path>>(&mut self, path: P) -> Result<ImageId, Error> {
+    let id = ImageId::Sampler(self.last_image_id);
 
-    let texture = Texture::new(path, &self.device, &mut self.allocator, &self.graphics_transfer)?;
+    let sampler_image = SamplerImage::new(
+      path,
+      &self.device,
+      &mut self.allocator,
+      &self.graphics_transfer,
+    )?;
 
-    self.images.insert(id, ImageType::Texture(texture));
+    self.images.insert(id, ImageType::Sampler(sampler_image));
 
     self.last_image_id += 1;
     Ok(id)
@@ -267,13 +272,13 @@ impl MemoryManager {
   pub fn get_vk_image_view(&self, image_id: ImageId) -> Option<vk::ImageView> {
     match self.images.get(&image_id)? {
       ImageType::Simple(image) => Some(image.image_view()),
-      ImageType::Texture(image) => Some(image.image_view()),
+      ImageType::Sampler(image) => Some(image.image_view()),
     }
   }
 
   pub fn get_vk_sampler(&self, image_id: ImageId) -> Option<vk::Sampler> {
     match self.images.get(&image_id)? {
-      ImageType::Texture(id) => Some(id.sampler()),
+      ImageType::Sampler(id) => Some(id.sampler()),
       _ => None,
     }
   }
@@ -303,7 +308,11 @@ impl MemoryManager {
     }
     let transfer = transfer_found.unwrap();
 
-    if let Some((&done, _)) = self.buffer_used.iter().find(|(_, &f)| transfer.fence() == f) {
+    if let Some((&done, _)) = self
+      .buffer_used
+      .iter()
+      .find(|(_, &f)| transfer.fence() == f)
+    {
       self.buffer_used.remove(&done);
     }
 
@@ -317,7 +326,9 @@ impl MemoryManager {
       }
     }
     unsafe {
-      self.device.destroy_fence(self.graphics_transfer.fence(), None);
+      self
+        .device
+        .destroy_fence(self.graphics_transfer.fence(), None);
     }
     for (_, buffer) in std::mem::take(&mut self.buffers) {
       buffer.cleanup(&self.device, &mut self.allocator)?;

@@ -32,6 +32,7 @@ impl PipelineManager {
     render_pass: vk::RenderPass,
     swap_chain_extent: &vk::Extent2D,
     pipelines: &mut Vec<PipelineType>,
+    textures: Vec<&str>,
     memory_manager: &mut MemoryManager,
   ) -> Result<Self, Error> {
     pipelines.push(PipelineType::Graphics(Pipeline::default_shader()));
@@ -39,8 +40,13 @@ impl PipelineManager {
     let mut descriptor_count = 1;
     let mut pool_sizes = vec![];
 
-    let default_descriptor = DescriptorType::new_uniform(vk::ShaderStageFlags::VERTEX, 128);
-    add_descriptor(&mut pool_sizes, &default_descriptor);
+    let default_descriptor_set = DescriptorSet::default().add_descriptor(
+      DescriptorType::new_uniform(vk::ShaderStageFlags::VERTEX, 128),
+    )
+    .add_descriptor(DescriptorType::new_image(vk::ShaderStageFlags::FRAGMENT, textures));
+    for desc in &default_descriptor_set.descriptors {
+      add_descriptor(&mut pool_sizes, desc);
+    }
 
     for pipeline in &*pipelines {
       match pipeline {
@@ -69,7 +75,7 @@ impl PipelineManager {
     let descriptor_pool =
       unsafe { logical_device.create_descriptor_pool(&descriptor_pool_create_info, None)? };
 
-    let default_desc_config = vec![DescriptorSet::default().add_descriptor(default_descriptor)];
+    let default_desc_config = vec![default_descriptor_set];
     let (default_desc_layouts, default_descs, default_buffers) =
       Pipeline::get_descriptor_set_layouts(
         &default_desc_config,
@@ -579,16 +585,22 @@ impl Pipeline {
             }
           }
           DescriptorType::Image(desc) => {
+            if desc.paths.is_empty() {
+              continue;
+            }
+
             let mut image_infos = Vec::new();
             for path in &desc.paths {
-              let texture = memory_manager.create_texture(path)?;
-              let view = memory_manager.get_vk_image_view(texture).unwrap();
-              let sampler = memory_manager.get_vk_sampler(texture).unwrap();
+              let sampler_image = memory_manager.create_sampler_image(path)?;
+              let view = memory_manager.get_vk_image_view(sampler_image).unwrap();
+              let sampler = memory_manager.get_vk_sampler(sampler_image).unwrap();
 
-              image_infos.push(vk::DescriptorImageInfo::default()
-                .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-                .image_view(view)
-                .sampler(sampler));
+              image_infos.push(
+                vk::DescriptorImageInfo::default()
+                  .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                  .image_view(view)
+                  .sampler(sampler),
+              );
             }
 
             let write_desc_set = vk::WriteDescriptorSet::default()
