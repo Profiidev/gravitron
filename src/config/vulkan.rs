@@ -5,8 +5,8 @@ pub use vk::ShaderStageFlags;
 #[derive(Default)]
 pub struct VulkanConfig {
   pub renderer: RendererConfig<'static>,
-  pub shaders: Vec<PipelineType>,
-  pub textures: Vec<&'static str>,
+  pub shaders: Vec<PipelineType<'static>>,
+  pub textures: Vec<ImageConfig<'static>>,
 }
 
 impl VulkanConfig {
@@ -15,25 +15,31 @@ impl VulkanConfig {
     self
   }
 
-  pub fn add_graphics_pipeline(mut self, pipeline: GraphicsPipelineConfig) -> Self {
+  pub fn add_graphics_pipeline(mut self, pipeline: GraphicsPipelineConfig<'static>) -> Self {
     self.shaders.push(PipelineType::Graphics(pipeline));
     self
   }
 
-  pub fn add_compute_pipeline(mut self, pipeline: ComputePipelineConfig) -> Self {
+  pub fn add_compute_pipeline(mut self, pipeline: ComputePipelineConfig<'static>) -> Self {
     self.shaders.push(PipelineType::Compute(pipeline));
     self
   }
 
-  pub fn add_texture(mut self, texture_path: &'static str) -> Self {
+  pub fn add_texture(mut self, texture_path: ImageConfig<'static>) -> Self {
     self.textures.push(texture_path);
     self
   }
 
-  pub fn add_textures(mut self, texture_paths: Vec<&'static str>) -> Self {
+  pub fn add_textures(mut self, texture_paths: Vec<ImageConfig<'static>>) -> Self {
     self.textures.extend(texture_paths);
     self
   }
+}
+
+#[derive(Clone)]
+pub enum ImageConfig<'a> {
+  Path(&'a str),
+  Bytes(Vec<u8>),
 }
 
 #[derive(Default)]
@@ -52,19 +58,19 @@ impl<'a> RendererConfig<'a> {
   }
 }
 
-pub enum PipelineType {
-  Graphics(GraphicsPipelineConfig),
-  Compute(ComputePipelineConfig),
+pub enum PipelineType<'a> {
+  Graphics(GraphicsPipelineConfig<'a>),
+  Compute(ComputePipelineConfig<'a>),
 }
 
-pub struct GraphicsPipelineConfig {
+pub struct GraphicsPipelineConfig<'a> {
   pub name: String,
   pub geo_shader: Option<Vec<u32>>,
   pub frag_shader: Vec<u32>,
-  pub descriptor_sets: Vec<DescriptorSet>,
+  pub descriptor_sets: Vec<DescriptorSet<'a>>,
 }
 
-impl GraphicsPipelineConfig {
+impl<'a> GraphicsPipelineConfig<'a> {
   pub fn new(name: String) -> Self {
     Self {
       name,
@@ -84,19 +90,19 @@ impl GraphicsPipelineConfig {
     self
   }
 
-  pub fn add_descriptor_set(mut self, descriptor_set: DescriptorSet) -> Self {
+  pub fn add_descriptor_set(mut self, descriptor_set: DescriptorSet<'a>) -> Self {
     self.descriptor_sets.push(descriptor_set);
     self
   }
 }
 
-pub struct ComputePipelineConfig {
+pub struct ComputePipelineConfig<'a> {
   pub name: String,
   pub shader: Vec<u32>,
-  pub descriptor_sets: Vec<DescriptorSet>,
+  pub descriptor_sets: Vec<DescriptorSet<'a>>,
 }
 
-impl ComputePipelineConfig {
+impl<'a> ComputePipelineConfig<'a> {
   pub fn new(name: String) -> Self {
     Self {
       name,
@@ -110,25 +116,25 @@ impl ComputePipelineConfig {
     self
   }
 
-  pub fn add_descriptor_set(mut self, descriptor_set: DescriptorSet) -> Self {
+  pub fn add_descriptor_set(mut self, descriptor_set: DescriptorSet<'a>) -> Self {
     self.descriptor_sets.push(descriptor_set);
     self
   }
 }
 
 #[derive(Default, Clone)]
-pub struct DescriptorSet {
-  pub descriptors: Vec<DescriptorType>,
+pub struct DescriptorSet<'a> {
+  pub descriptors: Vec<DescriptorType<'a>>,
 }
 
 #[derive(Clone)]
-pub enum DescriptorType {
+pub enum DescriptorType<'a> {
   UniformBuffer(BufferDescriptor),
   StorageBuffer(BufferDescriptor),
-  Image(ImageDescriptor),
+  Image(ImageDescriptor<'a>),
 }
 
-impl DescriptorType {
+impl<'a> DescriptorType<'a> {
   pub fn new_storage(stage: vk::ShaderStageFlags, size: u64) -> Self {
     BufferDescriptor::new_storage(stage, size)
   }
@@ -137,13 +143,13 @@ impl DescriptorType {
     BufferDescriptor::new_uniform(stage, size)
   }
 
-  pub fn new_image(stage: vk::ShaderStageFlags, paths: Vec<&str>) -> Self {
-    ImageDescriptor::new_image(stage, paths)
+  pub fn new_image(stage: vk::ShaderStageFlags, images: Vec<ImageConfig<'a>>) -> Self {
+    ImageDescriptor::new_image(stage, images)
   }
 }
 
-impl DescriptorSet {
-  pub fn add_descriptor(mut self, layout: DescriptorType) -> Self {
+impl<'a> DescriptorSet<'a> {
+  pub fn add_descriptor(mut self, layout: DescriptorType<'a>) -> Self {
     self.descriptors.push(layout);
     self
   }
@@ -158,7 +164,7 @@ pub struct BufferDescriptor {
 }
 
 impl BufferDescriptor {
-  pub fn new_storage(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType {
+  pub fn new_storage(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType<'static> {
     DescriptorType::StorageBuffer(Self {
       type_: vk::DescriptorType::STORAGE_BUFFER,
       buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
@@ -167,7 +173,7 @@ impl BufferDescriptor {
     })
   }
 
-  pub fn new_uniform(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType {
+  pub fn new_uniform(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType<'static> {
     DescriptorType::UniformBuffer(Self {
       type_: vk::DescriptorType::UNIFORM_BUFFER,
       buffer_usage: vk::BufferUsageFlags::UNIFORM_BUFFER,
@@ -178,18 +184,18 @@ impl BufferDescriptor {
 }
 
 #[derive(Clone)]
-pub struct ImageDescriptor {
+pub struct ImageDescriptor<'a> {
   pub type_: vk::DescriptorType,
   pub stage: vk::ShaderStageFlags,
-  pub paths: Vec<String>,
+  pub images: Vec<ImageConfig<'a>>,
 }
 
-impl ImageDescriptor {
-  pub fn new_image(stage: vk::ShaderStageFlags, paths: Vec<&str>) -> DescriptorType {
+impl<'a> ImageDescriptor<'a> {
+  pub fn new_image(stage: vk::ShaderStageFlags, images: Vec<ImageConfig<'a>>) -> DescriptorType {
     DescriptorType::Image(Self {
       type_: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
       stage,
-      paths: paths.iter().map(|&s| s.to_string()).collect(),
+      images,
     })
   }
 }

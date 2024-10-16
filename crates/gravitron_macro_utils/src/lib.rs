@@ -17,10 +17,7 @@ impl Default for Manifest {
         .map(|mut path| {
           path.push("Cargo.toml");
           if !path.exists() {
-            panic!(
-              "No Cargo.toml found. Expected: {}",
-              path.display()
-            );
+            panic!("No Cargo.toml found. Expected: {}", path.display());
           }
           let manifest = std::fs::read_to_string(path.clone())
             .unwrap_or_else(|_| panic!("Unable to read Cargo.toml: {}", path.display()));
@@ -37,8 +34,7 @@ const GRAVITRON: &str = "gravitron";
 
 impl Manifest {
   pub fn get_path(&self, name: &str) -> syn::Path {
-    self.try_get_path(name)
-      .unwrap_or_else(|| parse_str(name))
+    self.try_get_path(name).unwrap_or_else(|| parse_str(name))
   }
 
   pub fn try_get_path(&self, name: &str) -> Option<syn::Path> {
@@ -52,7 +48,7 @@ impl Manifest {
 
     let find = |d: &Item| {
       let dep = if let Some(dep) = d.get(name) {
-        return Some(parse_str(dep_package(dep).unwrap_or(name)))
+        return Some(parse_str(dep_package(dep).unwrap_or(name)));
       } else if let Some(dep) = d.get(GRAVITRON) {
         dep_package(dep).unwrap_or(GRAVITRON)
       } else {
@@ -68,8 +64,10 @@ impl Manifest {
 
     let dependencies = self.doc.get("dependencies");
     let dev_dependencies = self.doc.get("dev-dependencies");
-    
-    dependencies.and_then(find).or_else(|| dev_dependencies.and_then(find))
+
+    dependencies
+      .and_then(find)
+      .or_else(|| dev_dependencies.and_then(find))
   }
 }
 

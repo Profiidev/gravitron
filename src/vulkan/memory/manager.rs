@@ -1,15 +1,18 @@
-use std::{collections::HashMap, mem::ManuallyDrop, path::Path};
+use std::{collections::HashMap, mem::ManuallyDrop};
 
 use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 
-use crate::vulkan::{
-  device::Device,
-  instance::InstanceDevice,
-  pipeline::pools::{CommandBufferType, Pools},
-};
 use crate::Id;
+use crate::{
+  config::vulkan::ImageConfig,
+  vulkan::{
+    device::Device,
+    instance::InstanceDevice,
+    pipeline::pools::{CommandBufferType, Pools},
+  },
+};
 
 use super::{
   advanced_buffer::AdvancedBuffer,
@@ -147,11 +150,11 @@ impl MemoryManager {
     Ok(id)
   }
 
-  pub fn create_sampler_image<P: AsRef<Path>>(&mut self, path: P) -> Result<ImageId, Error> {
+  pub fn create_sampler_image(&mut self, image_config: &ImageConfig) -> Result<ImageId, Error> {
     let id = ImageId::Sampler(self.last_image_id);
 
     let sampler_image = SamplerImage::new(
-      path,
+      image_config,
       &self.device,
       &mut self.allocator,
       &self.graphics_transfer,

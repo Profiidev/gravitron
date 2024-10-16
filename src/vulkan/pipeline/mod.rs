@@ -5,7 +5,8 @@ use ash::vk;
 
 use crate::{
   config::vulkan::{
-    ComputePipelineConfig, DescriptorSet, DescriptorType, GraphicsPipelineConfig, PipelineType,
+    ComputePipelineConfig, DescriptorSet, DescriptorType, GraphicsPipelineConfig, ImageConfig,
+    PipelineType,
   },
   ecs_resources::components::camera::Camera,
 };
@@ -32,7 +33,7 @@ impl PipelineManager {
     render_pass: vk::RenderPass,
     swap_chain_extent: &vk::Extent2D,
     pipelines: &mut Vec<PipelineType>,
-    textures: Vec<&str>,
+    textures: Vec<ImageConfig>,
     memory_manager: &mut MemoryManager,
   ) -> Result<Self, Error> {
     pipelines.push(PipelineType::Graphics(Pipeline::default_shader()));
@@ -40,7 +41,9 @@ impl PipelineManager {
     let mut descriptor_count = 1;
     let mut pool_sizes = vec![];
 
-    let mut textures_used = vec!["./assets/default.png"];
+    let mut textures_used = vec![ImageConfig::Bytes(
+      include_bytes!("../../../assets/default.png").to_vec(),
+    )];
     textures_used.extend(textures);
 
     let default_descriptor_set = DescriptorSet::default()
@@ -217,7 +220,7 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-  pub fn default_shader() -> GraphicsPipelineConfig {
+  pub fn default_shader() -> GraphicsPipelineConfig<'static> {
     GraphicsPipelineConfig::new("default".to_string())
       .set_frag_shader(vk_shader_macros::include_glsl!("./assets/shader.frag").to_vec())
       .add_descriptor_set(
@@ -549,7 +552,7 @@ impl Pipeline {
               vk::DescriptorSetLayoutBinding::default()
                 .binding(i as u32)
                 .descriptor_type(desc.type_)
-                .descriptor_count(desc.paths.len() as u32)
+                .descriptor_count(desc.images.len() as u32)
                 .stage_flags(desc.stage),
             );
           }
@@ -601,13 +604,13 @@ impl Pipeline {
             }
           }
           DescriptorType::Image(desc) => {
-            if desc.paths.is_empty() {
+            if desc.images.is_empty() {
               continue;
             }
 
             let mut image_infos = Vec::new();
-            for path in &desc.paths {
-              let sampler_image = memory_manager.create_sampler_image(path)?;
+            for image in &desc.images {
+              let sampler_image = memory_manager.create_sampler_image(image)?;
               let view = memory_manager.get_vk_image_view(sampler_image).unwrap();
               let sampler = memory_manager.get_vk_sampler(sampler_image).unwrap();
 

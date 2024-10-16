@@ -1,14 +1,15 @@
 use gravitron::{
   config::{
     vulkan::{
-      DescriptorSet, DescriptorType, GraphicsPipelineConfig, ShaderStageFlags, VulkanConfig,
+      DescriptorSet, DescriptorType, GraphicsPipelineConfig, ImageConfig, ShaderStageFlags,
+      VulkanConfig,
     },
     EngineConfig,
   },
   ecs::{
+    commands::Commands,
     systems::{query::Query, resources::Res},
     Component,
-    commands::Commands,
   },
   ecs_resources::{
     components::{camera::CameraBuilder, renderer::MeshRenderer, transform::Transform},
@@ -27,12 +28,12 @@ fn main() {
         .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144))
         .add_descriptor(DescriptorType::new_image(
           ShaderStageFlags::FRAGMENT,
-          vec!["./testing/image.png"],
+          vec![ImageConfig::Path("./testing/image.png")],
         )),
     );
   let vulkan = VulkanConfig::default()
     .add_graphics_pipeline(testing)
-    .add_texture("./testing/image.png");
+    .add_texture(ImageConfig::Path("./testing/image.png"));
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config).add_system(test);
   let mut transform = Transform::default();
