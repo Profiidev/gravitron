@@ -1,24 +1,27 @@
-use std::path::Path;
-
 use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 
+use crate::config::vulkan::ImageConfig;
+
 use super::{buffer::Buffer, image::Image, manager::Transfer};
 
-pub struct Texture {
+pub struct SamplerImage {
   image: Image,
   sampler: vk::Sampler,
 }
 
-impl Texture {
-  pub fn new<P: AsRef<Path>>(
-    path: P,
+impl SamplerImage {
+  pub fn new(
+    image_config: &ImageConfig,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
   ) -> Result<Self, Error> {
-    let image_file = image::open(path)?.to_rgba8();
+    let image_file = match image_config {
+      ImageConfig::Path(path) => image::open(path)?.to_rgba8(),
+      ImageConfig::Bytes(bytes) => image::load_from_memory(bytes)?.to_rgba8(),
+    };
     let (width, height) = image_file.dimensions();
 
     let image_info = vk::ImageCreateInfo::default()

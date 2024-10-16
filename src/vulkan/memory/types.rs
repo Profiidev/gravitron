@@ -4,7 +4,8 @@ use gpu_allocator::vulkan;
 use crate::Id;
 
 use super::{
-  advanced_buffer::AdvancedBuffer, image::Image, simple_buffer::SimpleBuffer, texture::Texture,
+  advanced_buffer::AdvancedBuffer, image::Image, sampler_image::SamplerImage,
+  simple_buffer::SimpleBuffer,
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -16,7 +17,7 @@ pub enum BufferId {
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ImageId {
   Simple(Id),
-  Texture(Id),
+  Sampler(Id),
 }
 
 pub const BUFFER_BLOCK_SIZE_LARGE: usize = 1024 * 1024 * 64;
@@ -37,7 +38,7 @@ pub enum BufferType {
 
 pub enum ImageType {
   Simple(Image),
-  Texture(Texture),
+  Sampler(SamplerImage),
 }
 
 impl BufferType {
@@ -60,7 +61,7 @@ impl ImageType {
     allocator: &mut vulkan::Allocator,
   ) -> Result<(), Error> {
     match self {
-      ImageType::Texture(texture) => texture.cleanup(device, allocator),
+      ImageType::Sampler(sampler_image) => sampler_image.cleanup(device, allocator),
       ImageType::Simple(image) => image.cleanup(device, allocator),
     }
   }

@@ -624,9 +624,18 @@ dependencies = [
 name = "gravitron_ecs_macros"
 version = "0.1.4"
 dependencies = [
+ "gravitron_macro_utils",
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "gravitron_macro_utils"
+version = "0.1.0"
+dependencies = [
+ "syn",
+ "toml_edit",
 ]
 
 [[package]]

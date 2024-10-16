@@ -1,5 +1,5 @@
 use anyhow::Error;
-use ash::{khr, vk};
+use ash::{ext, khr, vk};
 
 use crate::config::vulkan::RendererConfig;
 
@@ -155,15 +155,22 @@ impl Queues {
     let mut device_extension_name_ptrs = vec![
       khr::swapchain::NAME.as_ptr(),
       khr::draw_indirect_count::NAME.as_ptr(),
+      ext::descriptor_indexing::NAME.as_ptr(),
     ];
     device_extension_name_ptrs.extend(config.device_extensions.iter().map(|ext| ext.as_ptr()));
 
+    let mut indexing =
+      vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::default().runtime_descriptor_array(true);
+
     let features = config.device_features.fill_mode_non_solid(true);
+    let mut features2 = vk::PhysicalDeviceFeatures2::default()
+      .features(features)
+      .push_next(&mut indexing);
 
     let device_create_info = vk::DeviceCreateInfo::default()
       .queue_create_infos(&queue_create_infos)
       .enabled_extension_names(&device_extension_name_ptrs)
-      .enabled_features(&features);
+      .push_next(&mut features2);
 
     let logical_device =
       unsafe { instance.create_device(physical_device, &device_create_info, None) }?;

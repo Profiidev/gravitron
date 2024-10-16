@@ -8,6 +8,7 @@ layout (location=7) in mat4 inverse_model_matrix;
 layout (location=11) in vec3 colour;
 layout (location=12) in float metallic;
 layout (location=13) in float roughness;
+layout (location=14) in uint texture_id;
 
 layout(set=0, binding=0) uniform UniformBufferObject {
   mat4 view_matrix;
@@ -21,6 +22,7 @@ layout (location=3) out vec4 fragWorldPos;
 layout (location=4) out vec3 cameraPos;
 layout (location=5) out float fragMetallic;
 layout (location=6) out float fragRoughness;
+layout (location=7) out uint fragTextureId;
 
 void main() {
   fragWorldPos = model_matrix * vec4(position,1.0);
@@ -30,6 +32,7 @@ void main() {
   fragUv = uv;
   fragMetallic = metallic;
   fragRoughness = roughness;
+  fragTextureId = texture_id;
 
   cameraPos =
     - ubo.view_matrix[3][0] * vec3(ubo.view_matrix[0][0], ubo.view_matrix[1][0], ubo.view_matrix[2][0])

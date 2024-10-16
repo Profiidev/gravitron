@@ -5,7 +5,8 @@ use ash::vk;
 
 use crate::{
   config::vulkan::{
-    ComputePipelineConfig, DescriptorSet, DescriptorType, GraphicsPipelineConfig, PipelineType,
+    ComputePipelineConfig, DescriptorSet, DescriptorType, GraphicsPipelineConfig, ImageConfig,
+    PipelineType,
   },
   ecs_resources::components::camera::Camera,
 };
@@ -32,6 +33,7 @@ impl PipelineManager {
     render_pass: vk::RenderPass,
     swap_chain_extent: &vk::Extent2D,
     pipelines: &mut Vec<PipelineType>,
+    textures: Vec<ImageConfig>,
     memory_manager: &mut MemoryManager,
   ) -> Result<Self, Error> {
     pipelines.push(PipelineType::Graphics(Pipeline::default_shader()));
@@ -39,8 +41,23 @@ impl PipelineManager {
     let mut descriptor_count = 1;
     let mut pool_sizes = vec![];
 
-    let default_descriptor = DescriptorType::new_uniform(vk::ShaderStageFlags::VERTEX, 128);
-    add_descriptor(&mut pool_sizes, &default_descriptor);
+    let mut textures_used = vec![ImageConfig::Bytes(
+      include_bytes!("../../../assets/default.png").to_vec(),
+    )];
+    textures_used.extend(textures);
+
+    let default_descriptor_set = DescriptorSet::default()
+      .add_descriptor(DescriptorType::new_uniform(
+        vk::ShaderStageFlags::VERTEX,
+        128,
+      ))
+      .add_descriptor(DescriptorType::new_image(
+        vk::ShaderStageFlags::FRAGMENT,
+        textures_used,
+      ));
+    for desc in &default_descriptor_set.descriptors {
+      add_descriptor(&mut pool_sizes, desc);
+    }
 
     for pipeline in &*pipelines {
       match pipeline {
@@ -69,7 +86,7 @@ impl PipelineManager {
     let descriptor_pool =
       unsafe { logical_device.create_descriptor_pool(&descriptor_pool_create_info, None)? };
 
-    let default_desc_config = vec![DescriptorSet::default().add_descriptor(default_descriptor)];
+    let default_desc_config = vec![default_descriptor_set];
     let (default_desc_layouts, default_descs, default_buffers) =
       Pipeline::get_descriptor_set_layouts(
         &default_desc_config,
@@ -203,9 +220,9 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-  pub fn default_shader() -> GraphicsPipelineConfig {
+  pub fn default_shader() -> GraphicsPipelineConfig<'static> {
     GraphicsPipelineConfig::new("default".to_string())
-      .set_frag_shader(vk_shader_macros::include_glsl!("./shaders/shader.frag").to_vec())
+      .set_frag_shader(vk_shader_macros::include_glsl!("./assets/shader.frag").to_vec())
       .add_descriptor_set(
         DescriptorSet::default().add_descriptor(DescriptorType::new_storage(
           vk::ShaderStageFlags::FRAGMENT,
@@ -288,7 +305,7 @@ impl Pipeline {
     let mut shader_modules = vec![];
 
     let shader_create_info = vk::ShaderModuleCreateInfo::default()
-      .code(vk_shader_macros::include_glsl!("./shaders/shader.vert"));
+      .code(vk_shader_macros::include_glsl!("./assets/shader.vert"));
     let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
     shader_modules.push((shader_module, vk::ShaderStageFlags::VERTEX));
 
@@ -320,7 +337,7 @@ impl Pipeline {
         .input_rate(vk::VertexInputRate::VERTEX),
       vk::VertexInputBindingDescription::default()
         .binding(1)
-        .stride(148)
+        .stride(152)
         .input_rate(vk::VertexInputRate::INSTANCE),
     ];
 
@@ -371,6 +388,14 @@ impl Pipeline {
           .format(vk::Format::R32_SFLOAT),
       );
     }
+
+    vertex_attrib_descs.push(
+      vk::VertexInputAttributeDescription::default()
+        .binding(1)
+        .location(14)
+        .offset(148)
+        .format(vk::Format::R32_UINT),
+    );
 
     let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
       .vertex_binding_descriptions(&vertex_binding_descs)
@@ -527,7 +552,7 @@ impl Pipeline {
               vk::DescriptorSetLayoutBinding::default()
                 .binding(i as u32)
                 .descriptor_type(desc.type_)
-                .descriptor_count(1)
+                .descriptor_count(desc.images.len() as u32)
                 .stage_flags(desc.stage),
             );
           }
@@ -579,20 +604,29 @@ impl Pipeline {
             }
           }
           DescriptorType::Image(desc) => {
-            let texture = memory_manager.create_texture(&desc.path)?;
-            let view = memory_manager.get_vk_image_view(texture).unwrap();
-            let sampler = memory_manager.get_vk_sampler(texture).unwrap();
+            if desc.images.is_empty() {
+              continue;
+            }
 
-            let image_info = [vk::DescriptorImageInfo::default()
-              .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-              .image_view(view)
-              .sampler(sampler)];
+            let mut image_infos = Vec::new();
+            for image in &desc.images {
+              let sampler_image = memory_manager.create_sampler_image(image)?;
+              let view = memory_manager.get_vk_image_view(sampler_image).unwrap();
+              let sampler = memory_manager.get_vk_sampler(sampler_image).unwrap();
+
+              image_infos.push(
+                vk::DescriptorImageInfo::default()
+                  .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                  .image_view(view)
+                  .sampler(sampler),
+              );
+            }
 
             let write_desc_set = vk::WriteDescriptorSet::default()
               .dst_binding(i as u32)
               .dst_set(descriptor_sets[j])
               .descriptor_type(desc.type_)
-              .image_info(&image_info);
+              .image_info(&image_infos);
 
             unsafe {
               logical_device.update_descriptor_sets(&[write_desc_set], &[]);

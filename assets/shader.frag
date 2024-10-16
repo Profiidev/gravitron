@@ -1,4 +1,7 @@
 #version 450
+#extension GL_EXT_nonuniform_qualifier : require
+
+layout (set=0, binding=1) uniform sampler2D textures[];
 
 layout (set=1, binding=0) buffer readonly StorageBufferObject {
   float num_directional_lights;
@@ -15,6 +18,7 @@ layout (location = 3) in vec4 fragWorldPosIn;
 layout (location = 4) in vec3 cameraPosIn;
 layout (location = 5) in float metallic;
 layout (location = 6) in float roughness;
+layout (location = 7) flat in uint textureId;
 
 struct DirectionalLight {
   vec3 direction_to_light;
@@ -91,5 +95,5 @@ void main() {
   }
 
   fragColor = vec4(l / (1 + l), 1.0);
-  fragColor = vec4(fragColorIn, 1.0);
+  fragColor = texture(textures[textureId], fragUvIn) + vec4(fragColorIn, 1.0);
 }

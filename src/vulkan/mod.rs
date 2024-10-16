@@ -20,6 +20,8 @@ use crate::{
   ecs_resources::components::camera::Camera,
 };
 
+pub use vk_shader_macros::{glsl, include_glsl};
+
 #[cfg(feature = "debug")]
 mod debug;
 mod device;
@@ -92,6 +94,7 @@ impl Vulkan {
       renderer.render_pass(),
       &renderer.swapchain().get_extent(),
       &mut config.shaders,
+      config.textures,
       &mut memory_manager,
     )?;
 
