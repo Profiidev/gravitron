@@ -30,7 +30,9 @@ fn main() {
           vec!["./assets/image.png"],
         )),
     );
-  let vulkan = VulkanConfig::default().add_graphics_pipeline(testing).add_texture("./assets/image.png");
+  let vulkan = VulkanConfig::default()
+    .add_graphics_pipeline(testing)
+    .add_texture("./assets/image.png");
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config).add_system(test);
   let mut transform = Transform::default();

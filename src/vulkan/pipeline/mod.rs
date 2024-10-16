@@ -40,10 +40,15 @@ impl PipelineManager {
     let mut descriptor_count = 1;
     let mut pool_sizes = vec![];
 
-    let default_descriptor_set = DescriptorSet::default().add_descriptor(
-      DescriptorType::new_uniform(vk::ShaderStageFlags::VERTEX, 128),
-    )
-    .add_descriptor(DescriptorType::new_image(vk::ShaderStageFlags::FRAGMENT, textures));
+    let default_descriptor_set = DescriptorSet::default()
+      .add_descriptor(DescriptorType::new_uniform(
+        vk::ShaderStageFlags::VERTEX,
+        128,
+      ))
+      .add_descriptor(DescriptorType::new_image(
+        vk::ShaderStageFlags::FRAGMENT,
+        textures,
+      ));
     for desc in &default_descriptor_set.descriptors {
       add_descriptor(&mut pool_sizes, desc);
     }
