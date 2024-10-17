@@ -1,6 +1,6 @@
 use ash::vk;
 
-pub use vk::ShaderStageFlags;
+pub use vk::{ShaderStageFlags, Filter};
 
 #[derive(Default)]
 pub struct VulkanConfig {
@@ -37,9 +37,31 @@ impl VulkanConfig {
 }
 
 #[derive(Clone)]
-pub enum ImageConfig<'a> {
+pub struct ImageConfig<'a> {
+  pub interpolation: vk::Filter,
+  pub data: ImageData<'a>,
+}
+
+#[derive(Clone)]
+pub enum ImageData<'a> {
   Path(&'a str),
   Bytes(Vec<u8>),
+}
+
+impl<'a> ImageConfig<'a> {
+  pub fn new_path(path: &'a str, interpolation: vk::Filter) -> ImageConfig<'a> {
+    ImageConfig {
+      interpolation,
+      data: ImageData::Path(path),
+    }
+  }
+
+  pub fn new_bytes(bytes: Vec<u8>, interpolation: vk::Filter) -> ImageConfig<'a> {
+    ImageConfig {
+      interpolation,
+      data: ImageData::Bytes(bytes),
+    }
+  }
 }
 
 #[derive(Default)]

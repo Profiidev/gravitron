@@ -2,7 +2,7 @@ use gravitron::{
   config::{
     vulkan::{
       DescriptorSet, DescriptorType, GraphicsPipelineConfig, ImageConfig, ShaderStageFlags,
-      VulkanConfig,
+      VulkanConfig, Filter,
     },
     EngineConfig,
   },
@@ -24,12 +24,12 @@ fn main() {
     .add_descriptor_set(
       DescriptorSet::default().add_descriptor(DescriptorType::new_image(
         ShaderStageFlags::FRAGMENT,
-        vec![ImageConfig::Path("./testing/image.png")],
+        vec![ImageConfig::new_path("./testing/image.png", Filter::NEAREST)],
       )),
     );
   let vulkan = VulkanConfig::default()
     .add_graphics_pipeline(testing)
-    .add_texture(ImageConfig::Path("./testing/image.png"));
+    .add_texture(ImageConfig::new_path("./testing/image.png", Filter::NEAREST));
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config).add_system(test);
   let mut transform = Transform::default();
