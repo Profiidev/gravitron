@@ -245,7 +245,7 @@ impl PipelineManager {
 
     let light_info_mem = &self.default_buffers[&0][&2];
     memory_manager.write_to_buffer(light_info_mem, &[light_info]);
-    
+
     if pls_size > 0 {
       let pls_mem = &self.default_buffers[&0][&3];
       memory_manager.write_to_buffer(pls_mem, pls);
