@@ -1,19 +1,20 @@
 use gravitron::{
   config::{
     vulkan::{
-      DescriptorSet, DescriptorType, GraphicsPipelineConfig, ImageConfig, ShaderStageFlags,
+      DescriptorSet, DescriptorType, Filter, GraphicsPipelineConfig, ImageConfig, ShaderStageFlags,
       VulkanConfig,
     },
     EngineConfig,
   },
   ecs::{
     commands::Commands,
+    components::{
+      camera::CameraBuilder, lighting::DirectionalLight, renderer::MeshRenderer,
+      transform::Transform,
+    },
+    resources::engine_info::EngineInfo,
     systems::{query::Query, resources::Res},
     Component,
-  },
-  ecs_resources::{
-    components::{camera::CameraBuilder, renderer::MeshRenderer, transform::Transform},
-    resources::engine_info::EngineInfo,
   },
   engine::Gravitron,
   math,
@@ -24,16 +25,20 @@ fn main() {
   let testing = GraphicsPipelineConfig::new("testing".to_string())
     .set_frag_shader(vk_shader_macros::include_glsl!("./testing/shader.frag").to_vec())
     .add_descriptor_set(
-      DescriptorSet::default()
-        .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144))
-        .add_descriptor(DescriptorType::new_image(
-          ShaderStageFlags::FRAGMENT,
-          vec![ImageConfig::Path("./testing/image.png")],
-        )),
+      DescriptorSet::default().add_descriptor(DescriptorType::new_image(
+        ShaderStageFlags::FRAGMENT,
+        vec![ImageConfig::new_path(
+          "./testing/image.png",
+          Filter::NEAREST,
+        )],
+      )),
     );
   let vulkan = VulkanConfig::default()
     .add_graphics_pipeline(testing)
-    .add_texture(ImageConfig::Path("./testing/image.png"));
+    .add_texture(ImageConfig::new_path(
+      "./testing/image.png",
+      Filter::NEAREST,
+    ));
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config).add_system(test);
   let mut transform = Transform::default();
@@ -72,6 +77,16 @@ fn main() {
   builder.create_entity((
     CameraBuilder::new().build(&camera_transform),
     camera_transform,
+  ));
+
+  let mut dl_t = Transform::default();
+  dl_t.set_rotation(0.0, std::f32::consts::FRAC_PI_2, 0.0);
+  builder.create_entity((
+    DirectionalLight {
+      color: glam::Vec3::new(1.0, 0.0, 0.0),
+      intensity: 1.0,
+    },
+    dl_t,
   ));
 
   let engine = builder.build();

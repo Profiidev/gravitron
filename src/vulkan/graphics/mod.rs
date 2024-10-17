@@ -19,7 +19,7 @@ use super::{
     types::{BufferBlockSize, BufferId},
     BufferMemory,
   },
-  pipeline::{pools::Pools, PipelineManager},
+  pipeline::{manager::PipelineManager, pools::Pools},
   surface::Surface,
 };
 
@@ -191,6 +191,7 @@ impl Renderer {
     &mut self,
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<String, Vec<resources::model::InstanceData>>>,
+    other_buffer_resized: bool,
   ) {
     let (cmd_new, buffer_resized) = self.model_manager.update_draw_buffer(
       self.draw_commands,
@@ -199,7 +200,7 @@ impl Renderer {
       instances,
     );
 
-    if buffer_resized {
+    if buffer_resized || other_buffer_resized {
       self.buffers_updated.clear();
     }
 

@@ -10,6 +10,9 @@ use crate::{
 };
 use anyhow::Error;
 use ash::vk;
+use cube::cube;
+
+mod cube;
 
 pub type ModelId = Id;
 
@@ -310,61 +313,6 @@ impl Model {
       instances: HashMap::new(),
     }
   }
-}
-
-fn cube() -> (Vec<VertexData>, Vec<u32>) {
-  let btl = VertexData {
-    position: glam::Vec3::new(-1.0, 1.0, -1.0),
-    normal: glam::Vec3::new(0.0, 0.0, -1.0),
-    uv: glam::Vec2::new(1.0, 0.0),
-  };
-  let btr = VertexData {
-    position: glam::Vec3::new(-1.0, 1.0, 1.0),
-    normal: glam::Vec3::new(0.0, 0.0, 1.0),
-    uv: glam::Vec2::new(0.0, 0.0),
-  };
-  let bbl = VertexData {
-    position: glam::Vec3::new(-1.0, -1.0, -1.0),
-    normal: glam::Vec3::new(0.0, 0.0, -1.0),
-    uv: glam::Vec2::new(1.0, 1.0),
-  };
-  let bbr = VertexData {
-    position: glam::Vec3::new(-1.0, -1.0, 1.0),
-    normal: glam::Vec3::new(0.0, 0.0, 1.0),
-    uv: glam::Vec2::new(0.0, 1.0),
-  };
-  let ftl = VertexData {
-    position: glam::Vec3::new(1.0, 1.0, -1.0),
-    normal: glam::Vec3::new(0.0, 0.0, -1.0),
-    uv: glam::Vec2::new(0.0, 0.0),
-  };
-  let ftr = VertexData {
-    position: glam::Vec3::new(1.0, 1.0, 1.0),
-    normal: glam::Vec3::new(0.0, 0.0, 1.0),
-    uv: glam::Vec2::new(1.0, 0.0),
-  };
-  let fbl = VertexData {
-    position: glam::Vec3::new(1.0, -1.0, -1.0),
-    normal: glam::Vec3::new(0.0, 0.0, -1.0),
-    uv: glam::Vec2::new(0.0, 1.0),
-  };
-  let fbr = VertexData {
-    position: glam::Vec3::new(1.0, -1.0, 1.0),
-    normal: glam::Vec3::new(0.0, 0.0, 1.0),
-    uv: glam::Vec2::new(1.0, 1.0),
-  };
-
-  (
-    vec![btl, btr, bbl, bbr, ftl, ftr, fbl, fbr],
-    vec![
-      2, 3, 7, 2, 7, 6, //bottom
-      0, 5, 1, 0, 4, 5, //top
-      2, 4, 0, 2, 6, 4, //front
-      3, 1, 5, 3, 5, 7, //back
-      2, 0, 3, 3, 0, 1, //left
-      6, 7, 4, 7, 5, 4, //right
-    ],
-  )
 }
 
 impl InstanceData {
