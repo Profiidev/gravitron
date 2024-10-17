@@ -135,11 +135,11 @@ pub enum DescriptorType<'a> {
 }
 
 impl<'a> DescriptorType<'a> {
-  pub fn new_storage(stage: vk::ShaderStageFlags, size: u64) -> Self {
+  pub fn new_storage(stage: vk::ShaderStageFlags, size: usize) -> Self {
     BufferDescriptor::new_storage(stage, size)
   }
 
-  pub fn new_uniform(stage: vk::ShaderStageFlags, size: u64) -> Self {
+  pub fn new_uniform(stage: vk::ShaderStageFlags, size: usize) -> Self {
     BufferDescriptor::new_uniform(stage, size)
   }
 
@@ -160,11 +160,11 @@ pub struct BufferDescriptor {
   pub type_: vk::DescriptorType,
   pub buffer_usage: vk::BufferUsageFlags,
   pub stage: vk::ShaderStageFlags,
-  pub size: u64,
+  pub size: usize,
 }
 
 impl BufferDescriptor {
-  pub fn new_storage(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType<'static> {
+  pub fn new_storage(stage: vk::ShaderStageFlags, size: usize) -> DescriptorType<'static> {
     DescriptorType::StorageBuffer(Self {
       type_: vk::DescriptorType::STORAGE_BUFFER,
       buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
@@ -173,7 +173,7 @@ impl BufferDescriptor {
     })
   }
 
-  pub fn new_uniform(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType<'static> {
+  pub fn new_uniform(stage: vk::ShaderStageFlags, size: usize) -> DescriptorType<'static> {
     DescriptorType::UniformBuffer(Self {
       type_: vk::DescriptorType::UNIFORM_BUFFER,
       buffer_usage: vk::BufferUsageFlags::UNIFORM_BUFFER,

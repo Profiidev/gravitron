@@ -3,11 +3,18 @@ use std::collections::HashMap;
 #[allow(unused_imports)]
 use log::{trace, warn};
 
-use crate::ecs::{systems::query::Query, systems::resources::ResMut};
-
 use crate::ecs::components::camera::Camera;
+use crate::ecs::components::lighting::{
+  DirectionalLight as DirectionalLightComp, PointLight as PointLightComp,
+  SpotLight as SpotLightComp,
+};
 use crate::ecs::components::renderer::MeshRenderer;
 use crate::ecs::components::transform::Transform;
+use crate::ecs::{systems::query::Query, systems::resources::ResMut};
+
+use crate::vulkan::graphics::resources::lighting::{
+  DirectionalLight, LightInfo, PointLight, SpotLight,
+};
 use crate::vulkan::graphics::resources::model::{InstanceData, ModelId};
 use crate::vulkan::Vulkan;
 
@@ -20,6 +27,9 @@ pub fn init_renderer(vulkan: ResMut<Vulkan>) {
 pub fn renderer_recording(
   mut vulkan: ResMut<Vulkan>,
   to_render: Query<(&MeshRenderer, &Transform)>,
+  dl_query: Query<(&DirectionalLightComp, &Transform)>,
+  pls_query: Query<(&PointLightComp, &Transform)>,
+  sls_query: Query<(&SpotLightComp, &Transform)>,
   camera: Query<&Camera>,
 ) {
   #[cfg(feature = "debug")]
@@ -49,7 +59,44 @@ pub fn renderer_recording(
     ));
   }
 
-  vulkan.update_draw_info(models);
+  let mut pls = Vec::new();
+  for (pl, t) in pls_query {
+    pls.push(PointLight {
+      position: t.position(),
+      color: pl.color,
+      intensity: pl.intensity,
+      range: pl.range,
+    });
+  }
+  let mut sls = Vec::new();
+  for (sl, t) in sls_query {
+    sls.push(SpotLight {
+      position: t.position(),
+      direction: t.rotation() * glam::Vec3::X,
+      color: sl.color,
+      intensity: sl.intensity,
+      range: sl.range,
+      angle: sl.angle,
+    });
+  }
+
+  let dl = if let Some((dl, t)) = dl_query.into_iter().next() {
+    DirectionalLight {
+      direction: t.rotation() * glam::Vec3::X,
+      color: dl.color,
+      intensity: dl.intensity,
+    }
+  } else {
+    DirectionalLight::default()
+  };
+
+  let light_info = LightInfo {
+    num_point_lights: pls.len() as u32,
+    num_spot_lights: sls.len() as u32,
+    directional_light: dl,
+  };
+
+  vulkan.update_draw_info(models, light_info, &pls, &sls);
 }
 
 pub fn execute_renderer(mut vulkan: ResMut<Vulkan>) {

@@ -22,12 +22,10 @@ fn main() {
   let testing = GraphicsPipelineConfig::new("testing".to_string())
     .set_frag_shader(vk_shader_macros::include_glsl!("./testing/shader.frag").to_vec())
     .add_descriptor_set(
-      DescriptorSet::default()
-        .add_descriptor(DescriptorType::new_storage(ShaderStageFlags::FRAGMENT, 144))
-        .add_descriptor(DescriptorType::new_image(
-          ShaderStageFlags::FRAGMENT,
-          vec![ImageConfig::Path("./testing/image.png")],
-        )),
+      DescriptorSet::default().add_descriptor(DescriptorType::new_image(
+        ShaderStageFlags::FRAGMENT,
+        vec![ImageConfig::Path("./testing/image.png")],
+      )),
     );
   let vulkan = VulkanConfig::default()
     .add_graphics_pipeline(testing)
