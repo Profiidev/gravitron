@@ -53,5 +53,7 @@ layout (location = 7) flat in uint textureId;
 const float PI = 3.14159265359;
 
 void main() {
+  float fac = max(dot(fragNormalIn, light_info.dl.direction), 0.0);
+  vec3 color = light_info.dl.color * light_info.dl.intensity * fac;
   fragColor = texture(textures[textureId], fragUvIn) + vec4(fragColorIn, 1.0);
 }

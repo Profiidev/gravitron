@@ -8,7 +8,7 @@ use gravitron::{
   },
   ecs::{
     commands::Commands,
-    components::{camera::CameraBuilder, renderer::MeshRenderer, transform::Transform},
+    components::{camera::CameraBuilder, lighting::DirectionalLight, renderer::MeshRenderer, transform::Transform},
     resources::engine_info::EngineInfo,
     systems::{query::Query, resources::Res},
     Component,
@@ -68,6 +68,16 @@ fn main() {
   builder.create_entity((
     CameraBuilder::new().build(&camera_transform),
     camera_transform,
+  ));
+
+  let mut dl_t = Transform::default();
+  dl_t.set_rotation(0.0, std::f32::consts::FRAC_PI_2, 0.0);
+  builder.create_entity((
+    DirectionalLight {
+      color: glam::Vec3::new(1.0, 0.0, 0.0),
+      intensity: 1.0,
+    },
+    dl_t
   ));
 
   let engine = builder.build();
