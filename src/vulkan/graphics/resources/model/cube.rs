@@ -17,7 +17,6 @@ pub fn cube() -> (Vec<VertexData>, Vec<u32>) {
     uv: glam::Vec2::new(0.0, 0.25),
   };
 
-
   let btr_t = VertexData {
     position: glam::Vec3::new(-1.0, 1.0, 1.0),
     normal: glam::Vec3::new(0.0, 1.0, 0.0),

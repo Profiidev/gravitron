@@ -1,6 +1,6 @@
 use ash::vk;
 
-pub use vk::{ShaderStageFlags, Filter};
+pub use vk::{Filter, ShaderStageFlags};
 
 #[derive(Default)]
 pub struct VulkanConfig {

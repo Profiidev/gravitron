@@ -1,14 +1,17 @@
 use gravitron::{
   config::{
     vulkan::{
-      DescriptorSet, DescriptorType, GraphicsPipelineConfig, ImageConfig, ShaderStageFlags,
-      VulkanConfig, Filter,
+      DescriptorSet, DescriptorType, Filter, GraphicsPipelineConfig, ImageConfig, ShaderStageFlags,
+      VulkanConfig,
     },
     EngineConfig,
   },
   ecs::{
     commands::Commands,
-    components::{camera::CameraBuilder, lighting::DirectionalLight, renderer::MeshRenderer, transform::Transform},
+    components::{
+      camera::CameraBuilder, lighting::DirectionalLight, renderer::MeshRenderer,
+      transform::Transform,
+    },
     resources::engine_info::EngineInfo,
     systems::{query::Query, resources::Res},
     Component,
@@ -24,12 +27,18 @@ fn main() {
     .add_descriptor_set(
       DescriptorSet::default().add_descriptor(DescriptorType::new_image(
         ShaderStageFlags::FRAGMENT,
-        vec![ImageConfig::new_path("./testing/image.png", Filter::NEAREST)],
+        vec![ImageConfig::new_path(
+          "./testing/image.png",
+          Filter::NEAREST,
+        )],
       )),
     );
   let vulkan = VulkanConfig::default()
     .add_graphics_pipeline(testing)
-    .add_texture(ImageConfig::new_path("./testing/image.png", Filter::NEAREST));
+    .add_texture(ImageConfig::new_path(
+      "./testing/image.png",
+      Filter::NEAREST,
+    ));
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config).add_system(test);
   let mut transform = Transform::default();
@@ -77,7 +86,7 @@ fn main() {
       color: glam::Vec3::new(1.0, 0.0, 0.0),
       intensity: 1.0,
     },
-    dl_t
+    dl_t,
   ));
 
   let engine = builder.build();
