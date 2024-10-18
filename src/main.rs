@@ -9,7 +9,9 @@ use gravitron::{
   ecs::{
     commands::Commands,
     components::{
-      camera::CameraBuilder, lighting::{DirectionalLight, PointLight}, renderer::MeshRenderer,
+      camera::CameraBuilder,
+      lighting::{DirectionalLight, PointLight},
+      renderer::MeshRenderer,
       transform::Transform,
     },
     resources::engine_info::EngineInfo,
@@ -40,7 +42,9 @@ fn main() {
       Filter::NEAREST,
     ));
   let config = EngineConfig::default().set_vulkan_config(vulkan);
-  let mut builder = Gravitron::builder(config).add_system(test).add_system(test2);
+  let mut builder = Gravitron::builder(config)
+    .add_system(test)
+    .add_system(test2);
   let mut transform = Transform::default();
   transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
   builder.create_entity((
@@ -102,7 +106,7 @@ fn main() {
       intensity: 10.0,
       range: 1.0,
     },
-    t
+    t,
   ));
   let mut t = Transform::default();
   t.set_position(glam::Vec3::new(5.0, 1.1, 0.0));
@@ -112,7 +116,7 @@ fn main() {
       intensity: 1.0,
       range: 1.0,
     },
-    t
+    t,
   ));
 
   let engine = builder.build();
