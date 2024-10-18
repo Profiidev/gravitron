@@ -5,19 +5,22 @@ use anyhow::Error;
 use debug::Debugger;
 use device::Device;
 use graphics::{
-  resources::model::{InstanceData, ModelId},
+  resources::{
+    lighting::{LightInfo, PointLight, SpotLight},
+    model::{InstanceData, ModelId},
+  },
   Renderer,
 };
 use instance::{InstanceDevice, InstanceDeviceConfig};
 use memory::{manager::MemoryManager, BufferMemory};
+use pipeline::manager::PipelineManager;
 use pipeline::pools::Pools;
-use pipeline::PipelineManager;
 use surface::Surface;
 use winit::window::Window;
 
 use crate::{
   config::{app::AppConfig, vulkan::VulkanConfig},
-  ecs_resources::components::camera::Camera,
+  ecs::components::camera::Camera,
 };
 
 pub use vk_shader_macros::{glsl, include_glsl};
@@ -123,35 +126,38 @@ impl Vulkan {
     self.renderer.draw_frame(&self.device);
   }
 
-  pub fn update_descriptor<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
+  pub fn update_descriptor<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) {
+    assert!(mem.size() >= std::mem::size_of_val(data));
     self
       .pipeline_manager
-      .update_descriptor(&mut self.memory_manager, mem, data)
+      .update_descriptor(&mut self.memory_manager, mem, data);
   }
 
-  pub fn create_descriptor_mem(
+  pub fn get_descriptor_mem(
     &mut self,
     pipeline_name: &str,
     descriptor_set: usize,
     descriptor: usize,
-    size: usize,
   ) -> Option<BufferMemory> {
-    self.pipeline_manager.create_descriptor_mem(
-      &mut self.memory_manager,
-      pipeline_name,
-      descriptor_set,
-      descriptor,
-      size,
-    )
+    self
+      .pipeline_manager
+      .get_descriptor_mem(pipeline_name, descriptor_set, descriptor)
   }
 
   pub fn update_draw_info(
     &mut self,
     instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
+    light_info: LightInfo,
+    pls: &[PointLight],
+    sls: &[SpotLight],
   ) {
+    let resized = self
+      .pipeline_manager
+      .update_lights(&mut self.memory_manager, light_info, pls, sls)
+      .expect("Error while updating lights");
     self
       .renderer
-      .update_draw_buffer(&mut self.memory_manager, instances);
+      .update_draw_buffer(&mut self.memory_manager, instances, resized);
     self
       .renderer
       .record_command_buffer(&self.pipeline_manager, &mut self.memory_manager)

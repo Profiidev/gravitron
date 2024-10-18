@@ -1,5 +1,5 @@
 pub struct Material {
-  pub color: glam::Vec3,
+  pub color: glam::Vec4,
   pub texture_id: u32,
   pub metallic: f32,
   pub roughness: f32,
