@@ -56,7 +56,7 @@ impl PipelineManager {
       ))
       .add_descriptor(DescriptorType::new_uniform(
         vk::ShaderStageFlags::FRAGMENT,
-        36,
+        64,
       ))
       .add_descriptor(DescriptorType::new_storage(
         vk::ShaderStageFlags::FRAGMENT,

@@ -62,7 +62,7 @@ pub fn renderer_recording(
   let mut pls = Vec::new();
   for (pl, t) in pls_query {
     pls.push(PointLight {
-      position: t.position(),
+      position: t.position().into(),
       color: pl.color,
       intensity: pl.intensity,
       range: pl.range,
@@ -71,8 +71,8 @@ pub fn renderer_recording(
   let mut sls = Vec::new();
   for (sl, t) in sls_query {
     sls.push(SpotLight {
-      position: t.position(),
-      direction: t.rotation() * glam::Vec3::X,
+      position: t.position().into(),
+      direction: (t.rotation() * glam::Vec3::X).into(),
       color: sl.color,
       intensity: sl.intensity,
       range: sl.range,
@@ -82,9 +82,11 @@ pub fn renderer_recording(
 
   let dl = if let Some((dl, t)) = dl_query.into_iter().next() {
     DirectionalLight {
-      direction: t.rotation() * glam::Vec3::X,
+      direction: (t.rotation() * glam::Vec3::X).into(),
       color: dl.color,
       intensity: dl.intensity,
+      ambient_color: dl.ambient_color,
+      ambient_intensity: dl.ambient_intensity,
     }
   } else {
     DirectionalLight::default()

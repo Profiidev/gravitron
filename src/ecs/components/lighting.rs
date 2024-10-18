@@ -4,6 +4,8 @@ use gravitron_ecs::Component;
 pub struct DirectionalLight {
   pub color: glam::Vec3,
   pub intensity: f32,
+  pub ambient_color: glam::Vec3,
+  pub ambient_intensity: f32,
 }
 
 #[derive(Component)]

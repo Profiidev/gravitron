@@ -9,7 +9,7 @@ use gravitron::{
   ecs::{
     commands::Commands,
     components::{
-      camera::CameraBuilder, lighting::DirectionalLight, renderer::MeshRenderer,
+      camera::CameraBuilder, lighting::{DirectionalLight, PointLight}, renderer::MeshRenderer,
       transform::Transform,
     },
     resources::engine_info::EngineInfo,
@@ -40,14 +40,16 @@ fn main() {
       Filter::NEAREST,
     ));
   let config = EngineConfig::default().set_vulkan_config(vulkan);
-  let mut builder = Gravitron::builder(config).add_system(test);
+  let mut builder = Gravitron::builder(config).add_system(test).add_system(test2);
   let mut transform = Transform::default();
   transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
   builder.create_entity((
     MeshRenderer {
       model_id: 0,
       material: Material {
-        color: math::Vec3::new(1.0, 1.0, 0.0),
+        color: math::Vec4::new(1.0, 1.0, 0.0, 1.0),
+        metallic: 1.0,
+        roughness: 0.5,
         ..Default::default()
       },
     },
@@ -80,13 +82,37 @@ fn main() {
   ));
 
   let mut dl_t = Transform::default();
-  dl_t.set_rotation(0.0, std::f32::consts::FRAC_PI_2, 0.0);
+  dl_t.set_rotation(0.0, std::f32::consts::FRAC_PI_4 * 3.0, 0.0);
   builder.create_entity((
     DirectionalLight {
       color: glam::Vec3::new(1.0, 0.0, 0.0),
       intensity: 1.0,
+      ambient_color: glam::Vec3::new(1.0, 1.0, 1.0),
+      ambient_intensity: 0.1,
     },
     dl_t,
+    Marker::default(),
+  ));
+
+  let mut t = Transform::default();
+  t.set_position(glam::Vec3::new(0.0, 1.1, 0.0));
+  builder.create_entity((
+    PointLight {
+      color: glam::Vec3::new(1.0, 0.0, 1.0),
+      intensity: 10.0,
+      range: 1.0,
+    },
+    t
+  ));
+  let mut t = Transform::default();
+  t.set_position(glam::Vec3::new(5.0, 1.1, 0.0));
+  builder.create_entity((
+    PointLight {
+      color: glam::Vec3::new(0.0, 1.0, 0.0),
+      intensity: 1.0,
+      range: 1.0,
+    },
+    t
   ));
 
   let engine = builder.build();
@@ -114,4 +140,12 @@ fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mu
     },
   };
   cmd.create_entity((Transform::default(), Marker::default(), renderer));
+}
+
+fn test2(info: Res<EngineInfo>, q: Query<(&mut Transform, &DirectionalLight, &mut Marker)>) {
+  for (t, _, m) in q {
+    let rot = m.t;
+    t.set_rotation(rot, 0.0, rot);
+    m.t += 0.05 * info.delta_time();
+  }
 }

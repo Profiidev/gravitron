@@ -145,7 +145,7 @@ impl Pipeline {
         .input_rate(vk::VertexInputRate::VERTEX),
       vk::VertexInputBindingDescription::default()
         .binding(1)
-        .stride(152)
+        .stride(156)
         .input_rate(vk::VertexInputRate::INSTANCE),
     ];
 
@@ -169,7 +169,7 @@ impl Pipeline {
         .format(vk::Format::R32G32_SFLOAT),
     );
 
-    for i in 0..8 {
+    for i in 0..9 {
       vertex_attrib_descs.push(
         vk::VertexInputAttributeDescription::default()
           .binding(1)
@@ -179,20 +179,12 @@ impl Pipeline {
       );
     }
 
-    vertex_attrib_descs.push(
-      vk::VertexInputAttributeDescription::default()
-        .binding(1)
-        .location(11)
-        .offset(128)
-        .format(vk::Format::R32G32B32_SFLOAT),
-    );
-
     for i in 0..2 {
       vertex_attrib_descs.push(
         vk::VertexInputAttributeDescription::default()
           .binding(1)
           .location(12 + i)
-          .offset(140 + i * 4)
+          .offset(144 + i * 4)
           .format(vk::Format::R32_SFLOAT),
       );
     }
@@ -201,7 +193,7 @@ impl Pipeline {
       vk::VertexInputAttributeDescription::default()
         .binding(1)
         .location(14)
-        .offset(148)
+        .offset(152)
         .format(vk::Format::R32_UINT),
     );
 

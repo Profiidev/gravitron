@@ -47,7 +47,7 @@ pub struct VertexData {
 pub struct InstanceData {
   model_matrix: glam::Mat4,
   inv_model_matrix: glam::Mat4,
-  color: glam::Vec3,
+  color: glam::Vec4,
   metallic: f32,
   roughness: f32,
   texture_id: u32,
@@ -319,7 +319,7 @@ impl InstanceData {
   pub fn new(
     model_matrix: glam::Mat4,
     inv_model_matrix: glam::Mat4,
-    color: glam::Vec3,
+    color: glam::Vec4,
     metallic: f32,
     roughness: f32,
     texture_id: u32,
