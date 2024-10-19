@@ -1,6 +1,6 @@
 use ash::vk;
 
-pub use vk::ShaderStageFlags;
+pub use vk::{Filter, ShaderStageFlags};
 
 #[derive(Default)]
 pub struct VulkanConfig {
@@ -37,9 +37,31 @@ impl VulkanConfig {
 }
 
 #[derive(Clone)]
-pub enum ImageConfig<'a> {
+pub struct ImageConfig<'a> {
+  pub interpolation: vk::Filter,
+  pub data: ImageData<'a>,
+}
+
+#[derive(Clone)]
+pub enum ImageData<'a> {
   Path(&'a str),
   Bytes(Vec<u8>),
+}
+
+impl<'a> ImageConfig<'a> {
+  pub fn new_path(path: &'a str, interpolation: vk::Filter) -> ImageConfig<'a> {
+    ImageConfig {
+      interpolation,
+      data: ImageData::Path(path),
+    }
+  }
+
+  pub fn new_bytes(bytes: Vec<u8>, interpolation: vk::Filter) -> ImageConfig<'a> {
+    ImageConfig {
+      interpolation,
+      data: ImageData::Bytes(bytes),
+    }
+  }
 }
 
 #[derive(Default)]
@@ -135,11 +157,11 @@ pub enum DescriptorType<'a> {
 }
 
 impl<'a> DescriptorType<'a> {
-  pub fn new_storage(stage: vk::ShaderStageFlags, size: u64) -> Self {
+  pub fn new_storage(stage: vk::ShaderStageFlags, size: usize) -> Self {
     BufferDescriptor::new_storage(stage, size)
   }
 
-  pub fn new_uniform(stage: vk::ShaderStageFlags, size: u64) -> Self {
+  pub fn new_uniform(stage: vk::ShaderStageFlags, size: usize) -> Self {
     BufferDescriptor::new_uniform(stage, size)
   }
 
@@ -160,11 +182,11 @@ pub struct BufferDescriptor {
   pub type_: vk::DescriptorType,
   pub buffer_usage: vk::BufferUsageFlags,
   pub stage: vk::ShaderStageFlags,
-  pub size: u64,
+  pub size: usize,
 }
 
 impl BufferDescriptor {
-  pub fn new_storage(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType<'static> {
+  pub fn new_storage(stage: vk::ShaderStageFlags, size: usize) -> DescriptorType<'static> {
     DescriptorType::StorageBuffer(Self {
       type_: vk::DescriptorType::STORAGE_BUFFER,
       buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
@@ -173,7 +195,7 @@ impl BufferDescriptor {
     })
   }
 
-  pub fn new_uniform(stage: vk::ShaderStageFlags, size: u64) -> DescriptorType<'static> {
+  pub fn new_uniform(stage: vk::ShaderStageFlags, size: usize) -> DescriptorType<'static> {
     DescriptorType::UniformBuffer(Self {
       type_: vk::DescriptorType::UNIFORM_BUFFER,
       buffer_usage: vk::BufferUsageFlags::UNIFORM_BUFFER,
