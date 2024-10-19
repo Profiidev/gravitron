@@ -1,99 +1,138 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
 
-layout (set=0, binding=1) uniform sampler2D textures[];
-
-layout (set=1, binding=0) buffer readonly StorageBufferObject {
-  float num_directional_lights;
-  float num_point_lights;
-  vec3 data[];
-} sbo;
-
-layout (location = 0) out vec4 fragColor;
-
-layout (location = 0) in vec3 fragColorIn;
-layout (location = 1) in vec3 fragNormalIn;
-layout (location = 2) in vec2 fragUvIn;
-layout (location = 3) in vec4 fragWorldPosIn;
-layout (location = 4) in vec3 cameraPosIn;
-layout (location = 5) in float metallic;
-layout (location = 6) in float roughness;
-layout (location = 7) flat in uint textureId;
-
 struct DirectionalLight {
-  vec3 direction_to_light;
-  vec3 irradiance;
+  vec3 direction;
+  vec3 color;
+  float intensity;
+  vec3 ambient_color;
+  float ambient_intensity;
 };
 
 struct PointLight {
   vec3 position;
-  vec3 irradiance;
+  vec3 color;
+  float intensity;
+  float range;
 };
+
+struct SpotLight {
+  vec3 position;
+  vec3 direction;
+  vec3 color;
+  float intensity;
+  float range;
+  float angle;
+};
+
+layout (set=0, binding=1) uniform sampler2D textures[];
+
+layout (set=0, binding=2) uniform LightInfo {
+  uint num_pls;
+  uint num_sls;
+  DirectionalLight dl;
+} light_info;
+
+layout (set=0, binding=3) buffer readonly PointLights {
+  PointLight pls[];
+} pls;
+
+layout (set=0, binding=4) buffer readonly SpotLights {
+  SpotLight sls[];
+} sls;
+
+layout (location = 0) out vec4 color_out;
+
+layout (location = 0) in vec4 color_in;
+layout (location = 1) in vec3 normal;
+layout (location = 2) in vec2 uv;
+layout (location = 3) in vec4 world_pos;
+layout (location = 4) in vec3 cam_pos;
+layout (location = 5) in float metallic;
+layout (location = 6) in float roughness;
+layout (location = 7) flat in uint texture_id;
 
 const float PI = 3.14159265359;
 
-float distribution(vec3 normal, vec3 half_vector, float roughness) {
-  float ndoth = dot(normal, half_vector);
-  if (ndoth > 0.0) {
+float geometry(vec3 light_direction, vec3 cam_direction, float roughness) {
+  float n_dot_l = abs(dot(normal, light_direction));
+  float n_dot_c = abs(dot(normal, cam_direction));
+  return 0.5 / max(0.01, mix(2 * n_dot_l * n_dot_c, n_dot_l + n_dot_c, roughness));
+}
+
+float distribution(vec3 half_vector, float roughness) {
+  float n_dot_h = dot(half_vector, normal);
+  if(n_dot_h > 0) {
     float r = roughness * roughness;
-    return r / (PI * pow(1 + (r - 1) * ndoth * ndoth, 2));
+    return r / (PI * pow(1 + n_dot_h * n_dot_h * (r - 1), 2));
   } else {
     return 0.0;
   }
 }
 
-float geometry(vec3 light_direction, vec3 normal, vec3 camera_direction, float roughness) {
-  float ndotl = abs(dot(normal, light_direction));
-  float ndotv = abs(dot(normal, camera_direction));
-  return 0.5 / max(0.01, mix(2 * ndotl * ndotv, ndotl + ndotv, roughness));
-}
+vec3 compute_light(vec3 light_color, vec3 light_direction, vec3 color, vec3 cam_direction) {
+  float n_dot_d = max(dot(normal, light_direction), 0);
 
-vec3 compute_radiance(vec3 irradiance, vec3 light_direction, vec3 normal, vec3 camera_direction, vec3 color) {
-  float ndotl = max(dot(normal, light_direction), 0.0);
+  vec3 color_surface = light_color * n_dot_d;
 
-  vec3 irradiance_on_surface = ndotl * irradiance;
+  float roughness = roughness * roughness;
+  vec3 f0 = mix(vec3(0.03), color, vec3(metallic));
 
-  float roughness2 = roughness * roughness;
+  vec3 reflected_color = (f0 + (1 - f0) * pow(1 - n_dot_d, 5)) * color_surface;
+  vec3 refracted_color = color_surface - reflected_color;
+  vec3 refracted_not_absorbed_color = refracted_color * (1 - metallic);
 
-  vec3 f0 = mix(vec3(0.03),color,vec3(metallic));
-  vec3 reflected_irradiance = (f0 + (1 - f0) * pow(1 - ndotl, 5)) * irradiance_on_surface;
-  vec3 refracted_irradiance = irradiance_on_surface - reflected_irradiance;
-  vec3 refracted_not_absorbed_irradiance = refracted_irradiance * (1 - metallic);
-  
-  vec3 half_vector = normalize((light_direction + camera_direction) / 2.0);
-  float ndoth = max(dot(normal, half_vector), 0.0);
-  vec3 F = f0 + (1 - f0) * pow(1 - ndoth, 5);
-  vec3 relevant_reflection = reflected_irradiance * F * geometry(light_direction, normal, camera_direction, roughness2) * distribution(normal, half_vector, roughness2);
-  return refracted_not_absorbed_irradiance * color / PI + relevant_reflection;
+  vec3 half_vec = normalize(0.5 * (cam_direction + light_direction));
+  float n_dot_h = max(dot(normal, half_vec), 0);
+  vec3 f = f0 + (1 - f0) * pow(1 - n_dot_h, 5);
+  vec3 relevant_reflection = reflected_color * f * geometry(light_direction, cam_direction, roughness) * distribution(half_vec, roughness);
+
+  return refracted_not_absorbed_color * color / PI + relevant_reflection;
 }
 
 void main() {
-  vec3 direction_to_camera = normalize(cameraPosIn - fragWorldPosIn.xyz);
-  vec3 normal = normalize(fragNormalIn);
-  vec3 l = vec3(0);
+  vec4 color = texture(textures[texture_id], uv) + color_in;
 
-  int num_directional_lights = int(sbo.num_directional_lights);
-  int num_point_lights = int(sbo.num_point_lights);
+  vec3 direction_to_cam = normalize(cam_pos - world_pos.xyz);
 
-  for (int i = 0; i < num_directional_lights; i++) {
-    vec3 data1 = sbo.data[i * 2];
-    vec3 data2 = sbo.data[i * 2 + 1];
-    DirectionalLight light = DirectionalLight(normalize(data1), data2);
-    l += compute_radiance(light.irradiance, light.direction_to_light, normal, direction_to_camera, fragColorIn);
+  DirectionalLight dl = light_info.dl;
+
+  vec3 ret = dl.ambient_color * dl.ambient_intensity * color.rgb;
+
+  ret += compute_light(dl.color, -dl.direction, color.rgb, direction_to_cam) * dl.intensity;
+
+  for(uint i = 0; i < light_info.num_pls; i++) {
+    PointLight pl = pls.pls[i];
+    vec3 direction = normalize(pl.position - world_pos.xyz);
+    float d = length(world_pos.xyz - pl.position);
+
+    if(d > pl.range) {
+      continue;
+    }
+
+    vec3 light_color = pl.color / (4 * PI * d * d);
+
+    ret += compute_light(light_color, direction, color.rgb, direction_to_cam) * pl.intensity;
   }
 
-  for(int i = 0; i < num_point_lights; i++){
-    vec3 data1 = sbo.data[num_directional_lights * 2 + i * 2];
-    vec3 data2 = sbo.data[num_directional_lights * 2 + i * 2 + 1];
+  for(uint i = 0; i < light_info.num_sls; i++) {
+    SpotLight sl = sls.sls[i];
+    vec3 direction = normalize(sl.position - world_pos.xyz);
+    float d = length(world_pos.xyz - sl.position);
 
-    PointLight point_light = PointLight(data1, data2);
-    vec3 to_light = normalize(point_light.position - fragWorldPosIn.xyz);
-    float d = length(fragWorldPosIn.xyz - point_light.position);
-    vec3 irradiance = point_light.irradiance / (4 * PI * d * d);
+    if(d > sl.range) {
+      continue;
+    }
 
-    l += compute_radiance(irradiance, to_light, normal, direction_to_camera, fragColorIn);
+    float angle = acos(dot(-direction, sl.direction));
+    if(angle > sl.angle) {
+      continue;
+    }
+
+    vec3 light_color = sl.color / (4 * PI * d * d);
+
+    ret += compute_light(light_color, direction, color.rgb, direction_to_cam) * sl.intensity;
   }
 
-  fragColor = vec4(l / (1 + l), 1.0);
-  fragColor = texture(textures[textureId], fragUvIn) + vec4(fragColorIn, 1.0);
+  color_out = vec4(ret / (1 + ret), color.a);
 }

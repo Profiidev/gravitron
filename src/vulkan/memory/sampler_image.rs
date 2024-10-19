@@ -2,7 +2,7 @@ use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 
-use crate::config::vulkan::ImageConfig;
+use crate::config::vulkan::{ImageConfig, ImageData};
 
 use super::{buffer::Buffer, image::Image, manager::Transfer};
 
@@ -18,9 +18,9 @@ impl SamplerImage {
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
   ) -> Result<Self, Error> {
-    let image_file = match image_config {
-      ImageConfig::Path(path) => image::open(path)?.to_rgba8(),
-      ImageConfig::Bytes(bytes) => image::load_from_memory(bytes)?.to_rgba8(),
+    let image_file = match &image_config.data {
+      ImageData::Path(path) => image::open(path)?.to_rgba8(),
+      ImageData::Bytes(bytes) => image::load_from_memory(bytes)?.to_rgba8(),
     };
     let (width, height) = image_file.dimensions();
 
@@ -50,8 +50,8 @@ impl SamplerImage {
       .subresource_range(subresource_range);
 
     let sampler_info = vk::SamplerCreateInfo::default()
-      .mag_filter(vk::Filter::LINEAR)
-      .min_filter(vk::Filter::LINEAR);
+      .mag_filter(image_config.interpolation)
+      .min_filter(image_config.interpolation);
 
     let image = Image::new(
       device,
