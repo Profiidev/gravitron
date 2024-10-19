@@ -105,6 +105,11 @@ void main() {
     PointLight pl = pls.pls[i];
     vec3 direction = normalize(pl.position - world_pos.xyz);
     float d = length(world_pos.xyz - pl.position);
+
+    if(d > pl.range) {
+      continue;
+    }
+
     vec3 light_color = pl.color / (4 * PI * d * d);
 
     ret += compute_light(light_color, direction, color.rgb, direction_to_cam) * pl.intensity;
@@ -114,6 +119,16 @@ void main() {
     SpotLight sl = sls.sls[i];
     vec3 direction = normalize(sl.position - world_pos.xyz);
     float d = length(world_pos.xyz - sl.position);
+
+    if(d > sl.range) {
+      continue;
+    }
+
+    float angle = acos(dot(-direction, sl.direction));
+    if(angle > sl.angle) {
+      continue;
+    }
+
     vec3 light_color = sl.color / (4 * PI * d * d);
 
     ret += compute_light(light_color, direction, color.rgb, direction_to_cam) * sl.intensity;

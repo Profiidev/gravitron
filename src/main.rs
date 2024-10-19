@@ -10,7 +10,7 @@ use gravitron::{
     commands::Commands,
     components::{
       camera::CameraBuilder,
-      lighting::{DirectionalLight, PointLight},
+      lighting::{DirectionalLight, PointLight, SpotLight},
       renderer::MeshRenderer,
       transform::Transform,
     },
@@ -110,11 +110,13 @@ fn main() {
   ));
   let mut t = Transform::default();
   t.set_position(glam::Vec3::new(5.0, 1.1, 0.0));
+  t.set_rotation(std::f32::consts::PI, 0.0, 0.0);
   builder.create_entity((
-    PointLight {
+    SpotLight {
       color: glam::Vec3::new(0.0, 1.0, 0.0),
       intensity: 1.0,
       range: 1.0,
+      angle: 1.0,
     },
     t,
   ));
