@@ -70,10 +70,10 @@ impl Gravitron {
             WindowMessage::Exit => engine_commands.shutdown(),
             WindowMessage::KeyPressed(code) => {
               inputs.add_pressed(code);
-            },
+            }
             WindowMessage::KeyReleased(code) => {
               inputs.remove_released(&code);
-            },
+            }
             WindowMessage::MouseMove(x, y) => {
               inputs.set_cursor_pos(x, y);
             }
