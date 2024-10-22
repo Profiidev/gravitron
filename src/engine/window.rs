@@ -12,9 +12,7 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
 #[cfg(all(target_os = "linux", not(feature = "wayland")))]
 use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::{
-  application::ApplicationHandler,
-  dpi::{LogicalSize, Size},
-  event_loop::EventLoop,
+  application::ApplicationHandler, dpi::{LogicalSize, Size}, event::{ElementState, KeyEvent}, event_loop::EventLoop, keyboard::PhysicalKey
 };
 
 use crate::{config::EngineConfig, vulkan::Vulkan};
@@ -96,9 +94,27 @@ impl ApplicationHandler for Window {
         info!("Window sending exit request");
         event_loop.exit();
         self.send.send(WindowMessage::Exit).unwrap();
-      }
+      },
       winit::event::WindowEvent::RedrawRequested => {
         debug!("Redraw Request");
+      },
+      winit::event::WindowEvent::KeyboardInput { event: KeyEvent {
+        physical_key: PhysicalKey::Code(code),
+        repeat: false,
+        state,
+        ..
+      }, .. } => {
+        match state {
+          ElementState::Pressed => {
+            self.send.send(WindowMessage::KeyPressed(code)).unwrap();
+          },
+          ElementState::Released => {
+            self.send.send(WindowMessage::KeyReleased(code)).unwrap();
+          }
+        }
+      },
+      winit::event::WindowEvent::CursorMoved { position, .. } => {
+        self.send.send(WindowMessage::MouseMove(position.x, position.y)).unwrap();
       }
       _ => {}
     }

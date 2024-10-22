@@ -13,11 +13,12 @@ use gravitron_utils::thread::Signal;
 #[allow(unused_imports)]
 use log::{info, trace};
 use window::Window;
+use winit::keyboard::KeyCode;
 
 use crate::{
   config::EngineConfig,
   ecs::{
-    resources::{engine_commands::EngineCommands, engine_info::EngineInfo},
+    resources::{engine_commands::EngineCommands, engine_info::EngineInfo, input::Input},
     systems::{add_systems, stages::SystemStage},
   },
 };
@@ -62,9 +63,20 @@ impl Gravitron {
 
         let engine_commands = world.get_resource_mut::<EngineCommands>().unwrap();
 
+        let inputs = self.ecs.get_resource_mut::<Input>().unwrap();
+
         for message in self.rec.try_iter() {
           match message {
             WindowMessage::Exit => engine_commands.shutdown(),
+            WindowMessage::KeyPressed(code) => {
+              inputs.add_pressed(code);
+            },
+            WindowMessage::KeyReleased(code) => {
+              inputs.remove_released(&code);
+            },
+            WindowMessage::MouseMove(x, y) => {
+              inputs.set_cursor_pos(x, y);
+            }
           }
         }
 
@@ -137,6 +149,7 @@ impl GravitronBuilder {
       .ecs
       .add_resource(EngineCommands::create(window_handle, shutdown));
     self.ecs.add_resource(EngineInfo::default());
+    self.ecs.add_resource(Input::default());
 
     self.ecs.add_resource(window_ready.wait());
 
@@ -151,4 +164,7 @@ impl GravitronBuilder {
 
 pub enum WindowMessage {
   Exit,
+  KeyPressed(KeyCode),
+  KeyReleased(KeyCode),
+  MouseMove(f64, f64),
 }
