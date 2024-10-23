@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2024-10-23
+
+### 🚀 Features
+
+- Added possibiliy for settings relative execution order
+- Generic as stage identifier
+
+### 🐛 Bug Fixes
+
+- Ecs storage edges correct id
+- Set componentid type correctly
+- TypeId randomly different
+- ResMut wrong acces type
+- Suboptimal system parallelization
+- Wrong access using unsafe world cell
+
+### 🚜 Refactor
+
+- Switched to typeid for components
+- Only compile trace logs if using debug feature
+
+### ⚙️ Miscellaneous Tasks
+
+- Fixed typo
+
+
 ## [0.2.0] - 2024-10-02
 
 ### 🚀 Features
