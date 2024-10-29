@@ -14,7 +14,7 @@ use gravitron::{
       renderer::MeshRenderer,
       transform::Transform,
     },
-    resources::engine_info::EngineInfo,
+    resources::{engine_info::EngineInfo, input::Input},
     systems::{query::Query, resources::Res},
     Component,
   },
@@ -22,6 +22,7 @@ use gravitron::{
   math,
   vulkan::graphics::resources::material::Material,
 };
+use winit::keyboard::KeyCode;
 
 fn main() {
   let testing = GraphicsPipelineConfig::new("testing".to_string())
@@ -44,7 +45,8 @@ fn main() {
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config)
     .add_system(test)
-    .add_system(test2);
+    .add_system(test2)
+    .add_system(test3);
   let mut transform = Transform::default();
   transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
   builder.create_entity((
@@ -153,5 +155,11 @@ fn test2(info: Res<EngineInfo>, q: Query<(&mut Transform, &DirectionalLight, &mu
     let rot = m.t;
     t.set_rotation(rot, 0.0, rot);
     m.t += 0.05 * info.delta_time();
+  }
+}
+
+fn test3(input: Res<Input>) {
+  if input.is_key_pressed(&KeyCode::KeyW) {
+    println!("W");
   }
 }
