@@ -53,7 +53,7 @@ impl Vulkan {
   pub fn init(
     mut config: VulkanConfig,
     app_config: &AppConfig,
-    window: Window,
+    window: &Window,
   ) -> Result<Self, Error> {
     let entry = unsafe { ash::Entry::load() }?;
 

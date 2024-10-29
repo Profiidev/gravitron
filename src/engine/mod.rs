@@ -18,7 +18,10 @@ use winit::keyboard::KeyCode;
 use crate::{
   config::EngineConfig,
   ecs::{
-    resources::{engine_commands::EngineCommands, engine_info::EngineInfo, input::Input},
+    resources::{
+      engine_commands::EngineCommands, engine_info::EngineInfo, input::Input,
+      window::Window as WindowCmds,
+    },
     systems::{add_systems, stages::SystemStage},
   },
 };
@@ -151,7 +154,9 @@ impl GravitronBuilder {
     self.ecs.add_resource(EngineInfo::default());
     self.ecs.add_resource(Input::default());
 
-    self.ecs.add_resource(window_ready.wait());
+    let (vulkan, window_handle) = window_ready.wait();
+    self.ecs.add_resource(vulkan);
+    self.ecs.add_resource(WindowCmds::new(window_handle));
 
     Gravitron {
       ecs: self.ecs.build(),

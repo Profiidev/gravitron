@@ -8,12 +8,14 @@ use winit::{
 pub struct Surface {
   surface_loader: khr::surface::Instance,
   surface: vk::SurfaceKHR,
-  #[allow(dead_code)]
-  window: Window,
 }
 
 impl Surface {
-  pub fn init(entry: &ash::Entry, instance: &ash::Instance, window: Window) -> Result<Self, Error> {
+  pub fn init(
+    entry: &ash::Entry,
+    instance: &ash::Instance,
+    window: &Window,
+  ) -> Result<Self, Error> {
     let display_handle = window.display_handle().unwrap().as_raw();
     let window_handle = window.window_handle().unwrap().as_raw();
     let surface =
@@ -23,7 +25,6 @@ impl Surface {
     Ok(Self {
       surface_loader,
       surface,
-      window,
     })
   }
 
