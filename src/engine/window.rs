@@ -14,7 +14,10 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
+  event::{ElementState, KeyEvent},
   event_loop::EventLoop,
+  keyboard::PhysicalKey,
+  window::Window as WinitWindow,
 };
 
 use crate::{config::EngineConfig, vulkan::Vulkan};
@@ -24,7 +27,7 @@ use super::WindowMessage;
 pub struct Window {
   config: EngineConfig,
   app_run: Signal,
-  window_ready: Signal<Vulkan>,
+  window_ready: Signal<(Vulkan, WinitWindow)>,
   shutdown: Signal,
   send: Sender<WindowMessage>,
 }
@@ -34,7 +37,7 @@ impl Window {
   pub fn init(
     config: EngineConfig,
     app_run: Signal,
-    window_ready: Signal<Vulkan>,
+    window_ready: Signal<(Vulkan, WinitWindow)>,
     shutdown: Signal,
     send: Sender<WindowMessage>,
   ) -> Result<(), Error> {
@@ -76,11 +79,11 @@ impl ApplicationHandler for Window {
     let v = Vulkan::init(
       std::mem::take(&mut self.config.vulkan),
       &self.config.app,
-      window,
+      &window,
     )
     .unwrap();
 
-    self.window_ready.send(v);
+    self.window_ready.send((v, window));
     debug!("Waiting for Engine start");
     self.app_run.wait();
   }
@@ -99,6 +102,29 @@ impl ApplicationHandler for Window {
       }
       winit::event::WindowEvent::RedrawRequested => {
         debug!("Redraw Request");
+      }
+      winit::event::WindowEvent::KeyboardInput {
+        event:
+          KeyEvent {
+            physical_key: PhysicalKey::Code(code),
+            repeat: false,
+            state,
+            ..
+          },
+        ..
+      } => match state {
+        ElementState::Pressed => {
+          self.send.send(WindowMessage::KeyPressed(code)).unwrap();
+        }
+        ElementState::Released => {
+          self.send.send(WindowMessage::KeyReleased(code)).unwrap();
+        }
+      },
+      winit::event::WindowEvent::CursorMoved { position, .. } => {
+        self
+          .send
+          .send(WindowMessage::MouseMove(position.x, position.y))
+          .unwrap();
       }
       _ => {}
     }
