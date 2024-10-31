@@ -17,7 +17,7 @@ readme = "README.md"
 anyhow = "1.0.91"
 ash = "0.38.0"
 ash-window = "0.13.0"
-glam = "0.29.0"
+glam = "0.29.1"
 gpu-allocator = { version = "0.27.0", default-features = false, features = ["vulkan"] }
 thiserror = "1.0.65"
 vk-shader-macros = "0.2.9"
