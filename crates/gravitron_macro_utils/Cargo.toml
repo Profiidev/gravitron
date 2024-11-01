@@ -9,5 +9,5 @@ description = "Gravitron's Macro Utils"
 exclude = ["CHANGELOG.md"]
 
 [dependencies]
-syn = "2.0.85"
+syn = "2.0.86"
 toml_edit = { version = "0.22.22", default-features = false, features = ["parse"] }
