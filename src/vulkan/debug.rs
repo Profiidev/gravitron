@@ -7,8 +7,7 @@ use log::LevelFilter;
 
 use crate::config::vulkan::RendererConfig;
 
-const VALIDATION_LAYER: &std::ffi::CStr =
-  unsafe { c"VK_LAYER_KHRONOS_validation" };
+const VALIDATION_LAYER: &std::ffi::CStr = unsafe { c"VK_LAYER_KHRONOS_validation" };
 
 pub struct Debugger {
   debug_utils: DebugUtils,
