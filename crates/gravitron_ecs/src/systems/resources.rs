@@ -19,7 +19,7 @@ impl<T: 'static> Deref for Res<'_, T> {
   }
 }
 
-impl<'res, T: 'static> SystemParam for Res<'res, T> {
+impl<T: 'static> SystemParam for Res<'_, T> {
   type Item<'new> = Res<'new, T>;
 
   fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
@@ -53,7 +53,7 @@ impl<T: 'static> DerefMut for ResMut<'_, T> {
   }
 }
 
-impl<'res, T: 'static> SystemParam for ResMut<'res, T> {
+impl<T: 'static> SystemParam for ResMut<'_, T> {
   type Item<'new> = ResMut<'new, T>;
 
   fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
