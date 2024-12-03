@@ -71,7 +71,7 @@ pub struct Storage<'a> {
   reserve_lock: Arc<Mutex<()>>,
 }
 
-impl<'a> Storage<'a> {
+impl Storage<'_> {
   pub fn create_entity(&mut self, comps: Vec<Box<dyn Component>>) -> EntityId {
     let id = if let Some(id) = self.entity_ids_free.pop() {
       id

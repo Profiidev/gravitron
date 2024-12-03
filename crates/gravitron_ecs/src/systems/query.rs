@@ -52,7 +52,7 @@ impl<'a, Q: QueryParam<'a>> Iterator for QueryIter<'a, Q> {
   }
 }
 
-impl<'a, Q> SystemParam for Query<'a, Q>
+impl<Q> SystemParam for Query<'_, Q>
 where
   for<'b> Q: QueryParam<'b>,
 {
