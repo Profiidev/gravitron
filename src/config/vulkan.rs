@@ -213,7 +213,10 @@ pub struct ImageDescriptor<'a> {
 }
 
 impl<'a> ImageDescriptor<'a> {
-  pub fn new_image(stage: vk::ShaderStageFlags, images: Vec<ImageConfig<'a>>) -> DescriptorType<'a> {
+  pub fn new_image(
+    stage: vk::ShaderStageFlags,
+    images: Vec<ImageConfig<'a>>,
+  ) -> DescriptorType<'a> {
     DescriptorType::Image(Self {
       type_: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
       stage,
