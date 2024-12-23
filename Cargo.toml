@@ -19,7 +19,7 @@ ash = "0.38.0"
 ash-window = "0.13.0"
 glam = "0.29.2"
 gpu-allocator = { version = "0.27.0", default-features = false, features = ["vulkan"] }
-thiserror = "2.0.8"
+thiserror = "2.0.9"
 vk-shader-macros = "0.2.9"
 winit = { version = "0.30.0" }
 gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.3" }
