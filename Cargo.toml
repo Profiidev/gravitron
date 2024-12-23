@@ -14,7 +14,7 @@ keywords = ["game", "engine", "gravitron"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.94"
+anyhow = "1.0.95"
 ash = "0.38.0"
 ash-window = "0.13.0"
 glam = "0.29.2"
