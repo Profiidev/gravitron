@@ -1,7 +1,21 @@
+#[path = "../src/storage.rs"]
+#[allow(unused)]
+mod storage;
+
+pub mod components {
+  pub use gravitron_ecs::components::Component;
+}
+
+pub type Id = u64;
+pub type ComponentId = TypeId;
+pub type EntityId = Id;
+type ArchetypeId = Id;
+
 use std::{any::TypeId, hint::black_box, time::Instant};
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use gravitron_ecs::{storage::Storage, Component};
+use gravitron_ecs::Component;
+use storage::Storage;
 
 fn create_n(storage: &mut Storage, n: u64) {
   for _ in 0..n {

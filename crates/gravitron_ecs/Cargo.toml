@@ -23,6 +23,6 @@ criterion = "0.5.1"
 [features]
 debug = []
 
-#[[bench]]
-#name = "storage"
-#harness = false
+[[bench]]
+name = "storage"
+harness = false
