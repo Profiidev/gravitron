@@ -150,14 +150,38 @@ impl MemoryManager {
     Ok(id)
   }
 
-  pub fn create_sampler_image(&mut self, image_config: &ImageConfig) -> Result<ImageId, Error> {
+  pub fn create_texture_image(&mut self, image_config: &ImageConfig) -> Result<ImageId, Error> {
     let id = ImageId::Sampler(self.last_image_id);
 
-    let sampler_image = SamplerImage::new(
+    let sampler_image = SamplerImage::new_texture(
       image_config,
       &self.device,
       &mut self.allocator,
       &self.graphics_transfer,
+    )?;
+
+    self.images.insert(id, ImageType::Sampler(sampler_image));
+
+    self.last_image_id += 1;
+    Ok(id)
+  }
+
+  pub fn create_sampler_image(
+    &mut self,
+    location: gpu_allocator::MemoryLocation,
+    image_info: &vk::ImageCreateInfo,
+    image_view_info: &vk::ImageViewCreateInfo,
+    sampler_info: &vk::SamplerCreateInfo,
+  ) -> Result<ImageId, Error> {
+    let id = ImageId::Sampler(self.last_image_id);
+
+    let sampler_image = SamplerImage::new(
+      &self.device,
+      &mut self.allocator,
+      location,
+      image_info,
+      image_view_info,
+      sampler_info,
     )?;
 
     self.images.insert(id, ImageType::Sampler(sampler_image));

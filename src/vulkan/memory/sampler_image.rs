@@ -13,6 +13,20 @@ pub struct SamplerImage {
 
 impl SamplerImage {
   pub fn new(
+    device: &ash::Device,
+    allocator: &mut vulkan::Allocator,
+    location: gpu_allocator::MemoryLocation,
+    image_info: &vk::ImageCreateInfo,
+    image_view_info: &vk::ImageViewCreateInfo,
+    sampler_info: &vk::SamplerCreateInfo,
+  ) -> Result<Self, Error> {
+    let image = Image::new(device, allocator, location, &image_info, &image_view_info)?;
+    let sampler = unsafe { device.create_sampler(&sampler_info, None)? };
+
+    Ok(Self { image, sampler })
+  }
+
+  pub fn new_texture(
     image_config: &ImageConfig,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
@@ -53,14 +67,14 @@ impl SamplerImage {
       .mag_filter(image_config.interpolation)
       .min_filter(image_config.interpolation);
 
-    let image = Image::new(
+    let sampler = Self::new(
       device,
       allocator,
       gpu_allocator::MemoryLocation::GpuOnly,
       &image_info,
       &image_view_info,
+      &sampler_info,
     )?;
-    let sampler = unsafe { device.create_sampler(&sampler_info, None)? };
 
     let data = image_file.into_raw();
     let mut transfer_buffer = Buffer::new(
@@ -92,7 +106,7 @@ impl SamplerImage {
       .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
       .old_layout(vk::ImageLayout::UNDEFINED)
       .new_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
-      .image(image.image())
+      .image(sampler.image())
       .subresource_range(subresource_range);
 
     let layout_barrier = vk::ImageMemoryBarrier::default()
@@ -100,7 +114,7 @@ impl SamplerImage {
       .dst_access_mask(vk::AccessFlags::SHADER_READ)
       .old_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
       .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-      .image(image.image())
+      .image(sampler.image())
       .subresource_range(subresource_range);
 
     let command_buffer = transfer.buffer();
@@ -122,7 +136,7 @@ impl SamplerImage {
       device.cmd_copy_buffer_to_image(
         command_buffer,
         transfer_buffer.buffer(),
-        image.image(),
+        sampler.image(),
         vk::ImageLayout::TRANSFER_DST_OPTIMAL,
         &[region],
       );
@@ -144,7 +158,7 @@ impl SamplerImage {
       transfer_buffer.cleanup(device, allocator)?;
     }
 
-    Ok(Self { image, sampler })
+    Ok(sampler)
   }
 
   pub fn cleanup(
@@ -156,6 +170,10 @@ impl SamplerImage {
       device.destroy_sampler(self.sampler, None);
     }
     self.image.cleanup(device, allocator)
+  }
+
+  pub fn image(&self) -> vk::Image {
+    self.image.image()
   }
 
   pub fn image_view(&self) -> vk::ImageView {
