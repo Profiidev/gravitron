@@ -1,10 +1,10 @@
+use gxhash::HashMap;
 use std::{
   collections::VecDeque,
   marker::PhantomData,
   ptr,
   sync::{Arc, Mutex},
 };
-use gxhash::HashMap;
 
 #[cfg(feature = "debug")]
 use log::trace;

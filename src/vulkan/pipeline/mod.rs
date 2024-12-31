@@ -6,7 +6,10 @@ use descriptors::{get_descriptor_set_layouts, get_light_framebuffer_descriptor_s
 
 use crate::config::vulkan::{ComputePipelineConfig, GraphicsPipelineConfig};
 
-use super::{graphics::swapchain::SwapChain, memory::{manager::MemoryManager, BufferMemory}};
+use super::{
+  graphics::swapchain::SwapChain,
+  memory::{manager::MemoryManager, BufferMemory},
+};
 
 mod descriptors;
 pub mod manager;
@@ -83,7 +86,7 @@ impl Pipeline {
     let input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo::default()
       .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
 
-    let swapchain_extent =swapchain.get_extent();
+    let swapchain_extent = swapchain.get_extent();
     let viewport_size = (swapchain_extent.width, swapchain_extent.height);
 
     let viewport = [vk::Viewport::default()

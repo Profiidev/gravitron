@@ -30,21 +30,28 @@ pub fn init_render_pass(
   let attachment = [color, normal, pos, depth];
 
   let color = [
-    vk::AttachmentReference::default().layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL).attachment(0),
-    vk::AttachmentReference::default().layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL).attachment(1),
-    vk::AttachmentReference::default().layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL).attachment(2),
+    vk::AttachmentReference::default()
+      .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+      .attachment(0),
+    vk::AttachmentReference::default()
+      .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+      .attachment(1),
+    vk::AttachmentReference::default()
+      .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+      .attachment(2),
   ];
-  let depth =
-    vk::AttachmentReference::default().layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL).attachment(3);
+  let depth = vk::AttachmentReference::default()
+    .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    .attachment(3);
 
   let mut subpass = Vec::new();
   for _ in 0..pipeline_count {
-      subpass.push(
-        vk::SubpassDescription::default()
-          .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-          .depth_stencil_attachment(&depth)
-          .color_attachments(&color),
-      );
+    subpass.push(
+      vk::SubpassDescription::default()
+        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+        .depth_stencil_attachment(&depth)
+        .color_attachments(&color),
+    );
   }
 
   let subpass_dependency = [vk::SubpassDependency::default()
@@ -79,9 +86,9 @@ pub fn init_light_render_pass(
 
   let attachment = [color];
 
-  let color = [
-    vk::AttachmentReference::default().layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL).attachment(0),
-  ];
+  let color = [vk::AttachmentReference::default()
+    .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+    .attachment(0)];
 
   let subpass = [vk::SubpassDescription::default()
     .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
