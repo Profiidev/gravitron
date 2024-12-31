@@ -58,8 +58,7 @@ impl Renderer {
       .first()
       .ok_or(RendererInitError::FormatMissing)?
       .format;
-    let render_pass =
-      render_pass::init_render_pass(logical_device, config.shaders.len() + 1)?;
+    let render_pass = render_pass::init_render_pass(logical_device, config.shaders.len() + 1)?;
     let light_render_pass = render_pass::init_light_render_pass(logical_device, format)?;
 
     let swapchain = SwapChain::init(
