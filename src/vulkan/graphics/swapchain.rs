@@ -131,7 +131,7 @@ impl SwapChain {
     )?;
 
     let image_info = depth_image_create_info
-      .usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+      .usage(vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::COLOR_ATTACHMENT)
       .format(vk::Format::R32G32B32A32_SFLOAT);
 
     let subresource_range = subresource_range.aspect_mask(vk::ImageAspectFlags::COLOR);
@@ -157,7 +157,7 @@ impl SwapChain {
         swapchain_image,
         logical_device,
         surface_format.format,
-        [images[0], images[1], images[2], images[3]],
+        [images[0], images[1], images[2]],
         depth_image,
         (render_pass, light_render_pass),
         memory_manager,

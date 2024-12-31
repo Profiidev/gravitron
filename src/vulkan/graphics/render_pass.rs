@@ -2,11 +2,10 @@ use ash::vk;
 
 pub fn init_render_pass(
   logical_device: &ash::Device,
-  format: vk::Format,
   pipeline_count: usize,
 ) -> Result<vk::RenderPass, vk::Result> {
   let color = vk::AttachmentDescription::default()
-    .format(format)
+    .format(vk::Format::R32G32B32A32_SFLOAT)
     .samples(vk::SampleCountFlags::TYPE_1)
     .load_op(vk::AttachmentLoadOp::CLEAR)
     .store_op(vk::AttachmentStoreOp::STORE)
@@ -15,7 +14,7 @@ pub fn init_render_pass(
     .initial_layout(vk::ImageLayout::UNDEFINED)
     .final_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
   let normal = color;
-  let pos = color.format(vk::Format::R32G32B32A32_SFLOAT);
+  let pos = color;
 
   let depth = vk::AttachmentDescription::default()
     .format(vk::Format::D32_SFLOAT)

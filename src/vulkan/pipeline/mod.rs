@@ -38,6 +38,8 @@ impl Pipeline {
     swapchain: &SwapChain,
     render_pass: vk::RenderPass,
     descriptor_pool: vk::DescriptorPool,
+    default_descs: &[vk::DescriptorSet],
+    default_desc_layouts: &[vk::DescriptorSetLayout],
   ) -> Result<Self, Error> {
     let main_function_name = std::ffi::CString::new("main").unwrap();
 
@@ -75,8 +77,13 @@ impl Pipeline {
         .format(vk::Format::R32G32B32_SFLOAT),
       vk::VertexInputAttributeDescription::default()
         .binding(0)
-        .location(0)
+        .location(1)
         .offset(12)
+        .format(vk::Format::R32G32B32_SFLOAT),
+      vk::VertexInputAttributeDescription::default()
+        .binding(0)
+        .location(2)
+        .offset(24)
         .format(vk::Format::R32G32_SFLOAT),
     ];
 
@@ -130,11 +137,7 @@ impl Pipeline {
       .src_alpha_blend_factor(vk::BlendFactor::SRC_ALPHA)
       .dst_alpha_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
       .alpha_blend_op(vk::BlendOp::ADD);
-    let color_blend_attachments = [
-      color_blend_attachment,
-      color_blend_attachment,
-      color_blend_attachment,
-    ];
+    let color_blend_attachments = [color_blend_attachment];
 
     let color_blend_info =
       vk::PipelineColorBlendStateCreateInfo::default().attachments(&color_blend_attachments);
@@ -143,10 +146,17 @@ impl Pipeline {
       get_light_framebuffer_descriptor_set(logical_device, descriptor_pool, swapchain)?;
 
     let descriptor_layouts = vec![descriptor_layout];
-    let descriptor_sets = vec![descriptor_set];
+    let mut descriptor_sets = default_descs.to_vec();
+    descriptor_sets.push(descriptor_set);
+
+    let descriptor_layouts_used: Vec<vk::DescriptorSetLayout> = default_desc_layouts
+      .iter()
+      .copied()
+      .chain(descriptor_layouts.iter().copied())
+      .collect();
 
     let pipeline_layout_create_info =
-      vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
+      vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts_used);
     let pipeline_layout =
       unsafe { logical_device.create_pipeline_layout(&pipeline_layout_create_info, None) }?;
 

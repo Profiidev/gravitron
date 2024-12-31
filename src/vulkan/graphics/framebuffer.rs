@@ -3,7 +3,7 @@ use ash::vk;
 
 use crate::vulkan::memory::{manager::MemoryManager, types::ImageId};
 
-pub const IMAGES_PER_FRAME_BUFFER: u32 = 4;
+pub const IMAGES_PER_FRAME_BUFFER: u32 = 3;
 
 pub struct Framebuffer {
   geometry_buffer: vk::Framebuffer,
@@ -55,9 +55,7 @@ impl Framebuffer {
         .get_vk_image_view(depth_image)
         .expect("Failed to get framebuffer image_view"),
     ];
-    let vi_light = [memory_manager
-      .get_vk_image_view(images[3])
-      .expect("Failed to get framebuffer image_view")];
+    let vi_light = [light_view];
 
     let frame_buffer_create_info = vk::FramebufferCreateInfo::default()
       .render_pass(render_passes.0)

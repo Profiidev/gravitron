@@ -122,6 +122,8 @@ impl PipelineManager {
       swapchain,
       light_render_pass,
       descriptor_pool,
+      &default_descs,
+      &default_desc_layouts,
     )?;
 
     let mut vk_pipelines = Vec::new();

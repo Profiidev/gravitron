@@ -6,7 +6,8 @@ layout(set=0, binding=0) uniform UniformBufferObject {
 } ubo;
 
 layout (location=0) in vec3 in_pos;
-layout (location=1) in vec2 in_uv;
+layout (location=1) in vec3 _;
+layout (location=2) in vec2 in_uv;
 
 layout (location=0) out vec2 out_uv;
 layout (location=1) out vec3 cam_pos;
