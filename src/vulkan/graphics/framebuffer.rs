@@ -16,6 +16,7 @@ pub struct Framebuffer {
 }
 
 impl Framebuffer {
+  #[allow(clippy::complexity)]
   pub fn create(
     swapchain_image: vk::Image,
     logical_device: &ash::Device,
@@ -116,14 +117,6 @@ impl Framebuffer {
 
   pub fn command_buffer(&self) -> vk::CommandBuffer {
     self.command_buffer
-  }
-
-  pub fn geometry_buffer(&self) -> vk::Framebuffer {
-    self.geometry_buffer
-  }
-
-  pub fn light_buffer(&self) -> vk::Framebuffer {
-    self.light_buffer
   }
 
   pub fn start_record(

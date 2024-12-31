@@ -22,6 +22,7 @@ pub struct SwapChain {
   framebuffers: Vec<Framebuffer>,
   extent: vk::Extent2D,
   current_image: usize,
+  geometry_images: Vec<(vk::ImageView, vk::Sampler)>,
 }
 
 impl SwapChain {
@@ -141,7 +142,7 @@ impl SwapChain {
     let sampler_info = vk::SamplerCreateInfo::default();
 
     let mut images = Vec::new();
-    for _ in 0..4 {
+    for _ in 0..IMAGES_PER_FRAME_BUFFER {
       images.push(memory_manager.create_sampler_image(
         gpu_allocator::MemoryLocation::GpuOnly,
         &image_info,
@@ -165,12 +166,27 @@ impl SwapChain {
       )?);
     }
 
+    let geometry_images = images
+      .into_iter()
+      .map(|i| {
+        (
+          memory_manager
+            .get_vk_image_view(i)
+            .expect("Failed to get image view"),
+          memory_manager
+            .get_vk_sampler(i)
+            .expect("Failed to get sampler"),
+        )
+      })
+      .collect();
+
     Ok(Self {
       loader: swapchain_loader,
       swapchain,
       framebuffers,
       extent,
       current_image: 0,
+      geometry_images,
     })
   }
 
@@ -289,7 +305,11 @@ impl SwapChain {
     self.current_image
   }
 
-  pub fn frame_buffer_count(&self) -> usize {
+  pub fn framebuffer_count(&self) -> usize {
     self.framebuffers.len()
+  }
+
+  pub fn framebuffer_image_handles(&self) -> &[(vk::ImageView, vk::Sampler)] {
+    &self.geometry_images
   }
 }

@@ -5,12 +5,15 @@ use ash::vk;
 
 use crate::{
   config::vulkan::{DescriptorSet, DescriptorType},
-  vulkan::memory::{manager::MemoryManager, types::BufferBlockSize, BufferMemory},
+  vulkan::{
+    graphics::swapchain::{SwapChain, IMAGES_PER_FRAME_BUFFER},
+    memory::{manager::MemoryManager, types::BufferBlockSize, BufferMemory},
+  },
 };
 
 #[allow(clippy::complexity)]
 pub fn get_descriptor_set_layouts(
-  descriptor_sets_config: &Vec<DescriptorSet>,
+  descriptor_sets_config: &[DescriptorSet],
   descriptor_pool: vk::DescriptorPool,
   logical_device: &ash::Device,
   memory_manager: &mut MemoryManager,
@@ -107,7 +110,7 @@ pub fn get_descriptor_set_layouts(
 
           let mut image_infos = Vec::new();
           for image in &desc.images {
-            let sampler_image = memory_manager.create_sampler_image(image)?;
+            let sampler_image = memory_manager.create_texture_image(image)?;
             let view = memory_manager.get_vk_image_view(sampler_image).unwrap();
             let sampler = memory_manager.get_vk_sampler(sampler_image).unwrap();
 
@@ -136,6 +139,60 @@ pub fn get_descriptor_set_layouts(
   }
 
   Ok((descriptor_layouts, descriptor_sets, descriptor_buffers))
+}
+
+pub fn get_light_framebuffer_descriptor_set(
+  logical_device: &ash::Device,
+  descriptor_pool: vk::DescriptorPool,
+  swapchain: &SwapChain,
+) -> Result<(vk::DescriptorSetLayout, vk::DescriptorSet), Error> {
+  let layout_binding_descs = (0..IMAGES_PER_FRAME_BUFFER)
+    .map(|i| {
+      vk::DescriptorSetLayoutBinding::default()
+        .descriptor_count(1)
+        .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+        .binding(i)
+        .stage_flags(vk::ShaderStageFlags::FRAGMENT)
+    })
+    .collect::<Vec<vk::DescriptorSetLayoutBinding>>();
+
+  let layout_create_info =
+    vk::DescriptorSetLayoutCreateInfo::default().bindings(&layout_binding_descs);
+  let descriptor_set_layout =
+    [unsafe { logical_device.create_descriptor_set_layout(&layout_create_info, None) }?];
+
+  let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo::default()
+    .descriptor_pool(descriptor_pool)
+    .set_layouts(&descriptor_set_layout);
+  let descriptor_sets =
+    unsafe { logical_device.allocate_descriptor_sets(&descriptor_set_allocate_info)? };
+
+  let image_infos = swapchain
+    .framebuffer_image_handles()
+    .iter()
+    .map(|(view, sampler)| {
+      vec![vk::DescriptorImageInfo::default()
+        .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+        .image_view(*view)
+        .sampler(*sampler)]
+    })
+    .collect::<Vec<Vec<vk::DescriptorImageInfo>>>();
+
+  let write_desc_set = (0..IMAGES_PER_FRAME_BUFFER)
+    .map(|i| {
+      vk::WriteDescriptorSet::default()
+        .dst_binding(i)
+        .dst_set(descriptor_sets[0])
+        .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+        .image_info(&image_infos[i as usize])
+    })
+    .collect::<Vec<vk::WriteDescriptorSet>>();
+
+  unsafe {
+    logical_device.update_descriptor_sets(&write_desc_set, &[]);
+  }
+
+  Ok((descriptor_set_layout[0], descriptor_sets[0]))
 }
 
 pub fn add_descriptor(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, desc: &DescriptorType) {

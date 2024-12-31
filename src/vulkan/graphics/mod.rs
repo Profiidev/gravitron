@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use ash::vk;
-use resources::model::{ModelId, ModelManager};
-use swap_chain::SwapChain;
+use resources::model::{ModelId, ModelManager, PLANE_MODEL};
+use swapchain::SwapChain;
 
 use crate::config::{
   app::AppConfig,
@@ -23,13 +23,15 @@ use super::{
   surface::Surface,
 };
 
+mod framebuffer;
 mod render_pass;
 pub mod resources;
-mod swap_chain;
+pub mod swapchain;
 
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
-  swap_chain: SwapChain,
+  light_render_pass: vk::RenderPass,
+  swapchain: SwapChain,
   model_manager: ModelManager,
   logical_device: ash::Device,
   draw_commands: BufferId,
@@ -58,7 +60,9 @@ impl Renderer {
       .format;
     let render_pass =
       render_pass::init_render_pass(logical_device, format, config.shaders.len() + 1)?;
-    let swap_chain = SwapChain::init(
+    let light_render_pass = render_pass::init_light_render_pass(logical_device, format)?;
+
+    let swapchain = SwapChain::init(
       instance,
       device,
       surface,
@@ -66,6 +70,7 @@ impl Renderer {
       app_config,
       pools,
       render_pass,
+      light_render_pass,
     )?;
 
     let model_manager = ModelManager::new(memory_manager)?;
@@ -100,7 +105,8 @@ impl Renderer {
 
     Ok(Self {
       render_pass,
-      swap_chain,
+      light_render_pass,
+      swapchain,
       model_manager,
       logical_device: logical_device.clone(),
       draw_commands,
@@ -111,17 +117,17 @@ impl Renderer {
     })
   }
 
-  pub fn destroy(&mut self) {
+  pub fn destroy(&self) {
     unsafe {
       self
         .logical_device
         .destroy_render_pass(self.render_pass, None);
     }
-    self.swap_chain.destroy(&self.logical_device);
+    self.swapchain.destroy(&self.logical_device);
   }
 
   pub fn wait_for_draw_start(&self, logical_device: &ash::Device) {
-    self.swap_chain.wait_for_draw_start(logical_device);
+    self.swapchain.wait_for_draw_start(logical_device);
   }
 
   pub fn record_command_buffer(
@@ -131,14 +137,14 @@ impl Renderer {
   ) -> Result<(), vk::Result> {
     if self
       .buffers_updated
-      .contains(&self.swap_chain.current_frame())
+      .contains(&self.swapchain.current_frame())
     {
       return Ok(());
     }
 
     let buffer = self
-      .swap_chain
-      .record_command_buffer_first(&self.logical_device, self.render_pass)?;
+      .swapchain
+      .record_command_buffer_start(&self.logical_device, self.render_pass)?;
 
     let names = pipeline_manager.pipeline_names();
     let pipeline_count = names.len();
@@ -179,11 +185,33 @@ impl Renderer {
       }
     }
 
-    self
-      .swap_chain
-      .record_command_buffer_second(&self.logical_device, buffer)?;
+    self.swapchain.record_command_buffer_middle(
+      &self.logical_device,
+      buffer,
+      self.light_render_pass,
+    );
 
-    self.buffers_updated.push(self.swap_chain.current_frame());
+    let plane = self.model_manager.model(PLANE_MODEL).unwrap();
+    unsafe {
+      pipeline_manager
+        .get_light_pipeline()
+        .record_command_buffer(buffer, &self.logical_device);
+
+      self.logical_device.cmd_draw_indexed(
+        buffer,
+        plane.index_len(),
+        1,
+        plane.index_offset(),
+        plane.vertex_offset(),
+        0,
+      );
+    }
+
+    self
+      .swapchain
+      .record_command_buffer_end(&self.logical_device, buffer)?;
+
+    self.buffers_updated.push(self.swapchain.current_frame());
     Ok(())
   }
 
@@ -261,14 +289,18 @@ impl Renderer {
   }
 
   pub fn draw_frame(&mut self, device: &Device) {
-    self.swap_chain.draw_frame(device);
+    self.swapchain.draw_frame(device);
   }
 
   pub fn render_pass(&self) -> vk::RenderPass {
     self.render_pass
   }
 
+  pub fn light_render_pass(&self) -> vk::RenderPass {
+    self.light_render_pass
+  }
+
   pub fn swapchain(&self) -> &SwapChain {
-    &self.swap_chain
+    &self.swapchain
   }
 }

@@ -15,7 +15,7 @@ pub fn init_render_pass(
     .initial_layout(vk::ImageLayout::UNDEFINED)
     .final_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
   let normal = color;
-  let pos = color;
+  let pos = color.format(vk::Format::R32G32B32A32_SFLOAT);
 
   let depth = vk::AttachmentDescription::default()
     .format(vk::Format::D32_SFLOAT)

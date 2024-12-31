@@ -7,7 +7,10 @@ use crate::{
   config::vulkan::{DescriptorSet, DescriptorType, ImageConfig, PipelineType},
   ecs::components::camera::Camera,
   vulkan::{
-    graphics::resources::lighting::{LightInfo, PointLight, SpotLight},
+    graphics::{
+      resources::lighting::{LightInfo, PointLight, SpotLight},
+      swapchain::SwapChain,
+    },
     memory::{manager::MemoryManager, BufferMemory},
   },
 };
@@ -19,6 +22,7 @@ use super::{
 
 pub struct PipelineManager {
   pipelines: Vec<(String, Pipeline)>,
+  light_pipeline: Pipeline,
   descriptor_pool: vk::DescriptorPool,
   logical_device: ash::Device,
   default_desc_layouts: Vec<vk::DescriptorSetLayout>,
@@ -29,14 +33,15 @@ impl PipelineManager {
   pub fn init(
     logical_device: &ash::Device,
     render_pass: vk::RenderPass,
-    swap_chain_extent: &vk::Extent2D,
+    light_render_pass: vk::RenderPass,
+    swapchain: &SwapChain,
     pipelines: &mut Vec<PipelineType>,
     textures: Vec<ImageConfig>,
     memory_manager: &mut MemoryManager,
   ) -> Result<Self, Error> {
     pipelines.push(PipelineType::Graphics(Pipeline::default_shader()));
 
-    let mut descriptor_count = 1;
+    let mut descriptor_count = 2;
     let mut pool_sizes = vec![];
 
     let mut textures_used = vec![ImageConfig::new_bytes(
@@ -68,6 +73,12 @@ impl PipelineManager {
       ));
     for desc in &default_descriptor_set.descriptors {
       add_descriptor(&mut pool_sizes, desc);
+    }
+    for _ in 0..3 {
+      add_descriptor(
+        &mut pool_sizes,
+        &DescriptorType::new_image(vk::ShaderStageFlags::FRAGMENT, vec![]),
+      );
     }
 
     for pipeline in &*pipelines {
@@ -105,6 +116,14 @@ impl PipelineManager {
       memory_manager,
     )?;
 
+    let light_pipeline = Pipeline::light_pipeline(
+      "light".into(),
+      logical_device,
+      swapchain,
+      light_render_pass,
+      descriptor_pool,
+    )?;
+
     let mut vk_pipelines = Vec::new();
     let mut i = 0;
     for pipeline in pipelines {
@@ -118,7 +137,7 @@ impl PipelineManager {
               config,
               descriptor_pool,
               memory_manager,
-              swap_chain_extent,
+              &swapchain.get_extent(),
               i,
               &default_descs,
               &default_desc_layouts,
@@ -142,6 +161,7 @@ impl PipelineManager {
 
     Ok(Self {
       pipelines: vk_pipelines,
+      light_pipeline,
       descriptor_pool,
       logical_device: logical_device.clone(),
       default_desc_layouts,
@@ -167,10 +187,15 @@ impl PipelineManager {
     for (_, pipeline) in &mut self.pipelines {
       pipeline.destroy(&self.logical_device);
     }
+    self.light_pipeline.destroy(&self.logical_device);
   }
 
   pub fn get_pipeline(&self, name: &str) -> Option<&Pipeline> {
     Some(&self.pipelines.iter().find(|(n, _)| n == name)?.1)
+  }
+
+  pub fn get_light_pipeline(&self) -> &Pipeline {
+    &self.light_pipeline
   }
 
   pub fn update_descriptor<T: Sized>(

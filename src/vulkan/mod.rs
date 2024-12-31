@@ -95,7 +95,8 @@ impl Vulkan {
     let pipeline_manager = PipelineManager::init(
       device.get_device(),
       renderer.render_pass(),
-      &renderer.swapchain().get_extent(),
+      renderer.light_render_pass(),
+      renderer.swapchain(),
       &mut config.shaders,
       config.textures,
       &mut memory_manager,

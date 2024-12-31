@@ -20,8 +20,8 @@ impl SamplerImage {
     image_view_info: &vk::ImageViewCreateInfo,
     sampler_info: &vk::SamplerCreateInfo,
   ) -> Result<Self, Error> {
-    let image = Image::new(device, allocator, location, &image_info, &image_view_info)?;
-    let sampler = unsafe { device.create_sampler(&sampler_info, None)? };
+    let image = Image::new(device, allocator, location, image_info, image_view_info)?;
+    let sampler = unsafe { device.create_sampler(sampler_info, None)? };
 
     Ok(Self { image, sampler })
   }

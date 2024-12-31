@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use ash::vk;
-use descriptors::get_descriptor_set_layouts;
+use descriptors::{get_descriptor_set_layouts, get_light_framebuffer_descriptor_set};
 
 use crate::config::vulkan::{ComputePipelineConfig, GraphicsPipelineConfig};
 
-use super::memory::{manager::MemoryManager, BufferMemory};
+use super::{graphics::swapchain::SwapChain, memory::{manager::MemoryManager, BufferMemory}};
 
 mod descriptors;
 pub mod manager;
@@ -27,6 +27,162 @@ impl Pipeline {
   pub fn default_shader() -> GraphicsPipelineConfig<'static> {
     GraphicsPipelineConfig::new("default".to_string())
       .set_frag_shader(vk_shader_macros::include_glsl!("./assets/shader.frag").to_vec())
+  }
+
+  pub fn light_pipeline(
+    name: String,
+    logical_device: &ash::Device,
+    swapchain: &SwapChain,
+    render_pass: vk::RenderPass,
+    descriptor_pool: vk::DescriptorPool,
+  ) -> Result<Self, Error> {
+    let main_function_name = std::ffi::CString::new("main").unwrap();
+
+    let mut shader_modules = vec![];
+
+    let shader_create_info = vk::ShaderModuleCreateInfo::default()
+      .code(vk_shader_macros::include_glsl!("./assets/light.vert"));
+    let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
+    shader_modules.push((shader_module, vk::ShaderStageFlags::VERTEX));
+
+    let shader_create_info = vk::ShaderModuleCreateInfo::default()
+      .code(vk_shader_macros::include_glsl!("./assets/light.frag"));
+    let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
+    shader_modules.push((shader_module, vk::ShaderStageFlags::FRAGMENT));
+
+    let mut shader_stages = vec![];
+    for shader in &shader_modules {
+      let shader_stage_create_info = vk::PipelineShaderStageCreateInfo::default()
+        .stage(shader.1)
+        .module(shader.0)
+        .name(&main_function_name);
+      shader_stages.push(shader_stage_create_info);
+    }
+
+    let vertex_binding_descs = [vk::VertexInputBindingDescription::default()
+      .binding(0)
+      .stride(20)
+      .input_rate(vk::VertexInputRate::VERTEX)];
+
+    let vertex_attrib_descs = vec![
+      vk::VertexInputAttributeDescription::default()
+        .binding(0)
+        .location(0)
+        .offset(0)
+        .format(vk::Format::R32G32B32_SFLOAT),
+      vk::VertexInputAttributeDescription::default()
+        .binding(0)
+        .location(0)
+        .offset(12)
+        .format(vk::Format::R32G32_SFLOAT),
+    ];
+
+    let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default()
+      .vertex_binding_descriptions(&vertex_binding_descs)
+      .vertex_attribute_descriptions(&vertex_attrib_descs);
+    let input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo::default()
+      .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
+
+    let swapchain_extent =swapchain.get_extent();
+    let viewport_size = (swapchain_extent.width, swapchain_extent.height);
+
+    let viewport = [vk::Viewport::default()
+      .x(0.0)
+      .y(0.0)
+      .width(viewport_size.0 as f32)
+      .height(viewport_size.1 as f32)
+      .min_depth(0.0)
+      .max_depth(1.0)];
+    let scissor = [vk::Rect2D::default()
+      .offset(vk::Offset2D::default())
+      .extent(vk::Extent2D {
+        width: viewport_size.0,
+        height: viewport_size.1,
+      })];
+
+    let viewport_info = vk::PipelineViewportStateCreateInfo::default()
+      .viewports(&viewport)
+      .scissors(&scissor);
+
+    let rasterizer_info = vk::PipelineRasterizationStateCreateInfo::default()
+      .line_width(1.0)
+      .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
+      .cull_mode(vk::CullModeFlags::BACK)
+      .polygon_mode(vk::PolygonMode::FILL);
+
+    let multisample_info = vk::PipelineMultisampleStateCreateInfo::default()
+      .rasterization_samples(vk::SampleCountFlags::TYPE_1);
+
+    let color_blend_attachment = vk::PipelineColorBlendAttachmentState::default()
+      .color_write_mask(
+        vk::ColorComponentFlags::R
+          | vk::ColorComponentFlags::G
+          | vk::ColorComponentFlags::B
+          | vk::ColorComponentFlags::A,
+      )
+      .blend_enable(false)
+      .src_color_blend_factor(vk::BlendFactor::SRC_ALPHA)
+      .dst_color_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
+      .color_blend_op(vk::BlendOp::ADD)
+      .src_alpha_blend_factor(vk::BlendFactor::SRC_ALPHA)
+      .dst_alpha_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
+      .alpha_blend_op(vk::BlendOp::ADD);
+    let color_blend_attachments = [
+      color_blend_attachment,
+      color_blend_attachment,
+      color_blend_attachment,
+    ];
+
+    let color_blend_info =
+      vk::PipelineColorBlendStateCreateInfo::default().attachments(&color_blend_attachments);
+
+    let (descriptor_layout, descriptor_set) =
+      get_light_framebuffer_descriptor_set(logical_device, descriptor_pool, swapchain)?;
+
+    let descriptor_layouts = vec![descriptor_layout];
+    let descriptor_sets = vec![descriptor_set];
+
+    let pipeline_layout_create_info =
+      vk::PipelineLayoutCreateInfo::default().set_layouts(&descriptor_layouts);
+    let pipeline_layout =
+      unsafe { logical_device.create_pipeline_layout(&pipeline_layout_create_info, None) }?;
+
+    let pipeline_create_info = vk::GraphicsPipelineCreateInfo::default()
+      .stages(&shader_stages)
+      .vertex_input_state(&vertex_input_info)
+      .input_assembly_state(&input_assembly_info)
+      .viewport_state(&viewport_info)
+      .rasterization_state(&rasterizer_info)
+      .multisample_state(&multisample_info)
+      .color_blend_state(&color_blend_info)
+      .layout(pipeline_layout)
+      .render_pass(render_pass)
+      .subpass(0);
+
+    let pipeline_cache = Self::create_shader_cache(logical_device, &name)?;
+
+    let vk_pipelines = unsafe {
+      logical_device
+        .create_graphics_pipelines(pipeline_cache, &[pipeline_create_info], None)
+        .expect("Unable to create graphics pipeline")
+    }[0];
+
+    for module in shader_modules {
+      unsafe {
+        logical_device.destroy_shader_module(module.0, None);
+      }
+    }
+
+    Ok(Self {
+      name,
+      pipeline: vk_pipelines,
+      pipeline_layout,
+      pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
+      descriptor_sets,
+      descriptor_set_layouts: descriptor_layouts,
+      descriptor_buffers: HashMap::new(),
+      cache: pipeline_cache,
+    })
   }
 
   pub fn init_compute_pipeline(
@@ -103,7 +259,7 @@ impl Pipeline {
     pipeline: &GraphicsPipelineConfig,
     descriptor_pool: vk::DescriptorPool,
     memory_manager: &mut MemoryManager,
-    swapchain_extend: &vk::Extent2D,
+    swapchain_extent: &vk::Extent2D,
     subpass: u32,
     default_descs: &[vk::DescriptorSet],
     default_desc_layouts: &[vk::DescriptorSetLayout],
@@ -203,7 +359,7 @@ impl Pipeline {
     let input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo::default()
       .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
 
-    let viewport_size = (swapchain_extend.width, swapchain_extend.height);
+    let viewport_size = (swapchain_extent.width, swapchain_extent.height);
 
     let viewport = [vk::Viewport::default()
       .x(0.0)
@@ -232,7 +388,7 @@ impl Pipeline {
     let multisample_info = vk::PipelineMultisampleStateCreateInfo::default()
       .rasterization_samples(vk::SampleCountFlags::TYPE_1);
 
-    let color_blend_attachment = [vk::PipelineColorBlendAttachmentState::default()
+    let color_blend_attachment = vk::PipelineColorBlendAttachmentState::default()
       .color_write_mask(
         vk::ColorComponentFlags::R
           | vk::ColorComponentFlags::G
@@ -245,9 +401,15 @@ impl Pipeline {
       .color_blend_op(vk::BlendOp::ADD)
       .src_alpha_blend_factor(vk::BlendFactor::SRC_ALPHA)
       .dst_alpha_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
-      .alpha_blend_op(vk::BlendOp::ADD)];
+      .alpha_blend_op(vk::BlendOp::ADD);
+    let color_blend_attachments = [
+      color_blend_attachment,
+      color_blend_attachment,
+      color_blend_attachment,
+    ];
+
     let color_blend_info =
-      vk::PipelineColorBlendStateCreateInfo::default().attachments(&color_blend_attachment);
+      vk::PipelineColorBlendStateCreateInfo::default().attachments(&color_blend_attachments);
 
     let (descriptor_layouts, descriptor_sets, descriptor_buffers) = get_descriptor_set_layouts(
       &pipeline.descriptor_sets,
