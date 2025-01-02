@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use ash::vk;
-use resources::model::{ModelId, ModelManager, PLANE_MODEL};
+use resources::model::{ModelId, ModelManager, VertexData, PLANE_MODEL};
 use swapchain::SwapChain;
 
 use crate::config::{
@@ -121,6 +121,10 @@ impl Renderer {
       self
         .logical_device
         .destroy_render_pass(self.render_pass, None);
+
+      self
+        .logical_device
+        .destroy_render_pass(self.light_render_pass, None);
     }
     self.swapchain.destroy(&self.logical_device);
   }
@@ -200,8 +204,8 @@ impl Renderer {
         buffer,
         plane.index_len(),
         1,
-        plane.index_offset(),
-        plane.vertex_offset(),
+        plane.index_offset() / size_of::<u32>() as u32,
+        plane.vertex_offset() / size_of::<VertexData>() as i32,
         0,
       );
     }

@@ -66,7 +66,7 @@ impl Pipeline {
 
     let vertex_binding_descs = [vk::VertexInputBindingDescription::default()
       .binding(0)
-      .stride(20)
+      .stride(32)
       .input_rate(vk::VertexInputRate::VERTEX)];
 
     let vertex_attrib_descs = vec![

@@ -281,8 +281,8 @@ impl ModelManager {
           let cmd = vk::DrawIndexedIndirectCommand {
             index_count: model.index_len,
             instance_count: instances.len() as u32,
-            first_index: model.indices.offset() as u32,
-            vertex_offset: model.vertices.offset() as i32,
+            first_index: (model.indices.offset() / size_of::<u32>()) as u32,
+            vertex_offset: (model.vertices.offset() / size_of::<VertexData>()) as i32,
             first_instance: (mem.offset() / instance_size) as u32,
           };
 
