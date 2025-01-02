@@ -5,18 +5,17 @@ use gravitron_utils::thread::Signal;
 use log::{debug, info};
 #[cfg(target_os = "macos")]
 use winit::platform::macos::EventLoopBuilderExtMacOS;
-#[cfg(all(target_os = "linux", feature = "wayland"))]
+#[cfg(target_os = "linux")]
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 #[cfg(target_os = "windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
-#[cfg(all(target_os = "linux", not(feature = "wayland")))]
-use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
   event::{ElementState, KeyEvent},
-  event_loop::EventLoop,
+  event_loop::{EventLoop, EventLoopBuilder},
   keyboard::PhysicalKey,
+  platform::wayland::ActiveEventLoopExtWayland,
   window::Window as WinitWindow,
 };
 
@@ -42,12 +41,11 @@ impl Window {
     send: Sender<WindowMessage>,
   ) -> Result<(), Error> {
     let mut event_loop = EventLoop::builder();
+
     #[cfg(not(target_os = "macos"))]
-    let event_loop = event_loop.with_any_thread(true);
-    #[cfg(all(target_os = "linux", feature = "wayland"))]
-    let event_loop = event_loop.with_wayland();
-    #[cfg(all(target_os = "linux", not(feature = "wayland")))]
-    let event_loop = event_loop.with_x11();
+    let event_loop =
+      <EventLoopBuilder<()> as EventLoopBuilderExtWayland>::with_any_thread(&mut event_loop, true);
+
     let event_loop = event_loop.build()?;
 
     debug!("Starting Event Loop");
@@ -80,6 +78,8 @@ impl ApplicationHandler for Window {
       std::mem::take(&mut self.config.vulkan),
       &self.config.app,
       &window,
+      #[cfg(target_os = "linux")]
+      event_loop.is_wayland(),
     )
     .unwrap();
 
