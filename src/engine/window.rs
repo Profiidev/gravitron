@@ -3,20 +3,21 @@ use std::sync::mpsc::Sender;
 use anyhow::Error;
 use gravitron_utils::thread::Signal;
 use log::{debug, info};
-#[cfg(target_os = "macos")]
-use winit::platform::macos::EventLoopBuilderExtMacOS;
-#[cfg(target_os = "linux")]
-use winit::platform::wayland::{ActiveEventLoopExtWayland, EventLoopBuilderExtWayland};
-#[cfg(target_os = "windows")]
-use winit::platform::windows::EventLoopBuilderExtWindows;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
   event::{ElementState, KeyEvent},
-  event_loop::{EventLoop, EventLoopBuilder},
+  event_loop::EventLoop,
   keyboard::PhysicalKey,
   window::Window as WinitWindow,
 };
+#[cfg(target_os = "linux")]
+use winit::{
+  event_loop::EventLoopBuilder,
+  platform::wayland::{ActiveEventLoopExtWayland, EventLoopBuilderExtWayland},
+};
+#[cfg(target_os = "windows")]
+use winit::{event_loop::EventLoopBuilder, platform::windows::EventLoopBuilderExtWindows};
 
 use crate::{config::EngineConfig, vulkan::Vulkan};
 
@@ -41,9 +42,12 @@ impl Window {
   ) -> Result<(), Error> {
     let mut event_loop = EventLoop::builder();
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
     let event_loop =
       <EventLoopBuilder<()> as EventLoopBuilderExtWayland>::with_any_thread(&mut event_loop, true);
+    #[cfg(target_os = "windows")]
+    let event_loop =
+      <EventLoopBuilder<()> as EventLoopBuilderExtWindows>::with_any_thread(&mut event_loop, true);
 
     let event_loop = event_loop.build()?;
 
