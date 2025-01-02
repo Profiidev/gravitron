@@ -6,7 +6,7 @@ use log::{debug, info};
 #[cfg(target_os = "macos")]
 use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(target_os = "linux")]
-use winit::platform::wayland::EventLoopBuilderExtWayland;
+use winit::platform::wayland::{ActiveEventLoopExtWayland, EventLoopBuilderExtWayland};
 #[cfg(target_os = "windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
 use winit::{
@@ -15,7 +15,6 @@ use winit::{
   event::{ElementState, KeyEvent},
   event_loop::{EventLoop, EventLoopBuilder},
   keyboard::PhysicalKey,
-  platform::wayland::ActiveEventLoopExtWayland,
   window::Window as WinitWindow,
 };
 
