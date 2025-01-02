@@ -54,6 +54,7 @@ impl Vulkan {
     mut config: VulkanConfig,
     app_config: &AppConfig,
     window: &Window,
+    #[cfg(target_os = "linux")] is_wayland: bool,
   ) -> Result<Self, Error> {
     let entry = unsafe { ash::Entry::load() }?;
 
@@ -65,7 +66,13 @@ impl Vulkan {
       .add_extensions(config.renderer.instance_extensions.clone())
       .add_instance_nexts(std::mem::take(&mut config.renderer.instance_next));
 
-    let instance = InstanceDevice::init(&mut instance_config, &entry, app_config)?;
+    let instance = InstanceDevice::init(
+      &mut instance_config,
+      &entry,
+      app_config,
+      #[cfg(target_os = "linux")]
+      is_wayland,
+    )?;
 
     #[cfg(feature = "debug")]
     let debugger = Debugger::init(&entry, instance.get_instance(), debugger_info)?;
@@ -95,7 +102,8 @@ impl Vulkan {
     let pipeline_manager = PipelineManager::init(
       device.get_device(),
       renderer.render_pass(),
-      &renderer.swapchain().get_extent(),
+      renderer.light_render_pass(),
+      renderer.swapchain(),
       &mut config.shaders,
       config.textures,
       &mut memory_manager,

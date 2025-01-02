@@ -11,8 +11,10 @@ use crate::{
 use anyhow::Error;
 use ash::vk;
 use cube::cube;
+use plane::plane;
 
 mod cube;
+mod plane;
 
 pub type ModelId = Id;
 
@@ -25,8 +27,9 @@ pub struct ModelManager {
 }
 
 pub const CUBE_MODEL: Id = 0;
+pub const PLANE_MODEL: Id = 1;
 
-struct Model {
+pub struct Model {
   vertices: BufferMemory,
   indices: BufferMemory,
   index_len: u32,
@@ -78,6 +81,16 @@ impl ModelManager {
     };
 
     let (vertex_data, index_data) = cube();
+    manager
+      .add_model(
+        memory_manager,
+        vertex_data,
+        index_data,
+        InstanceCount::Medium,
+      )
+      .unwrap();
+
+    let (vertex_data, index_data) = plane();
     manager
       .add_model(
         memory_manager,
@@ -268,8 +281,8 @@ impl ModelManager {
           let cmd = vk::DrawIndexedIndirectCommand {
             index_count: model.index_len,
             instance_count: instances.len() as u32,
-            first_index: model.indices.offset() as u32,
-            vertex_offset: model.vertices.offset() as i32,
+            first_index: (model.indices.offset() / size_of::<u32>()) as u32,
+            vertex_offset: (model.vertices.offset() / size_of::<VertexData>()) as i32,
             first_instance: (mem.offset() / instance_size) as u32,
           };
 
@@ -296,6 +309,10 @@ impl ModelManager {
 
     (cmd_new, buffer_resized)
   }
+
+  pub fn model(&self, id: Id) -> Option<&Model> {
+    self.models.get(&id)
+  }
 }
 
 impl Model {
@@ -312,6 +329,18 @@ impl Model {
       instance_alloc_size: usize::from(instance_count) * std::mem::size_of::<InstanceData>(),
       instances: HashMap::new(),
     }
+  }
+
+  pub fn index_len(&self) -> u32 {
+    self.index_len
+  }
+
+  pub fn vertex_offset(&self) -> i32 {
+    self.vertices.offset() as i32
+  }
+
+  pub fn index_offset(&self) -> u32 {
+    self.indices.offset() as u32
   }
 }
 

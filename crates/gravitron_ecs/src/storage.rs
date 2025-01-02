@@ -1,5 +1,6 @@
+use gxhash::HashMap;
 use std::{
-  collections::{HashMap, VecDeque},
+  collections::VecDeque,
   marker::PhantomData,
   ptr,
   sync::{Arc, Mutex},
@@ -126,10 +127,10 @@ impl Storage<'_> {
     }
   }
 
-  pub fn remove_entity(&mut self, entity: EntityId) {
+  pub fn remove_entity(&mut self, entity: EntityId) -> Option<()> {
     #[cfg(feature = "debug")]
     trace!("Removing Entity {}", entity);
-    let record = self.entity_index.remove(&entity).unwrap();
+    let record = self.entity_index.remove(&entity)?;
     let archetype = unsafe { record.archetype.archetype_mut() };
 
     archetype.entity_ids.swap_remove(record.row);
@@ -141,6 +142,8 @@ impl Storage<'_> {
     }
 
     self.entity_ids_free.push(entity);
+
+    Some(())
   }
 
   pub fn create_archetype(&mut self, type_: Type) {
@@ -152,7 +155,7 @@ impl Storage<'_> {
       type_: type_.clone(),
       entity_ids: Vec::new(),
       rows: Vec::new(),
-      edges: HashMap::new(),
+      edges: HashMap::default(),
     };
 
     for (i, c) in type_.iter().enumerate() {

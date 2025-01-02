@@ -3,14 +3,6 @@ use std::sync::mpsc::Sender;
 use anyhow::Error;
 use gravitron_utils::thread::Signal;
 use log::{debug, info};
-#[cfg(target_os = "macos")]
-use winit::platform::macos::EventLoopBuilderExtMacOS;
-#[cfg(all(target_os = "linux", feature = "wayland"))]
-use winit::platform::wayland::EventLoopBuilderExtWayland;
-#[cfg(target_os = "windows")]
-use winit::platform::windows::EventLoopBuilderExtWindows;
-#[cfg(all(target_os = "linux", not(feature = "wayland")))]
-use winit::platform::x11::EventLoopBuilderExtX11;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
@@ -19,6 +11,13 @@ use winit::{
   keyboard::PhysicalKey,
   window::Window as WinitWindow,
 };
+#[cfg(target_os = "linux")]
+use winit::{
+  event_loop::EventLoopBuilder,
+  platform::wayland::{ActiveEventLoopExtWayland, EventLoopBuilderExtWayland},
+};
+#[cfg(target_os = "windows")]
+use winit::{event_loop::EventLoopBuilder, platform::windows::EventLoopBuilderExtWindows};
 
 use crate::{config::EngineConfig, vulkan::Vulkan};
 
@@ -42,12 +41,14 @@ impl Window {
     send: Sender<WindowMessage>,
   ) -> Result<(), Error> {
     let mut event_loop = EventLoop::builder();
-    #[cfg(not(target_os = "macos"))]
-    let event_loop = event_loop.with_any_thread(true);
-    #[cfg(all(target_os = "linux", feature = "wayland"))]
-    let event_loop = event_loop.with_wayland();
-    #[cfg(all(target_os = "linux", not(feature = "wayland")))]
-    let event_loop = event_loop.with_x11();
+
+    #[cfg(target_os = "linux")]
+    let event_loop =
+      <EventLoopBuilder<()> as EventLoopBuilderExtWayland>::with_any_thread(&mut event_loop, true);
+    #[cfg(target_os = "windows")]
+    let event_loop =
+      <EventLoopBuilder<()> as EventLoopBuilderExtWindows>::with_any_thread(&mut event_loop, true);
+
     let event_loop = event_loop.build()?;
 
     debug!("Starting Event Loop");
@@ -80,6 +81,8 @@ impl ApplicationHandler for Window {
       std::mem::take(&mut self.config.vulkan),
       &self.config.app,
       &window,
+      #[cfg(target_os = "linux")]
+      event_loop.is_wayland(),
     )
     .unwrap();
 

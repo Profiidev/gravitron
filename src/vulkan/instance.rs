@@ -6,12 +6,7 @@ use crate::config::app::AppConfig;
 const REQUIRED_EXTENSION_NAMES: [*const i8; 1] = [khr::surface::NAME.as_ptr()];
 
 #[cfg(target_os = "linux")]
-const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 1] = [
-  #[cfg(feature = "wayland")]
-  khr::wayland_surface::NAME.as_ptr(),
-  #[cfg(not(feature = "wayland"))]
-  khr::xlib_surface::NAME.as_ptr(),
-];
+const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 0] = [];
 
 #[cfg(target_os = "windows")]
 const REQUIRED_PLATFORM_EXTENSION_NAMES: [*const i8; 1] = [khr::win32_surface::NAME.as_ptr()];
@@ -29,8 +24,15 @@ impl InstanceDevice {
     config: &mut InstanceDeviceConfig,
     entry: &ash::Entry,
     app_config: &AppConfig,
+    #[cfg(target_os = "linux")] is_wayland: bool,
   ) -> Result<Self, Error> {
-    let instance = InstanceDevice::init_instance(entry, config, app_config)?;
+    let instance = InstanceDevice::init_instance(
+      entry,
+      config,
+      app_config,
+      #[cfg(target_os = "linux")]
+      is_wayland,
+    )?;
     let (physical_device, _) = InstanceDevice::init_physical_device_and_properties(&instance)?;
 
     Ok(Self {
@@ -51,6 +53,7 @@ impl InstanceDevice {
     entry: &ash::Entry,
     config: &mut InstanceDeviceConfig,
     app_config: &AppConfig,
+    #[cfg(target_os = "linux")] is_wayland: bool,
   ) -> Result<ash::Instance, Error> {
     let engine_name = std::ffi::CString::new("Vulkan Game Engine")?;
     let app_name = std::ffi::CString::new(app_config.title.clone())?;
@@ -75,6 +78,13 @@ impl InstanceDevice {
       .collect();
     extension_name_ptrs.extend(REQUIRED_EXTENSION_NAMES.iter());
     extension_name_ptrs.extend(REQUIRED_PLATFORM_EXTENSION_NAMES.iter());
+
+    #[cfg(target_os = "linux")]
+    if is_wayland {
+      extension_name_ptrs.push(khr::wayland_surface::NAME.as_ptr());
+    } else {
+      extension_name_ptrs.push(khr::xlib_surface::NAME.as_ptr());
+    }
 
     let mut instance_create_info = vk::InstanceCreateInfo::default()
       .application_info(&app_info)
