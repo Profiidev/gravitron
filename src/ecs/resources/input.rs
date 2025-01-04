@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use winit::keyboard::KeyCode;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Input {
   inputs: HashSet<KeyCode>,
   cursor_pos: (f64, f64),
@@ -25,11 +25,11 @@ impl Input {
     self.cursor_pos.1
   }
 
-  pub fn add_pressed(&mut self, code: KeyCode) {
+  pub fn press(&mut self, code: KeyCode) {
     self.inputs.insert(code);
   }
 
-  pub fn remove_released(&mut self, code: &KeyCode) {
+  pub fn release(&mut self, code: &KeyCode) {
     self.inputs.remove(code);
   }
 

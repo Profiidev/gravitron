@@ -123,8 +123,7 @@ fn main() {
     t,
   ));
 
-  let engine = builder.build();
-  engine.run();
+  let _ = builder.run();
 }
 
 #[derive(Component, Default)]
