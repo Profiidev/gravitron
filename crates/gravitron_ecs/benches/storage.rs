@@ -14,7 +14,7 @@ type ArchetypeId = Id;
 use std::{any::TypeId, hint::black_box, time::Instant};
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use gravitron_ecs::Component;
+use gravitron_ecs::{components::Component, Component};
 use storage::Storage;
 
 fn create_n(storage: &mut Storage, n: u64) {
@@ -107,11 +107,29 @@ fn remove_benchmark(c: &mut Criterion) {
   }
 }
 
+fn query_benchmark(c: &mut Criterion) {
+  for i in [1, 1000, 1_000_000] {
+    let mut storage = Storage::default();
+    create_n(&mut storage, i);
+
+    c.bench_function(&format!("query {}", i), |b| {
+      b.iter_custom(|iters| {
+        let start = Instant::now();
+        for _ in 0..iters {
+          let _ = storage.get_all_entities_for_archetypes(vec![A::sid()]);
+        }
+        start.elapsed()
+      })
+    });
+  }
+}
+
 criterion_group!(create, create_benchmark);
 criterion_group!(add, add_benchmark);
 criterion_group!(get, get_benchmark);
 criterion_group!(remove, remove_benchmark);
-criterion_main!(create, add, get, remove);
+criterion_group!(query, query_benchmark);
+criterion_main!(create, add, get, remove, query);
 
 #[derive(Component)]
 struct A {

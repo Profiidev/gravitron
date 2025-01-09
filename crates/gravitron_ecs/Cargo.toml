@@ -26,3 +26,7 @@ debug = []
 [[bench]]
 name = "storage"
 harness = false
+
+[[bench]]
+name = "system"
+harness = false
