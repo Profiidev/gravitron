@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2025-01-10
+
+### 🚀 Features
+
+- Defered rendering stage 2
+- Auto detect wayland
+
+### 🐛 Bug Fixes
+
+- Wrong import of trait
+- Wrong import of trait
+
+
 ## [0.3.0] - 2024-10-29
 
 ### 🚀 Features
