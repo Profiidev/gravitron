@@ -183,7 +183,7 @@ impl<K: Ord + Clone + Hash> Default for SchedulerBuilder<K> {
 
 #[cfg(test)]
 mod test {
-  use crate::systems::resources::{Res, ResMut};
+  use crate::{systems::resources::{Res, ResMut}, Id};
 
   use super::{Scheduler, SchedulerBuilder};
 
@@ -279,7 +279,7 @@ mod test {
     assert!(s3_i < s6_i);
   }
 
-  fn find_system(scheduler: &Scheduler, system: u64) -> usize {
+  fn find_system(scheduler: &Scheduler, system: Id) -> usize {
     scheduler
       .systems
       .iter()

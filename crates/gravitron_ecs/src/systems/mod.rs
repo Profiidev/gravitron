@@ -9,7 +9,7 @@ use log::trace;
 use gravitron_ecs_macros::all_tuples;
 use metadata::SystemMeta;
 
-use crate::{world::UnsafeWorldCell, SystemId};
+use crate::{world::UnsafeWorldCell, SystemId, Id};
 
 pub(crate) mod metadata;
 pub mod query;
@@ -80,7 +80,7 @@ macro_rules! impl_system {
           $params::check_metadata(&mut meta);
         )*
 
-        let id = SYSTEM_ID.fetch_add(1, Ordering::SeqCst);
+        let id = Id(SYSTEM_ID.fetch_add(1, Ordering::SeqCst));
 
         FunctionSystem {
           f: self,

@@ -3,13 +3,13 @@ use std::{
   collections::VecDeque,
   marker::PhantomData,
   ptr,
-  sync::{Arc, Mutex},
+  sync::atomic::{AtomicU64, Ordering},
 };
 
 #[cfg(feature = "debug")]
 use log::trace;
 
-use crate::{components::Component, ArchetypeId, ComponentId, EntityId};
+use crate::{components::Component, ArchetypeId, ComponentId, EntityId, Id};
 
 type Type = Vec<ComponentId>;
 type ArchetypeMap = HashMap<ArchetypeId, ArchetypeRecord>;
@@ -67,20 +67,12 @@ pub struct Storage<'a> {
   entity_index: HashMap<EntityId, Record<'a>>,
   archetype_index: HashMap<Type, Archetype<'a>>,
   component_index: HashMap<ComponentId, ArchetypeMap>,
-  entity_ids_free: Vec<EntityId>,
-  top_id: EntityId,
-  reserve_lock: Arc<Mutex<()>>,
+  top_id: AtomicU64,
 }
 
 impl Storage<'_> {
   pub fn create_entity(&mut self, comps: Vec<Box<dyn Component>>) -> EntityId {
-    let id = if let Some(id) = self.entity_ids_free.pop() {
-      id
-    } else {
-      let tmp = self.top_id;
-      self.top_id += 1;
-      tmp
-    };
+    let id = Id(self.top_id.fetch_add(1, Ordering::Relaxed));
 
     self.create_entity_with_id(comps, id);
     id
@@ -115,16 +107,7 @@ impl Storage<'_> {
   pub fn reserve_entity_id(&mut self) -> EntityId {
     #[cfg(feature = "debug")]
     trace!("Reserving EntityId");
-    //lock
-    let _lock = self.reserve_lock.lock().unwrap();
-
-    if let Some(id) = self.entity_ids_free.pop() {
-      id
-    } else {
-      let tmp = self.top_id;
-      self.top_id += 1;
-      tmp
-    }
+    Id(self.top_id.fetch_add(1, Ordering::Relaxed))
   }
 
   pub fn remove_entity(&mut self, entity: EntityId) -> Option<()> {
@@ -141,8 +124,6 @@ impl Storage<'_> {
       swapped_record.row = record.row;
     }
 
-    self.entity_ids_free.push(entity);
-
     Some(())
   }
 
@@ -151,7 +132,7 @@ impl Storage<'_> {
     trace!("Creating Archetype {:?}", type_);
 
     let archetype = Archetype {
-      id: self.archetype_index.len() as ArchetypeId,
+      id: Id(self.archetype_index.len() as u64),
       type_: type_.clone(),
       entity_ids: Vec::new(),
       rows: Vec::new(),

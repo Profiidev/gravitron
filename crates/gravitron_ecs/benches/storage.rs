@@ -6,12 +6,19 @@ pub mod components {
   pub use gravitron_ecs::components::Component;
 }
 
-pub type Id = u64;
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Default)]
+pub struct Id(pub(crate) u64);
+
+impl Display for Id {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
 pub type ComponentId = TypeId;
 pub type EntityId = Id;
 type ArchetypeId = Id;
 
-use std::{any::TypeId, hint::black_box, time::Instant};
+use std::{any::TypeId, fmt::Display, hint::black_box, time::Instant};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use gravitron_ecs::{components::Component, Component};
@@ -25,19 +32,19 @@ fn create_n(storage: &mut Storage, n: u64) {
 
 fn edit_n(storage: &mut Storage, n: u64) {
   for i in 0..n {
-    storage.add_comp(i, Box::new(A { _x: 0.0 }));
+    storage.add_comp(Id(i), Box::new(A { _x: 0.0 }));
   }
 }
 
 fn get_n(storage: &mut Storage, n: u64) {
   for i in 0..n {
-    storage.get_comp(i, TypeId::of::<A>());
+    storage.get_comp(Id(i), TypeId::of::<A>());
   }
 }
 
 fn remove_n(storage: &mut Storage, n: u64) {
   for i in 0..n {
-    storage.remove_entity(i);
+    storage.remove_entity(Id(i));
   }
 }
 

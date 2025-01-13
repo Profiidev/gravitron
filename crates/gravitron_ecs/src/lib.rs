@@ -1,4 +1,4 @@
-use std::{any::TypeId, hash::Hash};
+use std::{any::TypeId, fmt::Display, hash::Hash};
 
 use entity::IntoEntity;
 use scheduler::{Scheduler, SchedulerBuilder};
@@ -15,7 +15,15 @@ pub(crate) mod world;
 
 pub use gravitron_ecs_macros::Component;
 
-pub type Id = u64;
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Default)]
+pub struct Id(pub(crate) u64);
+
+impl Display for Id {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
+
 pub type ComponentId = TypeId;
 pub type EntityId = Id;
 type ArchetypeId = Id;

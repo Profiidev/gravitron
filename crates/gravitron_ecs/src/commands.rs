@@ -167,7 +167,7 @@ mod test {
   use super::Commands;
   use crate::{
     self as gravitron_ecs,
-    world::{UnsafeWorldCell, World},
+    world::{UnsafeWorldCell, World}, Id,
   };
   use gravitron_ecs_macros::Component;
 
@@ -187,7 +187,7 @@ mod test {
     let mut world = World::default();
     let mut commands = Commands::create(UnsafeWorldCell::new(&mut world));
 
-    commands.remove_entity(0);
+    commands.remove_entity(Id(0));
   }
 
   #[test]
@@ -195,7 +195,7 @@ mod test {
     let mut world = World::default();
     let mut commands = Commands::create(UnsafeWorldCell::new(&mut world));
 
-    commands.add_comp(0, A {});
+    commands.add_comp(Id(0), A {});
   }
 
   #[test]
@@ -203,6 +203,6 @@ mod test {
     let mut world = World::default();
     let mut commands = Commands::create(UnsafeWorldCell::new(&mut world));
 
-    commands.remove_comp(0, std::any::TypeId::of::<A>());
+    commands.remove_comp(Id(0), std::any::TypeId::of::<A>());
   }
 }
