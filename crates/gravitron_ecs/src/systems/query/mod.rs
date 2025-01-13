@@ -7,17 +7,20 @@ use log::trace;
 mod filter;
 
 use crate::{
-  components::Component, storage::QueryResult, systems::{
+  components::{Component, UnsafeDowncast},
+  storage::QueryResult,
+  systems::{
     metadata::{AccessType, QueryMeta, SystemMeta},
     SystemParam,
-  }, world::UnsafeWorldCell, ComponentId, EntityId, SystemId
+  },
+  world::UnsafeWorldCell,
+  ComponentId, EntityId, SystemId,
 };
 
 pub struct Query<'a, Q: QueryParam> {
   world: UnsafeWorldCell<'a>,
   marker: PhantomData<Q>,
 }
-
 
 pub struct QueryIter<'a, Q: QueryParam> {
   archetypes: Vec<QueryResult<'a>>,
@@ -158,7 +161,7 @@ impl<C: Component + 'static> QueryParamItem for &C {
 
   #[inline]
   fn into_param(input: &mut dyn Component) -> Self::Item<'_> {
-    input.downcast_ref().unwrap()
+    unsafe { input.downcast_ref_unchecked() }
   }
 
   #[inline]
@@ -177,7 +180,7 @@ impl<C: Component + 'static> QueryParamItem for &mut C {
 
   #[inline]
   fn into_param(input: &mut dyn Component) -> Self::Item<'_> {
-    input.downcast_mut().unwrap()
+    unsafe { input.downcast_mut_unchecked() }
   }
 
   #[inline]

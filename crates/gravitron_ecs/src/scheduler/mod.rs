@@ -2,8 +2,6 @@ use std::{
   collections::HashMap,
   hash::Hash,
   sync::{atomic::AtomicUsize, Arc},
-  thread,
-  time::Duration,
 };
 
 use graph::Graph;
@@ -48,7 +46,7 @@ impl Scheduler {
         });
       }
       while running.load(std::sync::atomic::Ordering::SeqCst) != 0 {
-        thread::sleep(Duration::from_micros(1));
+        std::thread::yield_now();
       }
     }
     world.execute_commands();

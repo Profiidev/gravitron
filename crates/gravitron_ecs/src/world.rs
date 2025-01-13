@@ -115,10 +115,14 @@ impl<'w> UnsafeWorldCell<'w> {
     Self(ptr::from_mut(world), PhantomData)
   }
 
+  /// # Safety
+  /// Caller must ensure safe access
   pub unsafe fn world_mut(&self) -> &'w mut World {
     &mut *self.0
   }
 
+  /// # Safety
+  /// Caller must ensure safe access
   pub unsafe fn world(&self) -> &'w World {
     &*self.0
   }

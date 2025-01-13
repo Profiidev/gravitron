@@ -43,3 +43,7 @@ default = ["debug"]
 debug = ["gravitron_ecs/debug"]
 
 [lib]
+
+[profile.release]
+debug = 1
+

@@ -410,6 +410,6 @@ mod test {
     storage.add_comp(id, Box::new(A {}));
 
     let comp = storage.get_comp(id, A::sid()).unwrap();
-    let _ = comp.downcast_ref::<A>().unwrap();
+    assert!(comp.id() == A::sid());
   }
 }

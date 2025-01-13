@@ -624,12 +624,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "downcast"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
-
-[[package]]
 name = "downcast-rs"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -795,7 +789,6 @@ name = "gravitron_ecs"
 version = "0.3.0"
 dependencies = [
  "criterion",
- "downcast",
  "gravitron_ecs_macros",
  "gravitron_utils",
  "gxhash",
