@@ -12,7 +12,7 @@ use log::trace;
 use crate::{components::Component, ArchetypeId, ComponentId, EntityId, Id};
 
 type Type = Vec<ComponentId>;
-type ArchetypeMap = HashMap<ArchetypeId, ArchetypeRecord>;
+type ArchetypeMap<'a> = HashMap<ArchetypeId, ArchetypeRecord<'a>>;
 type Row = Vec<Box<dyn Component>>;
 
 struct ArchetypeEdge<'a> {
@@ -25,8 +25,9 @@ struct Record<'a> {
   row: usize,
 }
 
-struct ArchetypeRecord {
+struct ArchetypeRecord<'a> {
   column: usize,
+  archetype: UnsafeArchetypeCell<'a>,
 }
 
 struct Archetype<'a> {
@@ -66,8 +67,14 @@ impl<'a> UnsafeArchetypeCell<'a> {
 pub struct Storage<'a> {
   entity_index: HashMap<EntityId, Record<'a>>,
   archetype_index: HashMap<Type, Archetype<'a>>,
-  component_index: HashMap<ComponentId, ArchetypeMap>,
+  component_index: HashMap<ComponentId, ArchetypeMap<'a>>,
   top_id: AtomicU64,
+}
+
+pub struct QueryResult<'a> {
+  pub ids: Vec<EntityId>,
+  pub comps: Vec<&'a mut Vec<Box<dyn Component>>>,
+  pub columns: Vec<usize>,
 }
 
 impl Storage<'_> {
@@ -139,12 +146,19 @@ impl Storage<'_> {
       edges: HashMap::default(),
     };
 
+    self.archetype_index.insert(type_.clone(), archetype);
+    let archetype = self.archetype_index.get_mut(&type_).unwrap();
+
     for (i, c) in type_.iter().enumerate() {
       let ci = self.component_index.entry(*c).or_default();
-      ci.insert(archetype.id, ArchetypeRecord { column: i });
+      ci.insert(
+        archetype.id,
+        ArchetypeRecord {
+          column: i,
+          archetype: UnsafeArchetypeCell::new(archetype),
+        },
+      );
     }
-
-    self.archetype_index.insert(type_, archetype);
   }
 
   #[allow(unused)]
@@ -278,6 +292,43 @@ impl Storage<'_> {
     }
   }
 
+  pub(crate) fn query_data(&mut self, comps: &[ComponentId]) -> Vec<QueryResult> {
+    if comps.is_empty() {
+      return vec![];
+    }
+
+    let mut result = vec![];
+    let possible = self.component_index.get(&comps[0]).unwrap();
+    for record in possible.values() {
+      let archetype = unsafe { record.archetype.archetype_mut() };
+
+      if comps.iter().all(|c| archetype.type_.contains(c)) && !archetype.entity_ids.is_empty() {
+        let columns = comps
+          .iter()
+          .map(|c| {
+            self
+              .component_index
+              .get(c)
+              .unwrap()
+              .get(&archetype.id)
+              .unwrap()
+              .column
+          })
+          .collect();
+
+        let comps = archetype.rows.iter_mut().collect();
+
+        result.push(QueryResult {
+          columns,
+          comps,
+          ids: archetype.entity_ids.clone(),
+        });
+      }
+    }
+
+    result
+  }
+
   pub fn get_all_entities_for_archetypes(
     &mut self,
     components: Vec<ComponentId>,
@@ -326,6 +377,8 @@ mod test {
 
     let id = storage.create_entity(Vec::new());
     storage.add_comp(id, Box::new(A {}));
+
+    assert!(storage.has_comp(id, A::sid()));
   }
 
   #[test]
@@ -335,6 +388,8 @@ mod test {
     let id = storage.create_entity(Vec::new());
     storage.add_comp(id, Box::new(A {}));
     storage.remove_comp(id, A::sid());
+
+    assert!(!storage.has_comp(id, A::sid()));
   }
 
   #[test]

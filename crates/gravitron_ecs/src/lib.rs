@@ -147,7 +147,7 @@ mod test {
   #[test]
   fn full() {
     fn system(q: Query<(&mut A, &B)>, cmds: &mut Commands) {
-      for (a, b) in q {
+      for (_, a, b) in q {
         a.x += b.y;
       }
       cmds.create_entity(B { y: 1 });

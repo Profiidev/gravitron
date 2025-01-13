@@ -1,5 +1,4 @@
-use core::panic;
-use std::{collections::VecDeque, marker::PhantomData};
+use std::marker::PhantomData;
 
 use gravitron_ecs_macros::all_tuples;
 #[cfg(feature = "debug")]
@@ -8,57 +7,72 @@ use log::trace;
 mod filter;
 
 use crate::{
-  components::Component,
-  systems::{
+  components::Component, storage::QueryResult, systems::{
     metadata::{AccessType, QueryMeta, SystemMeta},
     SystemParam,
-  },
-  world::UnsafeWorldCell,
-  ComponentId, EntityId, SystemId,
+  }, world::UnsafeWorldCell, ComponentId, EntityId, SystemId
 };
 
-pub struct Query<'a, Q: QueryParam<'a>> {
+pub struct Query<'a, Q: QueryParam> {
   world: UnsafeWorldCell<'a>,
   marker: PhantomData<Q>,
 }
 
-pub struct QueryIter<'a, Q: QueryParam<'a>> {
-  entities: VecDeque<(EntityId, &'a mut Vec<Box<dyn Component>>)>,
-  marker: PhantomData<&'a Q>,
+
+pub struct QueryIter<'a, Q: QueryParam> {
+  archetypes: Vec<QueryResult<'a>>,
+  archetype_index: usize,
+  marker: PhantomData<Q>,
 }
 
-impl<'a, Q: QueryParam<'a> + 'a> IntoIterator for Query<'a, Q> {
-  type Item = Q::Item;
+impl<'a, Q: QueryParam + 'a> IntoIterator for Query<'a, Q> {
+  type Item = Q::Item<'a>;
   type IntoIter = QueryIter<'a, Q>;
 
   fn into_iter(self) -> Self::IntoIter {
     let world = unsafe { self.world.world_mut() };
+    let ids = Q::get_comp_ids();
+    let archetypes = world.storage_mut().query_data(&ids);
 
     #[cfg(feature = "debug")]
-    trace!("Querying Entities {:?}", Q::get_comp_ids());
-
-    let entities = world.get_entities_mut(Q::get_comp_ids());
+    trace!("Querying Entities {:?}", &ids);
 
     QueryIter {
-      entities,
+      archetypes,
+      archetype_index: 0,
       marker: PhantomData,
     }
   }
 }
 
-impl<'a, Q: QueryParam<'a>> Iterator for QueryIter<'a, Q> {
-  type Item = Q::Item;
+impl<'a, Q: QueryParam> Iterator for QueryIter<'a, Q> {
+  type Item = Q::Item<'a>;
 
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
-    Some(Q::into_query(self.entities.pop_front()?))
+    if self.archetype_index >= self.archetypes.len() {
+      return None;
+    }
+
+    let QueryResult {
+      ids,
+      comps,
+      columns,
+    } = &mut self.archetypes[self.archetype_index];
+    if ids.is_empty() {
+      self.archetype_index += 1;
+      return self.next();
+    }
+
+    let entity_id = ids.pop()?;
+    let comps = comps.pop()?;
+    let item = Q::into_query((entity_id, comps), columns);
+
+    Some(item)
   }
 }
 
-impl<Q> SystemParam for Query<'_, Q>
-where
-  for<'b> Q: QueryParam<'b>,
-{
+impl<Q: QueryParam> SystemParam for Query<'_, Q> {
   type Item<'new> = Query<'new, Q>;
 
   #[inline]
@@ -75,89 +89,40 @@ where
   }
 }
 
-pub trait QueryParam<'a> {
-  type Item: 'a;
+pub trait QueryParam {
+  type Item<'a>;
 
-  fn into_query(entity: (EntityId, &'a mut Vec<Box<dyn Component>>)) -> Self::Item;
+  fn into_query<'a>(
+    entity: (EntityId, &'a mut Vec<Box<dyn Component>>),
+    indices: &[usize],
+  ) -> Self::Item<'a>;
   fn get_meta() -> QueryMeta;
   fn get_comp_ids() -> Vec<ComponentId>;
 }
 
 macro_rules! impl_query_param {
-  ($one:ident) => {
-    impl<'a, $one: QueryParamItem<'a>> QueryParam<'a> for $one {
-      type Item = $one::Item;
+  ($($params:ident),*) => {
+    #[allow(unused_parens)]
+    impl<$($params: QueryParamItem),*> QueryParam for ($($params),*) {
+      type Item<'a> = (EntityId, $($params::Item<'a> ,)*);
 
       #[inline]
-      #[allow(non_snake_case)]
-      fn into_query(entity: (EntityId, &'a mut Vec<Box<dyn Component>>)) -> Self::Item {
-        let mut $one = None;
-
-        if $one::id() == std::any::TypeId::of::<EntityId>() {
-          $one = Some($one::into_param(ParamType::Id(entity.0)));
-        }
-
-        for comp in entity.1 {
-          if comp.id() == $one::id() {
-            $one = Some($one::into_param(ParamType::Comp(comp)));
-          }
-        }
-
-        $one.unwrap()
-      }
-
-      #[inline]
-      fn get_meta() -> QueryMeta {
-        let mut meta = QueryMeta::new();
-
-        $one::check_metadata(&mut meta);
-
-        meta
-      }
-
-      #[inline]
-      fn get_comp_ids() -> Vec<ComponentId> {
-        vec![$one::id()]
-      }
-    }
-
-    impl_query_param!($one,);
-  };
-  ($first:ident, $($params:ident),*) => {
-    impl<'a, $first: QueryParamItem<'a>, $($params: QueryParamItem<'a>),*> QueryParam<'a> for ($first, $($params),*) {
-      type Item = ($first::Item, $($params::Item ,)*);
-
-      #[inline]
-      #[allow(non_snake_case)]
-      fn into_query(entity: (EntityId, &'a mut Vec<Box<dyn Component>>)) -> Self::Item {
-        let mut $first = None;
+      #[allow(non_snake_case, unused_assignments)]
+      fn into_query<'a>(entity: (EntityId, &'a mut Vec<Box<dyn Component>>), indices: &[usize]) -> Self::Item<'a> {
+        let ptr = entity.1.as_mut_ptr();
+        let mut i = 0;
         $(
-          let mut $params = None;
+          let $params = $params::into_param(unsafe { &mut **ptr.add(indices[i]) });
+          i += 1;
         )*
 
-        if $first::id() == std::any::TypeId::of::<EntityId>() {
-          $first = Some($first::into_param(ParamType::Id(entity.0)));
-        }
-
-        for comp in entity.1 {
-          if comp.id() == $first::id() {
-            $first = Some($first::into_param(ParamType::Comp(comp)));
-          }
-          $(
-            else if comp.id() == $params::id() {
-              $params = Some($params::into_param(ParamType::Comp(comp)));
-            }
-          )*
-        }
-
-        ($first.unwrap(), $($params.unwrap()),*)
+        (entity.0, $($params),*)
       }
 
       #[inline]
       fn get_meta() -> QueryMeta {
         let mut meta = QueryMeta::new();
 
-        $first::check_metadata(&mut meta);
         $(
           $params::check_metadata(&mut meta);
         )*
@@ -167,7 +132,7 @@ macro_rules! impl_query_param {
 
       #[inline]
       fn get_comp_ids() -> Vec<ComponentId> {
-        vec![$first::id(), $($params::id()),*]
+        vec![$($params::id()),*]
       }
     }
   };
@@ -175,39 +140,16 @@ macro_rules! impl_query_param {
 
 all_tuples!(impl_query_param, 1, 16, F);
 
-pub trait QueryParamItem<'a> {
-  type Item: 'a;
+pub trait QueryParamItem {
+  type Item<'a>;
 
   fn id() -> ComponentId;
-  fn into_param(input: ParamType<'a>) -> Self::Item;
+  fn into_param(input: &mut dyn Component) -> Self::Item<'_>;
   fn check_metadata(meta: &mut QueryMeta);
 }
 
-pub enum ParamType<'a> {
-  Comp(&'a mut Box<dyn Component>),
-  Id(EntityId),
-}
-
-impl<'a> ParamType<'a> {
-  #[inline]
-  fn comp(self) -> &'a mut Box<dyn Component> {
-    match self {
-      ParamType::Id(_) => panic!("Param not of type id"),
-      ParamType::Comp(comp) => comp,
-    }
-  }
-
-  #[inline]
-  fn id(self) -> EntityId {
-    match self {
-      ParamType::Id(id) => id,
-      ParamType::Comp(_) => panic!("Param not of type comp"),
-    }
-  }
-}
-
-impl<'a, C: Component + 'static> QueryParamItem<'a> for &C {
-  type Item = &'a C;
+impl<C: Component + 'static> QueryParamItem for &C {
+  type Item<'a> = &'a C;
 
   #[inline]
   fn id() -> ComponentId {
@@ -215,8 +157,8 @@ impl<'a, C: Component + 'static> QueryParamItem<'a> for &C {
   }
 
   #[inline]
-  fn into_param(input: ParamType<'a>) -> Self::Item {
-    input.comp().downcast_ref().unwrap()
+  fn into_param(input: &mut dyn Component) -> Self::Item<'_> {
+    input.downcast_ref().unwrap()
   }
 
   #[inline]
@@ -225,8 +167,8 @@ impl<'a, C: Component + 'static> QueryParamItem<'a> for &C {
   }
 }
 
-impl<'a, C: Component + 'static> QueryParamItem<'a> for &mut C {
-  type Item = &'a mut C;
+impl<C: Component + 'static> QueryParamItem for &mut C {
+  type Item<'a> = &'a mut C;
 
   #[inline]
   fn id() -> ComponentId {
@@ -234,31 +176,12 @@ impl<'a, C: Component + 'static> QueryParamItem<'a> for &mut C {
   }
 
   #[inline]
-  fn into_param(input: ParamType<'a>) -> Self::Item {
-    input.comp().downcast_mut().unwrap()
+  fn into_param(input: &mut dyn Component) -> Self::Item<'_> {
+    input.downcast_mut().unwrap()
   }
 
   #[inline]
   fn check_metadata(meta: &mut QueryMeta) {
     meta.add_comp::<C>(AccessType::Write);
-  }
-}
-
-impl<'a> QueryParamItem<'a> for EntityId {
-  type Item = EntityId;
-
-  #[inline]
-  fn id() -> ComponentId {
-    std::any::TypeId::of::<EntityId>()
-  }
-
-  #[inline]
-  fn into_param(input: ParamType<'a>) -> Self::Item {
-    input.id()
-  }
-
-  #[inline]
-  fn check_metadata(meta: &mut QueryMeta) {
-    meta.use_id();
   }
 }
