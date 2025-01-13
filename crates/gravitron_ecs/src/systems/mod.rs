@@ -51,10 +51,12 @@ macro_rules! impl_system {
         call_inner(&mut self.f, $($params),*)
       }
 
+      #[inline]
       fn get_meta(&self) -> &SystemMeta {
         &self.meta
       }
 
+      #[inline]
       fn get_id(&self) -> SystemId {
         self.id
       }

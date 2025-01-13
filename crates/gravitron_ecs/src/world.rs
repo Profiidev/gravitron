@@ -87,6 +87,10 @@ impl World {
     }
   }
 
+  pub fn storage_mut(&mut self) -> &mut Storage<'static> {
+    &mut self.storage
+  }
+
   pub fn get_entities_mut(
     &mut self,
     t: Vec<ComponentId>,

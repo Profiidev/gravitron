@@ -19,10 +19,12 @@ pub fn component(input: TokenStream) -> TokenStream {
 
   quote! {
     impl #impl_generics #ecs_path::components::Component for #name #type_generics #where_clause {
+      #[inline]
       fn id(&self) -> #ecs_path::ComponentId {
         std::any::TypeId::of::<#name>() as #ecs_path::ComponentId
       }
 
+      #[inline]
       fn sid() -> #ecs_path::ComponentId {
         std::any::TypeId::of::<#name>() as #ecs_path::ComponentId
       }

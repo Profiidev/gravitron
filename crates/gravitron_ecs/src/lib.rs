@@ -33,44 +33,54 @@ pub struct ECSBuilder<K: Ord + Hash + Clone = usize> {
 }
 
 impl ECS {
+  #[inline]
   pub fn builder() -> ECSBuilder {
     ECSBuilder::new()
   }
 
+  #[inline]
   pub fn run(&mut self) {
     self.scheduler.run(&mut self.world);
   }
 
+  #[inline]
   pub fn set_resource<R: 'static>(&mut self, res: R) {
     self.world.set_resource(res);
   }
 
+  #[inline]
   pub fn get_resource<R: 'static>(&mut self) -> Option<&R> {
     self.world.get_resource()
   }
 
+  #[inline]
   pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
     self.world.get_resource_mut()
   }
 
+  #[inline]
   pub fn get_world_cell(&mut self) -> UnsafeWorldCell<'static> {
     UnsafeWorldCell::new(&mut self.world)
   }
 }
 
 impl<K: Ord + Hash + Clone> ECSBuilder<K> {
+  #[inline]
   pub fn new() -> Self {
     Self::default()
   }
 
+  #[inline]
   pub fn sync_system_exec(&mut self, value: bool) {
     self.sync_system_exec = value;
   }
 
+  #[inline]
   pub fn add_system<I, S: System + 'static>(&mut self, system: impl IntoSystem<I, System = S>) {
     self.scheduler.add_system(system);
   }
 
+  #[inline]
   pub fn add_system_at_stage<I, S: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = S>,
@@ -79,14 +89,17 @@ impl<K: Ord + Hash + Clone> ECSBuilder<K> {
     self.scheduler.add_system_at_stage(system, relative_stage);
   }
 
+  #[inline]
   pub fn add_resource<R: 'static>(&mut self, res: R) {
     self.world.add_resource(res);
   }
 
+  #[inline]
   pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
     self.world.create_entity(entity)
   }
 
+  #[inline]
   pub fn build(self) -> ECS {
     ECS {
       scheduler: self.scheduler.build(self.sync_system_exec),
@@ -129,7 +142,7 @@ mod test {
       for (a, b) in q {
         a.x += b.y;
       }
-      cmds.create_entity(B { y: 1 })
+      cmds.create_entity(B { y: 1 });
     }
 
     let mut ecs = ECS::builder();

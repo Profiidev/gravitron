@@ -30,7 +30,7 @@ impl Commands {
     self.commands = Vec::new();
   }
 
-  pub fn create_entity(&mut self, entity: impl IntoEntity) {
+  pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
     #[cfg(feature = "debug")]
     trace!("Registering Create Entity Command");
 
@@ -40,6 +40,8 @@ impl Commands {
       comps: Some(entity.into_entity()),
       id,
     }));
+
+    id
   }
 
   pub fn remove_entity(&mut self, entity: EntityId) {
@@ -82,10 +84,12 @@ impl Commands {
 impl SystemParam for &mut Commands {
   type Item<'new> = &'new mut Commands;
 
+  #[inline]
   fn get_param(world: crate::world::UnsafeWorldCell<'_>, id: SystemId) -> Self::Item<'_> {
     unsafe { world.world_mut() }.get_commands_mut(id)
   }
 
+  #[inline]
   fn check_metadata(meta: &mut SystemMeta) {
     meta.add_cmds();
   }
