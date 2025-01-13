@@ -20,7 +20,7 @@ use gravitron::{
   },
   engine::Gravitron,
   math,
-  vulkan::graphics::resources::material::Material,
+  vulkan::graphics::resources::{material::Material, model::CUBE_MODEL},
 };
 use winit::keyboard::KeyCode;
 
@@ -51,7 +51,7 @@ fn main() {
   transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
   builder.create_entity((
     MeshRenderer {
-      model_id: 0,
+      model_id: CUBE_MODEL,
       material: Material {
         color: math::Vec4::new(1.0, 1.0, 0.0, 1.0),
         metallic: 1.0,
@@ -66,7 +66,7 @@ fn main() {
   transform.set_position(math::Vec3::new(0.0, 0.0, 0.0));
   builder.create_entity((
     MeshRenderer {
-      model_id: 0,
+      model_id: CUBE_MODEL,
       material: Material {
         shader: "testing".into(),
         ..Default::default()
@@ -140,7 +140,7 @@ fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mu
     m.t += 0.5 * info.delta_time();
   }
   let renderer = MeshRenderer {
-    model_id: 0,
+    model_id: CUBE_MODEL,
     material: Material {
       texture_id: 1,
       ..Default::default()

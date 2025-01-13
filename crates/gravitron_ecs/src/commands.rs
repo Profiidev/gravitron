@@ -167,7 +167,8 @@ mod test {
   use super::Commands;
   use crate::{
     self as gravitron_ecs,
-    world::{UnsafeWorldCell, World}, Id,
+    world::{UnsafeWorldCell, World},
+    Id,
   };
   use gravitron_ecs_macros::Component;
 

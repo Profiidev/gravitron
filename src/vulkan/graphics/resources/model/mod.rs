@@ -1,12 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{
-  vulkan::memory::{
-    manager::MemoryManager,
-    types::{BufferBlockSize, BufferId},
-    BufferMemory,
-  },
-  Id,
+use crate::vulkan::memory::{
+  manager::MemoryManager,
+  types::{BufferBlockSize, BufferId},
+  BufferMemory,
 };
 use anyhow::Error;
 use ash::vk;
@@ -16,18 +13,19 @@ use plane::plane;
 mod cube;
 mod plane;
 
-pub type ModelId = Id;
-
 pub struct ModelManager {
   models: HashMap<ModelId, Model>,
-  last_id: ModelId,
+  last_id: u64,
   vertex_buffer: BufferId,
   index_buffer: BufferId,
   instance_buffer: BufferId,
 }
 
-pub const CUBE_MODEL: Id = 0;
-pub const PLANE_MODEL: Id = 1;
+pub const CUBE_MODEL: ModelId = ModelId(0);
+pub const PLANE_MODEL: ModelId = ModelId(1);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Default)]
+pub struct ModelId(pub(crate) u64);
 
 pub struct Model {
   vertices: BufferMemory,
@@ -116,7 +114,7 @@ impl ModelManager {
     let index_slice = index_data.as_slice();
     let (indices, index_resized) = memory_manager.add_to_buffer(self.index_buffer, index_slice)?;
 
-    let id = self.last_id;
+    let id = ModelId(self.last_id);
     self.models.insert(
       id,
       Model::new(vertices, indices, index_data.len() as u32, instance_count),
@@ -286,7 +284,7 @@ impl ModelManager {
             first_instance: (mem.offset() / instance_size) as u32,
           };
 
-          let shader_cmd: &mut Vec<(u64, vk::DrawIndexedIndirectCommand)> =
+          let shader_cmd: &mut Vec<(ModelId, vk::DrawIndexedIndirectCommand)> =
             cmd_new.entry(shader.clone()).or_default();
           shader_cmd.push((model_id, cmd));
 
@@ -310,7 +308,7 @@ impl ModelManager {
     (cmd_new, buffer_resized)
   }
 
-  pub fn model(&self, id: Id) -> Option<&Model> {
+  pub fn model(&self, id: ModelId) -> Option<&Model> {
     self.models.get(&id)
   }
 }

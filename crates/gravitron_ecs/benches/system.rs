@@ -7,9 +7,7 @@ use gravitron_ecs::{
 };
 
 fn system_loop(query: Query<&A>) {
-  for _ in query {
-
-  }
+  for _ in query {}
 }
 
 fn query_loop_benchmark(c: &mut Criterion) {

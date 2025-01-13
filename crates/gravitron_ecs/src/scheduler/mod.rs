@@ -183,7 +183,10 @@ impl<K: Ord + Clone + Hash> Default for SchedulerBuilder<K> {
 
 #[cfg(test)]
 mod test {
-  use crate::{systems::resources::{Res, ResMut}, Id};
+  use crate::{
+    systems::resources::{Res, ResMut},
+    Id,
+  };
 
   use super::{Scheduler, SchedulerBuilder};
 

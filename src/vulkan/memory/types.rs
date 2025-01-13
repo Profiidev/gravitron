@@ -1,8 +1,6 @@
 use anyhow::Error;
 use gpu_allocator::vulkan;
 
-use crate::Id;
-
 use super::{
   advanced_buffer::AdvancedBuffer, image::Image, sampler_image::SamplerImage,
   simple_buffer::SimpleBuffer,
@@ -10,14 +8,14 @@ use super::{
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BufferId {
-  Advanced(Id),
-  Simple(Id),
+  Advanced(u64),
+  Simple(u64),
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ImageId {
-  Simple(Id),
-  Sampler(Id),
+  Simple(u64),
+  Sampler(u64),
 }
 
 pub const BUFFER_BLOCK_SIZE_LARGE: usize = 1024 * 1024 * 64;

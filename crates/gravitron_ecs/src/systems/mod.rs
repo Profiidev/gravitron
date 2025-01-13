@@ -9,7 +9,7 @@ use log::trace;
 use gravitron_ecs_macros::all_tuples;
 use metadata::SystemMeta;
 
-use crate::{world::UnsafeWorldCell, SystemId, Id};
+use crate::{world::UnsafeWorldCell, Id, SystemId};
 
 pub(crate) mod metadata;
 pub mod query;
