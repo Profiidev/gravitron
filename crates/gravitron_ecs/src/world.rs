@@ -1,6 +1,6 @@
 use std::{
   any::{Any, TypeId},
-  collections::{HashMap, VecDeque},
+  collections::HashMap,
   marker::PhantomData,
   ptr,
 };
@@ -9,8 +9,7 @@ use std::{
 use log::{debug, trace};
 
 use crate::{
-  commands::Commands, components::Component, entity::IntoEntity, storage::Storage, ComponentId,
-  EntityId, SystemId,
+  commands::Commands, entity::IntoEntity, storage::Storage, tick::Tick, EntityId, SystemId,
 };
 
 #[derive(Default)]
@@ -18,6 +17,7 @@ pub struct World {
   storage: Storage<'static>,
   resources: HashMap<TypeId, Box<dyn Any>>,
   commands: HashMap<SystemId, Commands>,
+  tick: Tick,
 }
 
 impl World {
@@ -26,8 +26,12 @@ impl World {
     World::default()
   }
 
+  pub fn tick(&self) -> Tick {
+    self.tick
+  }
+
   pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
-    self.storage.create_entity(entity.into_entity())
+    self.storage.create_entity(entity.into_entity(), self.tick)
   }
 
   pub fn set_resource<R: 'static>(&mut self, res: R) {
@@ -83,19 +87,12 @@ impl World {
     trace!("Executing Commands");
 
     for cmds in self.commands.values_mut() {
-      cmds.execute(&mut self.storage);
+      cmds.execute(&mut self.storage, self.tick);
     }
   }
 
   pub fn storage_mut(&mut self) -> &mut Storage<'static> {
     &mut self.storage
-  }
-
-  pub fn get_entities_mut(
-    &mut self,
-    t: Vec<ComponentId>,
-  ) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
-    self.storage.get_all_entities_for_archetypes(t)
   }
 
   pub fn reserve_entity_id(&mut self) -> EntityId {

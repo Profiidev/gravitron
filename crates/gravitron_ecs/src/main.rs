@@ -7,16 +7,20 @@ use gravitron_ecs::{
 };
 
 #[derive(Component)]
-struct A {}
+struct A {
+  x: f32
+}
 
 #[derive(Component)]
-struct B {}
+struct B {
+  x: f32
+}
 
 fn main() {
   let mut world = World::default();
 
   for _ in 0..1000000 {
-    world.create_entity((A {}, B {}));
+    world.create_entity((A { x: 0.0 }, B { x: 1.0 }));
   }
 
   let start = Instant::now();
@@ -31,5 +35,7 @@ fn main() {
 }
 
 fn system(q: Query<(&A, &mut B)>) {
-  for _ in q {}
+  for (_, a, mut b) in q {
+    b.x += a.x;
+  }
 }

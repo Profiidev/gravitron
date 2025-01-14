@@ -10,6 +10,8 @@ use gravitron_ecs::{
   ECSBuilder, EntityId, ECS,
 };
 use log::{debug, info, trace};
+#[cfg(target_os = "linux")]
+use winit::platform::wayland::ActiveEventLoopExtWayland;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
@@ -18,13 +20,6 @@ use winit::{
   keyboard::PhysicalKey,
   window::Window,
 };
-#[cfg(target_os = "linux")]
-use winit::{
-  event_loop::EventLoopBuilder,
-  platform::wayland::{ActiveEventLoopExtWayland, EventLoopBuilderExtWayland},
-};
-#[cfg(target_os = "windows")]
-use winit::{event_loop::EventLoopBuilder, platform::windows::EventLoopBuilderExtWindows};
 
 use crate::{
   config::EngineConfig,
@@ -65,12 +60,6 @@ impl Gravitron {
 
     debug!("Configuring EventLoop");
     let mut event_loop = EventLoop::builder();
-    #[cfg(target_os = "linux")]
-    let event_loop =
-      <EventLoopBuilder<()> as EventLoopBuilderExtWayland>::with_any_thread(&mut event_loop, true);
-    #[cfg(target_os = "windows")]
-    let event_loop =
-      <EventLoopBuilder<()> as EventLoopBuilderExtWindows>::with_any_thread(&mut event_loop, true);
     let event_loop = event_loop.build()?;
 
     debug!("Starting Event Loop");

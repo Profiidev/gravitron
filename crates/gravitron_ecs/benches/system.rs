@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{hint::black_box, time::Instant};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use gravitron_ecs::{
@@ -7,7 +7,9 @@ use gravitron_ecs::{
 };
 
 fn system_loop(query: Query<&A>) {
-  for _ in query {}
+  for (_, a) in query {
+    black_box(a);
+  }
 }
 
 fn query_loop_benchmark(c: &mut Criterion) {

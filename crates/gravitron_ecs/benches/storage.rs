@@ -2,6 +2,10 @@
 #[allow(unused)]
 mod storage;
 
+#[path = "../src/tick.rs"]
+#[allow(unused)]
+mod tick;
+
 pub mod components {
   pub use gravitron_ecs::components::Component;
 }
@@ -22,17 +26,25 @@ use std::{any::TypeId, fmt::Display, hint::black_box, time::Instant};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use gravitron_ecs::{components::Component, Component};
-use storage::Storage;
+use storage::{ComponentBox, Storage};
+use tick::Tick;
 
 fn create_n(storage: &mut Storage, n: u64) {
   for _ in 0..n {
-    storage.create_entity(vec![Box::new(A { _x: 0.0 })]);
+    storage.create_entity(vec![Box::new(A { _x: 0.0 })], Tick::default());
   }
 }
 
 fn edit_n(storage: &mut Storage, n: u64) {
   for i in 0..n {
-    storage.add_comp(Id(i), Box::new(A { _x: 0.0 }));
+    storage.add_comp(
+      Id(i),
+      ComponentBox {
+        comp: Box::new(A { _x: 0.0 }),
+        added: Tick::default(),
+        changed: Tick::default(),
+      },
+    );
   }
 }
 
@@ -123,7 +135,7 @@ fn query_benchmark(c: &mut Criterion) {
       b.iter_custom(|iters| {
         let start = Instant::now();
         for _ in 0..iters {
-          let _ = storage.get_all_entities_for_archetypes(vec![A::sid()]);
+          let _ = storage.query_data(&[A::sid()]);
         }
         start.elapsed()
       })

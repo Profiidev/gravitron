@@ -12,6 +12,7 @@ pub(crate) mod scheduler;
 pub(crate) mod storage;
 pub mod systems;
 pub mod world;
+pub mod tick;
 
 pub use gravitron_ecs_macros::Component;
 
@@ -147,7 +148,7 @@ mod test {
   #[test]
   fn full() {
     fn system(q: Query<(&mut A, &B)>, cmds: &mut Commands) {
-      for (_, a, b) in q {
+      for (_, mut a, b) in q {
         a.x += b.y;
       }
       cmds.create_entity(B { y: 1 });

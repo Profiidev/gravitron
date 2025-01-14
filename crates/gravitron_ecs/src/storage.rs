@@ -1,6 +1,5 @@
 use gxhash::HashMap;
 use std::{
-  collections::VecDeque,
   marker::PhantomData,
   ptr,
   sync::atomic::{AtomicU64, Ordering},
@@ -9,11 +8,17 @@ use std::{
 #[cfg(feature = "debug")]
 use log::trace;
 
-use crate::{components::Component, ArchetypeId, ComponentId, EntityId, Id};
+use crate::{components::Component, tick::Tick, ArchetypeId, ComponentId, EntityId, Id};
 
 type Type = Vec<ComponentId>;
 type ArchetypeMap<'a> = HashMap<ArchetypeId, ArchetypeRecord<'a>>;
-type Row = Vec<Box<dyn Component>>;
+type Row = Vec<ComponentBox>;
+
+pub struct ComponentBox {
+  pub comp: Box<dyn Component>,
+  pub added: Tick,
+  pub changed: Tick,
+}
 
 struct ArchetypeEdge<'a> {
   add: UnsafeArchetypeCell<'a>,
@@ -73,19 +78,24 @@ pub struct Storage<'a> {
 
 pub struct QueryResult<'a> {
   pub ids: Vec<EntityId>,
-  pub comps: Vec<&'a mut Vec<Box<dyn Component>>>,
+  pub comps: Vec<&'a mut Vec<ComponentBox>>,
   pub columns: Vec<usize>,
 }
 
 impl Storage<'_> {
-  pub fn create_entity(&mut self, comps: Vec<Box<dyn Component>>) -> EntityId {
+  pub fn create_entity(&mut self, comps: Vec<Box<dyn Component>>, tick: Tick) -> EntityId {
     let id = Id(self.top_id.fetch_add(1, Ordering::Relaxed));
 
-    self.create_entity_with_id(comps, id);
+    self.create_entity_with_id(comps, id, tick);
     id
   }
 
-  pub fn create_entity_with_id(&mut self, mut comps: Vec<Box<dyn Component>>, id: EntityId) {
+  pub fn create_entity_with_id(
+    &mut self,
+    mut comps: Vec<Box<dyn Component>>,
+    id: EntityId,
+    tick: Tick,
+  ) {
     #[cfg(feature = "debug")]
     trace!("Creating Entity {}", id);
 
@@ -100,7 +110,16 @@ impl Storage<'_> {
     };
 
     archetype.entity_ids.push(id);
-    archetype.rows.push(comps);
+    archetype.rows.push(
+      comps
+        .into_iter()
+        .map(|comp| ComponentBox {
+          comp,
+          added: tick,
+          changed: Tick::default(),
+        })
+        .collect(),
+    );
 
     self.entity_index.insert(
       id,
@@ -148,6 +167,7 @@ impl Storage<'_> {
 
     self.archetype_index.insert(type_.clone(), archetype);
     let archetype = self.archetype_index.get_mut(&type_).unwrap();
+    let cell = UnsafeArchetypeCell::new(archetype);
 
     for (i, c) in type_.iter().enumerate() {
       let ci = self.component_index.entry(*c).or_default();
@@ -155,7 +175,7 @@ impl Storage<'_> {
         archetype.id,
         ArchetypeRecord {
           column: i,
-          archetype: UnsafeArchetypeCell::new(archetype),
+          archetype: cell,
         },
       );
     }
@@ -172,7 +192,7 @@ impl Storage<'_> {
     let row = archetype.rows.get(record.row)?;
     let component = row.get(a_record.column)?;
 
-    Some(&**component)
+    Some(&*component.comp)
   }
 
   #[allow(unused)]
@@ -182,22 +202,22 @@ impl Storage<'_> {
     archetype.type_.contains(&comp)
   }
 
-  pub fn add_comp(&mut self, entity: EntityId, comp: Box<dyn Component>) {
+  pub fn add_comp(&mut self, entity: EntityId, comp: ComponentBox) {
     #[cfg(feature = "debug")]
-    trace!("Adding Component {:?} to Entity {}", comp.id(), entity);
+    trace!("Adding Component {:?} to Entity {}", comp.comp.id(), entity);
 
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
 
-    if from.type_.contains(&comp.id()) {
+    if from.type_.contains(&comp.comp.id()) {
       return;
     }
 
-    let to = if let Some(to) = from.edges.get(&comp.id()) {
+    let to = if let Some(to) = from.edges.get(&comp.comp.id()) {
       unsafe { to.add.archetype_mut() }
     } else {
       let mut type_ = from.type_.clone();
-      type_.push(comp.id());
+      type_.push(comp.comp.id());
       type_.sort_unstable();
 
       let to = if let Some(to) = self.archetype_index.get_mut(&type_) {
@@ -208,7 +228,7 @@ impl Storage<'_> {
       };
 
       from.edges.insert(
-        comp.id(),
+        comp.comp.id(),
         ArchetypeEdge {
           add: UnsafeArchetypeCell::new(to),
           remove: UnsafeArchetypeCell::null(),
@@ -219,7 +239,7 @@ impl Storage<'_> {
     };
 
     let record = self.entity_index.get_mut(&entity).unwrap();
-    let new_comp = to.type_.iter().position(|&c| c == comp.id()).unwrap();
+    let new_comp = to.type_.iter().position(|&c| c == comp.comp.id()).unwrap();
 
     to.entity_ids.push(from.entity_ids.swap_remove(record.row));
 
@@ -316,7 +336,8 @@ impl Storage<'_> {
           })
           .collect();
 
-        let comps = archetype.rows.iter_mut().collect();
+        let comps: Vec<&mut Vec<ComponentBox>> = archetype.rows.iter_mut().collect();
+        //dbg!(comps[0].as_ptr());
 
         result.push(QueryResult {
           columns,
@@ -328,29 +349,12 @@ impl Storage<'_> {
 
     result
   }
-
-  pub fn get_all_entities_for_archetypes(
-    &mut self,
-    components: Vec<ComponentId>,
-  ) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
-    assert!(!components.is_empty());
-    let mut entities = VecDeque::new();
-    for archetype in &mut self.archetype_index.values_mut() {
-      if components.iter().all(|t| archetype.type_.contains(t)) {
-        for (e, id) in archetype.rows.iter_mut().zip(archetype.entity_ids.iter()) {
-          entities.push_back((*id, e));
-        }
-      }
-    }
-
-    entities
-  }
 }
 
 #[cfg(test)]
 mod test {
   use super::Storage;
-  use crate::{self as gravitron_ecs, components::Component};
+  use crate::{self as gravitron_ecs, components::Component, storage::ComponentBox, tick::Tick};
   use gravitron_ecs_macros::Component;
 
   #[derive(Component)]
@@ -360,14 +364,14 @@ mod test {
   fn create_entity() {
     let mut storage = Storage::default();
 
-    storage.create_entity(Vec::new());
+    storage.create_entity(Vec::new(), Tick::default());
   }
 
   #[test]
   fn remove_entity() {
     let mut storage = Storage::default();
 
-    let id = storage.create_entity(Vec::new());
+    let id = storage.create_entity(Vec::new(), Tick::default());
     storage.remove_entity(id);
   }
 
@@ -375,8 +379,15 @@ mod test {
   fn add_comp() {
     let mut storage = Storage::default();
 
-    let id = storage.create_entity(Vec::new());
-    storage.add_comp(id, Box::new(A {}));
+    let id = storage.create_entity(Vec::new(), Tick::default());
+    storage.add_comp(
+      id,
+      ComponentBox {
+        comp: Box::new(A {}),
+        added: Tick::default(),
+        changed: Tick::default(),
+      },
+    );
 
     assert!(storage.has_comp(id, A::sid()));
   }
@@ -385,8 +396,15 @@ mod test {
   fn remove_comp() {
     let mut storage = Storage::default();
 
-    let id = storage.create_entity(Vec::new());
-    storage.add_comp(id, Box::new(A {}));
+    let id = storage.create_entity(Vec::new(), Tick::default());
+    storage.add_comp(
+      id,
+      ComponentBox {
+        comp: Box::new(A {}),
+        added: Tick::default(),
+        changed: Tick::default(),
+      },
+    );
     storage.remove_comp(id, A::sid());
 
     assert!(!storage.has_comp(id, A::sid()));
@@ -396,8 +414,15 @@ mod test {
   fn has_comp() {
     let mut storage = Storage::default();
 
-    let id = storage.create_entity(Vec::new());
-    storage.add_comp(id, Box::new(A {}));
+    let id = storage.create_entity(Vec::new(), Tick::default());
+    storage.add_comp(
+      id,
+      ComponentBox {
+        comp: Box::new(A {}),
+        added: Tick::default(),
+        changed: Tick::default(),
+      },
+    );
 
     assert!(storage.has_comp(id, A::sid()));
   }
@@ -406,8 +431,15 @@ mod test {
   fn get_comp() {
     let mut storage = Storage::default();
 
-    let id = storage.create_entity(Vec::new());
-    storage.add_comp(id, Box::new(A {}));
+    let id = storage.create_entity(Vec::new(), Tick::default());
+    storage.add_comp(
+      id,
+      ComponentBox {
+        comp: Box::new(A {}),
+        added: Tick::default(),
+        changed: Tick::default(),
+      },
+    );
 
     let comp = storage.get_comp(id, A::sid()).unwrap();
     assert!(comp.id() == A::sid());

@@ -132,7 +132,7 @@ pub struct Marker {
 }
 
 fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
-  for (_, t, m) in q {
+  for (_, mut t, mut m) in q {
     let mut pos = t.position();
     pos.x = m.t.cos() * 5.0;
     pos.z = m.t.sin() * 5.0;
@@ -150,7 +150,7 @@ fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mu
 }
 
 fn test2(info: Res<EngineInfo>, q: Query<(&mut Transform, &DirectionalLight, &mut Marker)>) {
-  for (_, t, _, m) in q {
+  for (_, mut t, _, mut m) in q {
     let rot = m.t;
     t.set_rotation(rot, 0.0, rot);
     m.t += 0.05 * info.delta_time();

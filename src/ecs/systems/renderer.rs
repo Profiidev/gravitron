@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Deref;
 
 #[allow(unused_imports)]
 use log::{trace, warn};
@@ -36,7 +37,7 @@ pub fn renderer_recording(
   trace!("Recording Render Instructions");
 
   if let Some((_, camera)) = camera.into_iter().next() {
-    vulkan.update_camera(camera);
+    vulkan.update_camera(camera.deref());
   } else {
     warn!("No camera found. Can't render anything");
     return;

@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::{Deref, DerefMut}};
 
 use gravitron_ecs_macros::all_tuples;
 #[cfg(feature = "debug")]
@@ -8,11 +8,12 @@ mod filter;
 
 use crate::{
   components::{Component, UnsafeDowncast},
-  storage::QueryResult,
+  storage::{ComponentBox, QueryResult},
   systems::{
     metadata::{AccessType, QueryMeta, SystemMeta},
     SystemParam,
   },
+  tick::Tick,
   world::UnsafeWorldCell,
   ComponentId, EntityId, SystemId,
 };
@@ -25,6 +26,7 @@ pub struct Query<'a, Q: QueryParam> {
 pub struct QueryIter<'a, Q: QueryParam> {
   archetypes: Vec<QueryResult<'a>>,
   archetype_index: usize,
+  tick: Tick,
   marker: PhantomData<Q>,
 }
 
@@ -35,14 +37,16 @@ impl<'a, Q: QueryParam + 'a> IntoIterator for Query<'a, Q> {
   fn into_iter(self) -> Self::IntoIter {
     let world = unsafe { self.world.world_mut() };
     let ids = Q::get_comp_ids();
-    let archetypes = world.storage_mut().query_data(&ids);
+    let tick = world.tick();
 
     #[cfg(feature = "debug")]
     trace!("Querying Entities {:?}", &ids);
+    let archetypes = world.storage_mut().query_data(&ids);
 
     QueryIter {
       archetypes,
       archetype_index: 0,
+      tick,
       marker: PhantomData,
     }
   }
@@ -69,7 +73,8 @@ impl<'a, Q: QueryParam> Iterator for QueryIter<'a, Q> {
 
     let entity_id = ids.pop()?;
     let comps = comps.pop()?;
-    let item = Q::into_query((entity_id, comps), columns);
+    //dbg!(Q::get_comp_ids(), &columns, comps.len(), comps.as_mut_ptr());
+    let item = Q::into_query((entity_id, comps), columns, self.tick);
 
     Some(item)
   }
@@ -96,8 +101,9 @@ pub trait QueryParam {
   type Item<'a>;
 
   fn into_query<'a>(
-    entity: (EntityId, &'a mut Vec<Box<dyn Component>>),
+    entity: (EntityId, &'a mut Vec<ComponentBox>),
     indices: &[usize],
+    tick: Tick,
   ) -> Self::Item<'a>;
   fn get_meta() -> QueryMeta;
   fn get_comp_ids() -> Vec<ComponentId>;
@@ -111,13 +117,9 @@ macro_rules! impl_query_param {
 
       #[inline]
       #[allow(non_snake_case, unused_assignments)]
-      fn into_query<'a>(entity: (EntityId, &'a mut Vec<Box<dyn Component>>), indices: &[usize]) -> Self::Item<'a> {
+      fn into_query<'a>(entity: (EntityId, &'a mut Vec<ComponentBox>), indices: &[usize], tick: Tick) -> Self::Item<'a> {
         let ptr = entity.1.as_mut_ptr();
-        let mut i = 0;
-        $(
-          let $params = $params::into_param(unsafe { &mut **ptr.add(indices[i]) });
-          i += 1;
-        )*
+        params_enumerate!($($params)*, ptr, indices, tick);
 
         (entity.0, $($params),*)
       }
@@ -141,18 +143,58 @@ macro_rules! impl_query_param {
   };
 }
 
+macro_rules! params_enumerate {
+  ($($params:ident)+, $ptr:ident, $indices:ident, $tick: ident) => {
+    params_enumerate! {
+      todo: [$($params)+],
+      done: [],
+      ptr: $ptr,
+      indices: $indices,
+      count: 0,
+      tick: $tick,
+    }
+  };
+  (
+    todo: [$first:ident$($params:ident)*],
+    done: [$($done:tt)*],
+    ptr: $ptr:ident,
+    indices: $indices:ident,
+    count: $count:expr,
+    tick: $tick:ident,
+  ) => {
+    params_enumerate! {
+      todo: [$($params)*],
+      done: [$($done)*[let $first = $first::into_param(unsafe { &mut *$ptr.add($indices[$count]) }, $tick);]],
+      ptr: $ptr,
+      indices: $indices,
+      count: $count + 1,
+      tick: $tick,
+    }
+  };
+  (
+    todo: [],
+    done: [$([$($done:tt)+])*],
+    ptr: $ptr:ident,
+    indices: $indices:ident,
+    count: $count:expr,
+    tick: $tick:ident,
+  ) => {
+    $($($done)+)*
+  };
+}
+
 all_tuples!(impl_query_param, 1, 16, F);
 
 pub trait QueryParamItem {
   type Item<'a>;
 
   fn id() -> ComponentId;
-  fn into_param(input: &mut dyn Component) -> Self::Item<'_>;
+  fn into_param(input: &mut ComponentBox, tick: Tick) -> Self::Item<'_>;
   fn check_metadata(meta: &mut QueryMeta);
 }
 
 impl<C: Component + 'static> QueryParamItem for &C {
-  type Item<'a> = &'a C;
+  type Item<'a> = Ref<'a, C>;
 
   #[inline]
   fn id() -> ComponentId {
@@ -160,8 +202,8 @@ impl<C: Component + 'static> QueryParamItem for &C {
   }
 
   #[inline]
-  fn into_param(input: &mut dyn Component) -> Self::Item<'_> {
-    unsafe { input.downcast_ref_unchecked() }
+  fn into_param(input: &mut ComponentBox, _: Tick) -> Self::Item<'_> {
+    Ref(input, PhantomData)
   }
 
   #[inline]
@@ -171,7 +213,7 @@ impl<C: Component + 'static> QueryParamItem for &C {
 }
 
 impl<C: Component + 'static> QueryParamItem for &mut C {
-  type Item<'a> = &'a mut C;
+  type Item<'a> = Mut<'a, C>;
 
   #[inline]
   fn id() -> ComponentId {
@@ -179,12 +221,39 @@ impl<C: Component + 'static> QueryParamItem for &mut C {
   }
 
   #[inline]
-  fn into_param(input: &mut dyn Component) -> Self::Item<'_> {
-    unsafe { input.downcast_mut_unchecked() }
+  fn into_param(input: &mut ComponentBox, tick: Tick) -> Self::Item<'_> {
+    Mut(input, tick, PhantomData)
   }
 
   #[inline]
   fn check_metadata(meta: &mut QueryMeta) {
     meta.add_comp::<C>(AccessType::Write);
+  }
+}
+
+pub struct Ref<'a, C>(&'a mut ComponentBox, PhantomData<C>);
+
+impl<C: Component> Deref for Ref<'_, C> {
+  type Target = C;
+
+  fn deref(&self) -> &Self::Target {
+    unsafe { self.0.comp.downcast_ref_unchecked() }
+  }
+}
+
+pub struct Mut<'a, C>(&'a mut ComponentBox, Tick, PhantomData<C>);
+
+impl<C: Component> Deref for Mut<'_, C> {
+  type Target = C;
+
+  fn deref(&self) -> &Self::Target {
+    unsafe { self.0.comp.downcast_ref_unchecked() }
+  }
+}
+
+impl<C: Component> DerefMut for Mut<'_, C> {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    self.0.changed = self.1;
+    unsafe { self.0.comp.downcast_mut_unchecked() }
   }
 }

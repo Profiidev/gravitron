@@ -4,8 +4,9 @@ use log::trace;
 use crate::{
   components::Component,
   entity::IntoEntity,
-  storage::Storage,
+  storage::{ComponentBox, Storage},
   systems::{metadata::SystemMeta, SystemParam},
+  tick::Tick,
   world::UnsafeWorldCell,
   ComponentId, EntityId, SystemId,
 };
@@ -23,9 +24,9 @@ impl Commands {
     }
   }
 
-  pub(crate) fn execute(&mut self, storage: &mut Storage) {
+  pub(crate) fn execute(&mut self, storage: &mut Storage, tick: Tick) {
     for cmd in &mut self.commands {
-      cmd.execute(storage)
+      cmd.execute(storage, tick)
     }
     self.commands = Vec::new();
   }
@@ -96,7 +97,7 @@ impl SystemParam for &mut Commands {
 }
 
 trait Command {
-  fn execute(&mut self, storage: &mut Storage);
+  fn execute(&mut self, storage: &mut Storage, tick: Tick);
 }
 
 struct CreateEntityCommand {
@@ -105,11 +106,11 @@ struct CreateEntityCommand {
 }
 
 impl Command for CreateEntityCommand {
-  fn execute(&mut self, storage: &mut Storage) {
+  fn execute(&mut self, storage: &mut Storage, tick: Tick) {
     #[cfg(feature = "debug")]
     trace!("Executing Create Entity Command");
 
-    storage.create_entity_with_id(std::mem::take(&mut self.comps).unwrap(), self.id);
+    storage.create_entity_with_id(std::mem::take(&mut self.comps).unwrap(), self.id, tick);
   }
 }
 
@@ -118,7 +119,7 @@ struct RemoveEntityCommand {
 }
 
 impl Command for RemoveEntityCommand {
-  fn execute(&mut self, storage: &mut Storage) {
+  fn execute(&mut self, storage: &mut Storage, _: Tick) {
     #[cfg(feature = "debug")]
     trace!("Executing Remove Entity Command for Entity {}", self.id);
 
@@ -132,7 +133,7 @@ struct AddComponentCommand {
 }
 
 impl Command for AddComponentCommand {
-  fn execute(&mut self, storage: &mut Storage) {
+  fn execute(&mut self, storage: &mut Storage, tick: Tick) {
     #[cfg(feature = "debug")]
     trace!(
       "Executing Add Component Command for Entity {} with Component {:?}",
@@ -140,7 +141,14 @@ impl Command for AddComponentCommand {
       self.comp.as_ref().unwrap().id()
     );
 
-    storage.add_comp(self.id, std::mem::take(&mut self.comp).unwrap());
+    storage.add_comp(
+      self.id,
+      ComponentBox {
+        comp: std::mem::take(&mut self.comp).unwrap(),
+        added: tick,
+        changed: Tick::default(),
+      },
+    );
   }
 }
 
@@ -150,7 +158,7 @@ struct RemoveComponentCommand {
 }
 
 impl Command for RemoveComponentCommand {
-  fn execute(&mut self, storage: &mut Storage) {
+  fn execute(&mut self, storage: &mut Storage, _: Tick) {
     #[cfg(feature = "debug")]
     trace!(
       "Executing Remove Component Command for Entity {} with Component {:?}",
