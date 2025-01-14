@@ -44,9 +44,9 @@ fn main() {
     ));
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config)
-    .add_system(test)
-    .add_system(test2)
-    .add_system(test3);
+    .add_main_system(test)
+    .add_main_system(test2)
+    .add_main_system(test3);
   let mut transform = Transform::default();
   transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
   builder.create_entity((

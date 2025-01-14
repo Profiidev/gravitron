@@ -73,7 +73,7 @@ impl World {
     None
   }
 
-  pub fn get_commands_mut(&mut self, id: SystemId) -> &mut Commands {
+  pub(crate) fn get_commands_mut(&mut self, id: SystemId) -> &mut Commands {
     #[cfg(feature = "debug")]
     trace!("Getting Commands");
 
@@ -82,7 +82,7 @@ impl World {
     self.commands.entry(id).or_insert(commands)
   }
 
-  pub fn execute_commands(&mut self) {
+  pub(crate) fn execute_commands(&mut self) {
     #[cfg(feature = "debug")]
     trace!("Executing Commands");
 
@@ -91,12 +91,16 @@ impl World {
     }
   }
 
-  pub fn storage_mut(&mut self) -> &mut Storage<'static> {
+  pub(crate) fn storage_mut(&mut self) -> &mut Storage<'static> {
     &mut self.storage
   }
 
-  pub fn reserve_entity_id(&mut self) -> EntityId {
+  pub(crate) fn reserve_entity_id(&mut self) -> EntityId {
     self.storage.reserve_entity_id()
+  }
+
+  pub fn next_tick(&mut self) {
+    self.tick = self.tick.next();
   }
 }
 

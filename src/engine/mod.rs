@@ -7,7 +7,7 @@ use anyhow::Error;
 use gravitron_ecs::{
   entity::IntoEntity,
   systems::{IntoSystem, System},
-  ECSBuilder, EntityId, ECS,
+  EntityId,
 };
 use log::{debug, info, trace};
 #[cfg(target_os = "linux")]
@@ -28,7 +28,8 @@ use crate::{
       engine_commands::EngineCommands, engine_info::EngineInfo, input::Input,
       window::Window as WindowCmds,
     },
-    systems::{add_systems, stages::SystemStage},
+    systems::{add_main_systems, stages::SystemStage},
+    ECSBuilder, ECS,
   },
   vulkan::Vulkan,
 };
@@ -56,7 +57,7 @@ impl Gravitron {
     info!("Building Engine");
 
     debug!("Adding ECS Systems");
-    add_systems(&mut ecs);
+    add_main_systems(&mut ecs);
 
     debug!("Configuring EventLoop");
     let mut event_loop = EventLoop::builder();
@@ -82,42 +83,50 @@ impl Gravitron {
     }
   }
 
-  fn ecs_builder(&mut self) -> &mut ECSBuilder<SystemStage> {
+  fn ecs_builder_mut(&mut self) -> &mut ECSBuilder<SystemStage> {
     match &mut self.ecs {
       ECSEnum::Builder(ecs) => ecs,
       _ => unreachable!("Wrong ecs usage"),
     }
   }
 
-  fn build_ecs(&mut self) {
+  fn build_schedulers(&mut self) {
     let temp = unsafe { mem::MaybeUninit::zeroed().assume_init() };
     let builder = mem::replace(&mut self.ecs, temp);
-    let ecs = match builder {
-      ECSEnum::Builder(builder) => builder.build(),
+    let builder = match builder {
+      ECSEnum::Builder(builder) => builder,
       _ => unreachable!("Ecs already build"),
     };
-    let temp = mem::replace(&mut self.ecs, ECSEnum::Ready(ecs));
+
+    let temp = mem::replace(
+      &mut self.ecs,
+      ECSEnum::Ready(ECS {
+        world: builder.world,
+        main_scheduler: builder.main_scheduler.build(false),
+      }),
+    );
     mem::forget(temp);
   }
 
   fn run(&mut self, event_loop: &ActiveEventLoop) {
     let elapsed = self.last_frame.elapsed();
     if elapsed > self.frame_time {
-      self.ecs_mut().set_resource(EngineInfo {
+      self.ecs_mut().world.set_resource(EngineInfo {
         delta_time: elapsed.as_secs_f32(),
       });
 
       self.last_frame = Instant::now();
 
-      self.ecs_mut().run();
+      let ecs = self.ecs_mut();
+      ecs.main_scheduler.run(&mut ecs.world);
 
-      let cmds = self.ecs_mut().get_resource_mut::<EngineCommands>().unwrap();
+      let cmds = ecs.world.get_resource_mut::<EngineCommands>().unwrap();
       if cmds.is_shutdown() {
         event_loop.exit();
       }
 
       let new_input = self.input.clone();
-      let input = self.ecs_mut().get_resource_mut::<Input>().unwrap();
+      let input = self.ecs_mut().world.get_resource_mut::<Input>().unwrap();
       *input = new_input;
 
       #[cfg(feature = "debug")]
@@ -148,16 +157,25 @@ impl ApplicationHandler for Gravitron {
     )
     .expect("Failed to init Vulkan");
 
-    self.ecs_builder().add_resource(vulkan);
-    self.ecs_builder().add_resource(EngineInfo::default());
-    self.ecs_builder().add_resource(EngineCommands::default());
-    self.ecs_builder().add_resource(Input::default());
-    self.ecs_builder().add_resource(WindowCmds::default());
+    self.ecs_builder_mut().world.add_resource(vulkan);
+    self
+      .ecs_builder_mut()
+      .world
+      .add_resource(EngineInfo::default());
+    self
+      .ecs_builder_mut()
+      .world
+      .add_resource(EngineCommands::default());
+    self.ecs_builder_mut().world.add_resource(Input::default());
+    self
+      .ecs_builder_mut()
+      .world
+      .add_resource(WindowCmds::default());
 
     self.window = Some(window);
 
     debug!("Building ECS");
-    self.build_ecs();
+    self.build_schedulers();
 
     info!("Starting Engine");
   }
@@ -208,7 +226,7 @@ impl ApplicationHandler for Gravitron {
 
   fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
     debug!("Cleaning up Engine");
-    let vulkan = self.ecs_mut().get_resource_mut::<Vulkan>().unwrap();
+    let vulkan = self.ecs_mut().world.get_resource_mut::<Vulkan>().unwrap();
     vulkan.destroy();
   }
 }
@@ -230,20 +248,20 @@ impl GravitronBuilder {
   }
 
   pub fn add_resource<R: 'static>(mut self, res: R) -> Self {
-    self.ecs.add_resource(res);
+    self.ecs.world.add_resource(res);
     self
   }
 
-  pub fn add_system<I, S: System + 'static>(
+  pub fn add_main_system<I, S: System + 'static>(
     mut self,
     system: impl IntoSystem<I, System = S>,
   ) -> Self {
-    self.ecs.add_system(system);
+    self.ecs.main_scheduler.add_system(system);
     self
   }
 
   pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
-    self.ecs.create_entity(entity)
+    self.ecs.world.create_entity(entity)
   }
 
   pub fn run(self) -> Result<(), Error> {
