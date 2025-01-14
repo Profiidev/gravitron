@@ -1,4 +1,4 @@
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, Default, Debug)]
 pub struct Tick(u64);
 
 impl Tick {

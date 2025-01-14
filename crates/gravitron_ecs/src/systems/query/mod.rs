@@ -11,7 +11,7 @@ mod filter;
 
 use crate::{
   components::{Component, UnsafeDowncast},
-  storage::{ComponentBox, QueryResult},
+  storage::{ComponentBox, QueryResult, Row},
   systems::{
     metadata::{AccessType, QueryMeta, SystemMeta},
     SystemParam,
@@ -65,19 +65,16 @@ impl<'a, Q: QueryParam> Iterator for QueryIter<'a, Q> {
     }
 
     let QueryResult {
-      ids,
-      comps,
+      rows,
       columns,
     } = &mut self.archetypes[self.archetype_index];
-    if ids.is_empty() {
+    if rows.is_empty() {
       self.archetype_index += 1;
       return self.next();
     }
 
-    let entity_id = ids.pop()?;
-    let comps = comps.pop()?;
-    //dbg!(Q::get_comp_ids(), &columns, comps.len(), comps.as_mut_ptr());
-    let item = Q::into_query((entity_id, comps), columns, self.tick);
+    let row = rows.pop()?;
+    let item = Q::into_query(row, columns, self.tick);
 
     Some(item)
   }
@@ -104,7 +101,7 @@ pub trait QueryParam {
   type Item<'a>;
 
   fn into_query<'a>(
-    entity: (EntityId, &'a mut Vec<ComponentBox>),
+    entity: &'a mut Row,
     indices: &[usize],
     tick: Tick,
   ) -> Self::Item<'a>;
@@ -120,11 +117,11 @@ macro_rules! impl_query_param {
 
       #[inline]
       #[allow(non_snake_case, unused_assignments)]
-      fn into_query<'a>(entity: (EntityId, &'a mut Vec<ComponentBox>), indices: &[usize], tick: Tick) -> Self::Item<'a> {
-        let ptr = entity.1.as_mut_ptr();
+      fn into_query<'a>(entity: &'a mut Row, indices: &[usize], tick: Tick) -> Self::Item<'a> {
+        let ptr = entity.comps.as_mut_ptr();
         params_enumerate!($($params)*, ptr, indices, tick);
 
-        (entity.0, $($params),*)
+        (entity.id, $($params),*)
       }
 
       #[inline]

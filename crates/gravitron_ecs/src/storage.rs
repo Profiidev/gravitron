@@ -12,7 +12,11 @@ use crate::{components::Component, tick::Tick, ArchetypeId, ComponentId, EntityI
 
 type Type = Vec<ComponentId>;
 type ArchetypeMap<'a> = HashMap<ArchetypeId, ArchetypeRecord<'a>>;
-type Row = Vec<ComponentBox>;
+
+pub struct Row {
+  pub comps: Vec<ComponentBox>,
+  pub id: EntityId,
+}
 
 pub struct ComponentBox {
   pub comp: Box<dyn Component>,
@@ -38,7 +42,6 @@ struct ArchetypeRecord<'a> {
 struct Archetype<'a> {
   id: ArchetypeId,
   type_: Type,
-  entity_ids: Vec<EntityId>,
   rows: Vec<Row>,
   edges: HashMap<ComponentId, ArchetypeEdge<'a>>,
 }
@@ -71,15 +74,14 @@ impl<'a> UnsafeArchetypeCell<'a> {
 #[derive(Default)]
 pub struct Storage<'a> {
   entity_index: HashMap<EntityId, Record<'a>>,
-  archetype_index: HashMap<Type, Archetype<'a>>,
+  archetype_index: HashMap<Type, Box<Archetype<'a>>>,
   component_index: HashMap<ComponentId, ArchetypeMap<'a>>,
   top_id: AtomicU64,
 }
 
 pub struct QueryResult<'a> {
-  pub ids: Vec<EntityId>,
-  pub comps: Vec<&'a mut Vec<ComponentBox>>,
   pub columns: Vec<usize>,
+  pub rows: Vec<&'a mut Row>,
 }
 
 impl Storage<'_> {
@@ -109,17 +111,19 @@ impl Storage<'_> {
       self.archetype_index.get_mut(&type_).unwrap()
     };
 
-    archetype.entity_ids.push(id);
-    archetype.rows.push(
-      comps
-        .into_iter()
-        .map(|comp| ComponentBox {
-          comp,
-          added: tick,
-          changed: Tick::default(),
-        })
-        .collect(),
-    );
+    let mut comp_box = Vec::new();
+    for comp in comps {
+      comp_box.push(ComponentBox {
+        comp,
+        added: tick,
+        changed: Tick::default(),
+      });
+    }
+
+    archetype.rows.push(Row {
+      comps: comp_box,
+      id,
+    });
 
     self.entity_index.insert(
       id,
@@ -142,11 +146,10 @@ impl Storage<'_> {
     let record = self.entity_index.remove(&entity)?;
     let archetype = unsafe { record.archetype.archetype_mut() };
 
-    archetype.entity_ids.swap_remove(record.row);
     archetype.rows.swap_remove(record.row);
 
-    if let Some(swapped) = archetype.entity_ids.get(record.row) {
-      let swapped_record = self.entity_index.get_mut(swapped).unwrap();
+    if let Some(swapped) = archetype.rows.get(record.row) {
+      let swapped_record = self.entity_index.get_mut(&swapped.id).unwrap();
       swapped_record.row = record.row;
     }
 
@@ -157,13 +160,12 @@ impl Storage<'_> {
     #[cfg(feature = "debug")]
     trace!("Creating Archetype {:?}", type_);
 
-    let archetype = Archetype {
+    let archetype = Box::new(Archetype {
       id: Id(self.archetype_index.len() as u64),
       type_: type_.clone(),
-      entity_ids: Vec::new(),
       rows: Vec::new(),
       edges: HashMap::default(),
-    };
+    });
 
     self.archetype_index.insert(type_.clone(), archetype);
     let archetype = self.archetype_index.get_mut(&type_).unwrap();
@@ -190,7 +192,7 @@ impl Storage<'_> {
     let a_record = archetypes.get(&archetype.id)?;
 
     let row = archetype.rows.get(record.row)?;
-    let component = row.get(a_record.column)?;
+    let component = row.comps.get(a_record.column)?;
 
     Some(&*component.comp)
   }
@@ -241,18 +243,16 @@ impl Storage<'_> {
     let record = self.entity_index.get_mut(&entity).unwrap();
     let new_comp = to.type_.iter().position(|&c| c == comp.comp.id()).unwrap();
 
-    to.entity_ids.push(from.entity_ids.swap_remove(record.row));
-
     let mut entity = from.rows.swap_remove(record.row);
-    entity.insert(new_comp, comp);
+    entity.comps.insert(new_comp, comp);
     to.rows.push(entity);
 
     let old_row = record.row;
     record.row = to.rows.len() - 1;
     record.archetype = UnsafeArchetypeCell::new(to);
 
-    if let Some(swapped) = from.entity_ids.get(old_row) {
-      let swapped_record = self.entity_index.get_mut(swapped).unwrap();
+    if let Some(swapped) = from.rows.get(old_row) {
+      let swapped_record = self.entity_index.get_mut(&swapped.id).unwrap();
       swapped_record.row = old_row;
     }
   }
@@ -296,18 +296,16 @@ impl Storage<'_> {
     let record = self.entity_index.get_mut(&entity).unwrap();
     let removed_comp = from.type_.iter().position(|&c| c == comp).unwrap();
 
-    to.entity_ids.push(from.entity_ids.swap_remove(record.row));
-
     let mut entity = from.rows.swap_remove(record.row);
-    entity.remove(removed_comp);
+    entity.comps.remove(removed_comp);
     to.rows.push(entity);
 
     let old_row = record.row;
     record.row = to.rows.len() - 1;
     record.archetype = UnsafeArchetypeCell::new(to);
 
-    if let Some(swapped) = from.entity_ids.get(old_row) {
-      let swapped_record = self.entity_index.get_mut(swapped).unwrap();
+    if let Some(swapped) = from.rows.get(old_row) {
+      let swapped_record = self.entity_index.get_mut(&swapped.id).unwrap();
       swapped_record.row = old_row;
     }
   }
@@ -322,7 +320,7 @@ impl Storage<'_> {
     for record in possible.values() {
       let archetype = unsafe { record.archetype.archetype_mut() };
 
-      if comps.iter().all(|c| archetype.type_.contains(c)) && !archetype.entity_ids.is_empty() {
+      if comps.iter().all(|c| archetype.type_.contains(c)) && !archetype.rows.is_empty() {
         let columns = comps
           .iter()
           .map(|c| {
@@ -336,14 +334,9 @@ impl Storage<'_> {
           })
           .collect();
 
-        let comps: Vec<&mut Vec<ComponentBox>> = archetype.rows.iter_mut().collect();
-        //dbg!(comps[0].as_ptr());
+        let rows: Vec<&mut Row> = archetype.rows.iter_mut().collect();
 
-        result.push(QueryResult {
-          columns,
-          comps,
-          ids: archetype.entity_ids.clone(),
-        });
+        result.push(QueryResult { columns, rows });
       }
     }
 
