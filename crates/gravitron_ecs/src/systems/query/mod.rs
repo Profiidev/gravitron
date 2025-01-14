@@ -64,10 +64,7 @@ impl<'a, Q: QueryParam> Iterator for QueryIter<'a, Q> {
       return None;
     }
 
-    let QueryResult {
-      rows,
-      columns,
-    } = &mut self.archetypes[self.archetype_index];
+    let QueryResult { rows, columns } = &mut self.archetypes[self.archetype_index];
     if rows.is_empty() {
       self.archetype_index += 1;
       return self.next();
@@ -100,11 +97,7 @@ impl<Q: QueryParam> SystemParam for Query<'_, Q> {
 pub trait QueryParam {
   type Item<'a>;
 
-  fn into_query<'a>(
-    entity: &'a mut Row,
-    indices: &[usize],
-    tick: Tick,
-  ) -> Self::Item<'a>;
+  fn into_query<'a>(entity: &'a mut Row, indices: &[usize], tick: Tick) -> Self::Item<'a>;
   fn get_meta() -> QueryMeta;
   fn get_comp_ids() -> Vec<ComponentId>;
 }
