@@ -11,8 +11,8 @@ pub mod entity;
 pub(crate) mod scheduler;
 pub(crate) mod storage;
 pub mod systems;
-pub mod world;
 pub mod tick;
+pub mod world;
 
 pub use gravitron_ecs_macros::Component;
 

@@ -1,4 +1,7 @@
-use std::{marker::PhantomData, ops::{Deref, DerefMut}};
+use std::{
+  marker::PhantomData,
+  ops::{Deref, DerefMut},
+};
 
 use gravitron_ecs_macros::all_tuples;
 #[cfg(feature = "debug")]

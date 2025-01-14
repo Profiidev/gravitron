@@ -8,12 +8,12 @@ use gravitron_ecs::{
 
 #[derive(Component)]
 struct A {
-  x: f32
+  x: f32,
 }
 
 #[derive(Component)]
 struct B {
-  x: f32
+  x: f32,
 }
 
 fn main() {
