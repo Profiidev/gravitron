@@ -16,6 +16,7 @@ type ArchetypeMap<'a> = HashMap<ArchetypeId, ArchetypeRecord<'a>>;
 pub struct Row {
   pub comps: Vec<ComponentBox>,
   pub id: EntityId,
+  pub removed: HashMap<ComponentId, Tick>,
 }
 
 pub struct ComponentBox {
@@ -123,6 +124,7 @@ impl Storage<'_> {
     archetype.rows.push(Row {
       comps: comp_box,
       id,
+      removed: Default::default(),
     });
 
     self.entity_index.insert(
@@ -257,7 +259,7 @@ impl Storage<'_> {
     }
   }
 
-  pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
+  pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId, tick: Tick) {
     #[cfg(feature = "debug")]
     trace!("Removing Component {:?} from Entity {}", comp, entity);
 
@@ -298,6 +300,7 @@ impl Storage<'_> {
 
     let mut entity = from.rows.swap_remove(record.row);
     entity.comps.remove(removed_comp);
+    entity.removed.insert(comp, tick);
     to.rows.push(entity);
 
     let old_row = record.row;
@@ -398,7 +401,7 @@ mod test {
         changed: Tick::default(),
       },
     );
-    storage.remove_comp(id, A::sid());
+    storage.remove_comp(id, A::sid(), Tick::default());
 
     assert!(!storage.has_comp(id, A::sid()));
   }

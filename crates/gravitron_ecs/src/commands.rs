@@ -158,7 +158,7 @@ struct RemoveComponentCommand {
 }
 
 impl Command for RemoveComponentCommand {
-  fn execute(&mut self, storage: &mut Storage, _: Tick) {
+  fn execute(&mut self, storage: &mut Storage, tick: Tick) {
     #[cfg(feature = "debug")]
     trace!(
       "Executing Remove Component Command for Entity {} with Component {:?}",
@@ -166,7 +166,7 @@ impl Command for RemoveComponentCommand {
       self.comp
     );
 
-    storage.remove_comp(self.id, self.comp);
+    storage.remove_comp(self.id, self.comp, tick);
   }
 }
 
