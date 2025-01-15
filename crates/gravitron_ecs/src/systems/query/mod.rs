@@ -3,6 +3,7 @@ use std::{
   ops::{Deref, DerefMut},
 };
 
+use filter::QueryFilter;
 use gravitron_ecs_macros::all_tuples;
 #[cfg(feature = "debug")]
 use log::trace;
@@ -21,21 +22,21 @@ use crate::{
   ComponentId, EntityId, SystemId,
 };
 
-pub struct Query<'a, Q: QueryParam> {
+pub struct Query<'a, Q: QueryParam, F: QueryFilter = ()> {
   world: UnsafeWorldCell<'a>,
-  marker: PhantomData<Q>,
+  marker: PhantomData<(Q, F)>,
 }
 
-pub struct QueryIter<'a, Q: QueryParam> {
+pub struct QueryIter<'a, Q: QueryParam, F: QueryFilter> {
   archetypes: Vec<QueryResult<'a>>,
   archetype_index: usize,
   tick: Tick,
-  marker: PhantomData<Q>,
+  marker: PhantomData<(Q, F)>,
 }
 
-impl<'a, Q: QueryParam + 'a> IntoIterator for Query<'a, Q> {
+impl<'a, Q: QueryParam + 'a, F: QueryFilter> IntoIterator for Query<'a, Q, F> {
   type Item = Q::Item<'a>;
-  type IntoIter = QueryIter<'a, Q>;
+  type IntoIter = QueryIter<'a, Q, F>;
 
   fn into_iter(self) -> Self::IntoIter {
     let world = unsafe { self.world.world_mut() };
@@ -44,7 +45,7 @@ impl<'a, Q: QueryParam + 'a> IntoIterator for Query<'a, Q> {
 
     #[cfg(feature = "debug")]
     trace!("Querying Entities {:?}", &ids);
-    let archetypes = world.storage_mut().query_data(&ids);
+    let archetypes = world.storage_mut().query_data(&ids, F::filter_archetype);
 
     QueryIter {
       archetypes,
@@ -55,7 +56,7 @@ impl<'a, Q: QueryParam + 'a> IntoIterator for Query<'a, Q> {
   }
 }
 
-impl<'a, Q: QueryParam> Iterator for QueryIter<'a, Q> {
+impl<'a, Q: QueryParam, F: QueryFilter> Iterator for QueryIter<'a, Q, F> {
   type Item = Q::Item<'a>;
 
   #[inline]
@@ -70,15 +71,18 @@ impl<'a, Q: QueryParam> Iterator for QueryIter<'a, Q> {
       return self.next();
     }
 
-    let row = rows.pop()?;
-    let item = Q::into_query(row, columns, self.tick);
+    loop {
+      let row = rows.pop()?;
 
-    Some(item)
+      if F::filter_entity(row, self.tick) {
+        return Some(Q::into_query(row, columns, self.tick));
+      }
+    }
   }
 }
 
-impl<Q: QueryParam> SystemParam for Query<'_, Q> {
-  type Item<'new> = Query<'new, Q>;
+impl<Q: QueryParam, F: QueryFilter> SystemParam for Query<'_, Q, F> {
+  type Item<'new> = Query<'new, Q, F>;
 
   #[inline]
   fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {

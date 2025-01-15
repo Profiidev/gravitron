@@ -4,7 +4,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{parse::Parse, parse_macro_input, token::Comma, Ident, ItemStruct, LitInt};
 
-pub(crate) fn bevy_ecs_path() -> syn::Path {
+pub(crate) fn ecs_path() -> syn::Path {
   Manifest::default().get_path("gravitron_ecs")
 }
 
@@ -12,7 +12,7 @@ pub(crate) fn bevy_ecs_path() -> syn::Path {
 pub fn component(input: TokenStream) -> TokenStream {
   let input = parse_macro_input!(input as ItemStruct);
 
-  let ecs_path = bevy_ecs_path();
+  let ecs_path = ecs_path();
 
   let name = input.ident;
   let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();

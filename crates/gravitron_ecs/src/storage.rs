@@ -313,7 +313,10 @@ impl Storage<'_> {
     }
   }
 
-  pub(crate) fn query_data(&mut self, comps: &[ComponentId]) -> Vec<QueryResult> {
+  pub(crate) fn query_data<F>(&mut self, comps: &[ComponentId], filter: F) -> Vec<QueryResult>
+  where
+    F: Fn(&[ComponentId]) -> bool,
+  {
     if comps.is_empty() {
       return vec![];
     }
@@ -323,7 +326,10 @@ impl Storage<'_> {
     for record in possible.values() {
       let archetype = unsafe { record.archetype.archetype_mut() };
 
-      if comps.iter().all(|c| archetype.r#type.contains(c)) && !archetype.rows.is_empty() {
+      if comps.iter().all(|c| archetype.r#type.contains(c))
+        && !archetype.rows.is_empty()
+        && filter(&archetype.r#type)
+      {
         let columns = comps
           .iter()
           .map(|c| {

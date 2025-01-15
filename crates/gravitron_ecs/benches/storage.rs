@@ -135,7 +135,7 @@ fn query_benchmark(c: &mut Criterion) {
       b.iter_custom(|iters| {
         let start = Instant::now();
         for _ in 0..iters {
-          let _ = storage.query_data(&[A::sid()]);
+          let _ = storage.query_data(&[A::sid()], |_| true);
         }
         start.elapsed()
       })
