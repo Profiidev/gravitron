@@ -9,7 +9,7 @@ description = "Gravitron's Utils"
 exclude = ["CHANGELOG.md"]
 
 [dependencies]
-log = "0.4.22"
+log = "0.4.25"
 
 [features]
 debug = []
