@@ -7,7 +7,7 @@ use gravitron_ecs_macros::all_tuples;
 #[cfg(feature = "debug")]
 use log::trace;
 
-mod filter;
+pub mod filter;
 
 use crate::{
   components::{Component, UnsafeDowncast},

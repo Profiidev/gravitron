@@ -78,9 +78,9 @@ impl Pools {
     &mut self,
     logical_device: &ash::Device,
     amount: usize,
-    type_: CommandBufferType,
+    r#type: CommandBufferType,
   ) -> Result<Vec<vk::CommandBuffer>, vk::Result> {
-    let pool = match type_ {
+    let pool = match r#type {
       CommandBufferType::Compute => self.command_pool_compute,
       CommandBufferType::Graphics => self.command_pool_graphics,
       CommandBufferType::Transfer => self.command_pool_transfer,
@@ -92,7 +92,7 @@ impl Pools {
     let buffers =
       unsafe { logical_device.allocate_command_buffers(&command_buffer_allocate_info) }?;
 
-    match type_ {
+    match r#type {
       CommandBufferType::Graphics => self.graphics_buffers.extend_from_slice(&buffers),
       CommandBufferType::Transfer => self.transfer_buffers.extend_from_slice(&buffers),
       CommandBufferType::Compute => self.compute_buffers.extend_from_slice(&buffers),

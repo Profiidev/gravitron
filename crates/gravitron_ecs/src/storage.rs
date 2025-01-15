@@ -42,7 +42,7 @@ struct ArchetypeRecord<'a> {
 
 struct Archetype<'a> {
   id: ArchetypeId,
-  type_: Type,
+  r#type: Type,
   rows: Vec<Row>,
   edges: HashMap<ComponentId, ArchetypeEdge<'a>>,
 }
@@ -103,13 +103,13 @@ impl Storage<'_> {
     trace!("Creating Entity {}", id);
 
     comps.sort_unstable_by_key(|c| c.id());
-    let type_ = comps.iter().map(|c| c.id()).collect::<Type>();
+    let r#type = comps.iter().map(|c| c.id()).collect::<Type>();
 
-    let archetype = if let Some(a) = self.archetype_index.get_mut(&type_) {
+    let archetype = if let Some(a) = self.archetype_index.get_mut(&r#type) {
       a
     } else {
-      self.create_archetype(type_.clone());
-      self.archetype_index.get_mut(&type_).unwrap()
+      self.create_archetype(r#type.clone());
+      self.archetype_index.get_mut(&r#type).unwrap()
     };
 
     let mut comp_box = Vec::new();
@@ -158,22 +158,22 @@ impl Storage<'_> {
     Some(())
   }
 
-  pub fn create_archetype(&mut self, type_: Type) {
+  pub fn create_archetype(&mut self, r#type: Type) {
     #[cfg(feature = "debug")]
-    trace!("Creating Archetype {:?}", type_);
+    trace!("Creating Archetype {:?}", r#type);
 
     let archetype = Box::new(Archetype {
       id: Id(self.archetype_index.len() as u64),
-      type_: type_.clone(),
+      r#type: r#type.clone(),
       rows: Vec::new(),
       edges: HashMap::default(),
     });
 
-    self.archetype_index.insert(type_.clone(), archetype);
-    let archetype = self.archetype_index.get_mut(&type_).unwrap();
+    self.archetype_index.insert(r#type.clone(), archetype);
+    let archetype = self.archetype_index.get_mut(&r#type).unwrap();
     let cell = UnsafeArchetypeCell::new(archetype);
 
-    for (i, c) in type_.iter().enumerate() {
+    for (i, c) in r#type.iter().enumerate() {
       let ci = self.component_index.entry(*c).or_default();
       ci.insert(
         archetype.id,
@@ -203,7 +203,7 @@ impl Storage<'_> {
   pub fn has_comp(&self, entity: EntityId, comp: ComponentId) -> bool {
     let record = self.entity_index.get(&entity).unwrap();
     let archetype = unsafe { record.archetype.archetype() };
-    archetype.type_.contains(&comp)
+    archetype.r#type.contains(&comp)
   }
 
   pub fn add_comp(&mut self, entity: EntityId, comp: ComponentBox) {
@@ -213,22 +213,22 @@ impl Storage<'_> {
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
 
-    if from.type_.contains(&comp.comp.id()) {
+    if from.r#type.contains(&comp.comp.id()) {
       return;
     }
 
     let to = if let Some(to) = from.edges.get(&comp.comp.id()) {
       unsafe { to.add.archetype_mut() }
     } else {
-      let mut type_ = from.type_.clone();
-      type_.push(comp.comp.id());
-      type_.sort_unstable();
+      let mut r#type = from.r#type.clone();
+      r#type.push(comp.comp.id());
+      r#type.sort_unstable();
 
-      let to = if let Some(to) = self.archetype_index.get_mut(&type_) {
+      let to = if let Some(to) = self.archetype_index.get_mut(&r#type) {
         to
       } else {
-        self.create_archetype(type_.clone());
-        self.archetype_index.get_mut(&type_).unwrap()
+        self.create_archetype(r#type.clone());
+        self.archetype_index.get_mut(&r#type).unwrap()
       };
 
       from.edges.insert(
@@ -243,7 +243,7 @@ impl Storage<'_> {
     };
 
     let record = self.entity_index.get_mut(&entity).unwrap();
-    let new_comp = to.type_.iter().position(|&c| c == comp.comp.id()).unwrap();
+    let new_comp = to.r#type.iter().position(|&c| c == comp.comp.id()).unwrap();
 
     let mut entity = from.rows.swap_remove(record.row);
     entity.comps.insert(new_comp, comp);
@@ -266,22 +266,22 @@ impl Storage<'_> {
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
 
-    if !from.type_.contains(&comp) {
+    if !from.r#type.contains(&comp) {
       return;
     }
 
     let to = if let Some(to) = from.edges.get(&comp) {
       unsafe { to.remove.archetype_mut() }
     } else {
-      let mut type_ = from.type_.clone();
-      type_.retain(|t| t != &comp);
-      type_.sort_unstable();
+      let mut r#type = from.r#type.clone();
+      r#type.retain(|t| t != &comp);
+      r#type.sort_unstable();
 
-      let to = if let Some(to) = self.archetype_index.get_mut(&type_) {
+      let to = if let Some(to) = self.archetype_index.get_mut(&r#type) {
         to
       } else {
-        self.create_archetype(type_.clone());
-        self.archetype_index.get_mut(&type_).unwrap()
+        self.create_archetype(r#type.clone());
+        self.archetype_index.get_mut(&r#type).unwrap()
       };
 
       from.edges.insert(
@@ -296,7 +296,7 @@ impl Storage<'_> {
     };
 
     let record = self.entity_index.get_mut(&entity).unwrap();
-    let removed_comp = from.type_.iter().position(|&c| c == comp).unwrap();
+    let removed_comp = from.r#type.iter().position(|&c| c == comp).unwrap();
 
     let mut entity = from.rows.swap_remove(record.row);
     entity.comps.remove(removed_comp);
@@ -323,7 +323,7 @@ impl Storage<'_> {
     for record in possible.values() {
       let archetype = unsafe { record.archetype.archetype_mut() };
 
-      if comps.iter().all(|c| archetype.type_.contains(c)) && !archetype.rows.is_empty() {
+      if comps.iter().all(|c| archetype.r#type.contains(c)) && !archetype.rows.is_empty() {
         let columns = comps
           .iter()
           .map(|c| {
