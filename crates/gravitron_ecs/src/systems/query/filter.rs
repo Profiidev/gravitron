@@ -94,10 +94,9 @@ impl<C: Component> QueryFilterParam for Changed<C> {
   }
 
   fn filter_entity(entity: &Row, tick: Tick) -> bool {
-    entity
-      .comps
-      .iter()
-      .any(|c| c.comp.id() == C::sid() && c.changed == tick.last())
+    entity.comps.iter().any(|c| {
+      c.comp.id() == C::sid() && (c.changed.0 == tick.last() || c.changed.1 == tick.last())
+    })
   }
 }
 

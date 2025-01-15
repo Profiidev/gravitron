@@ -29,7 +29,6 @@ pub struct Query<'a, Q: QueryParam, F: QueryFilter = ()> {
 
 pub struct QueryIter<'a, Q: QueryParam, F: QueryFilter> {
   archetypes: Vec<QueryResult<'a>>,
-  archetype_index: usize,
   tick: Tick,
   marker: PhantomData<(Q, F)>,
 }
@@ -49,7 +48,6 @@ impl<'a, Q: QueryParam + 'a, F: QueryFilter> IntoIterator for Query<'a, Q, F> {
 
     QueryIter {
       archetypes,
-      archetype_index: 0,
       tick,
       marker: PhantomData,
     }
@@ -61,22 +59,16 @@ impl<'a, Q: QueryParam, F: QueryFilter> Iterator for QueryIter<'a, Q, F> {
 
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
-    if self.archetype_index >= self.archetypes.len() {
-      return None;
-    }
-
-    let QueryResult { rows, columns } = &mut self.archetypes[self.archetype_index];
-    if rows.is_empty() {
-      self.archetype_index += 1;
-      return self.next();
-    }
-
     loop {
-      let row = rows.pop()?;
+      let QueryResult { rows, columns } = self.archetypes.last_mut()?;
 
-      if F::filter_entity(row, self.tick) {
-        return Some(Q::into_query(row, columns, self.tick));
+      while let Some(row) = rows.pop() {
+        if F::filter_entity(row, self.tick) {
+          return Some(Q::into_query(row, columns, self.tick));
+        }
       }
+
+      self.archetypes.pop();
     }
   }
 }
@@ -250,7 +242,10 @@ impl<C: Component> Deref for Mut<'_, C> {
 
 impl<C: Component> DerefMut for Mut<'_, C> {
   fn deref_mut(&mut self) -> &mut Self::Target {
-    self.0.changed = self.1;
+    if self.0.changed.0 != self.1 {
+      self.0.changed.1 = self.0.changed.0;
+      self.0.changed.0 = self.1;
+    }
     unsafe { self.0.comp.downcast_mut_unchecked() }
   }
 }

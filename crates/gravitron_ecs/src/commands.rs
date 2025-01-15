@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 #[cfg(feature = "debug")]
 use log::trace;
 
@@ -8,7 +10,7 @@ use crate::{
   systems::{metadata::SystemMeta, SystemParam},
   tick::Tick,
   world::UnsafeWorldCell,
-  ComponentId, EntityId, SystemId,
+  EntityId, SystemId,
 };
 
 pub struct Commands {
@@ -68,17 +70,18 @@ impl Commands {
     }));
   }
 
-  pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId) {
+  pub fn remove_comp<C: Component>(&mut self, entity: EntityId) {
     #[cfg(feature = "debug")]
     trace!(
       "Registering Remove Component Command for Entity {} with Component {:?}",
       entity,
-      comp
+      C::sid()
     );
 
-    self
-      .commands
-      .push(Box::new(RemoveComponentCommand { id: entity, comp }));
+    self.commands.push(Box::new(RemoveComponentCommand {
+      id: entity,
+      phantom: PhantomData::<C>,
+    }));
   }
 }
 
@@ -146,27 +149,27 @@ impl Command for AddComponentCommand {
       ComponentBox {
         comp: std::mem::take(&mut self.comp).unwrap(),
         added: tick,
-        changed: Tick::default(),
+        changed: (Tick::INVALID, Tick::INVALID),
       },
     );
   }
 }
 
-struct RemoveComponentCommand {
+struct RemoveComponentCommand<C: Component> {
   id: EntityId,
-  comp: ComponentId,
+  phantom: PhantomData<C>,
 }
 
-impl Command for RemoveComponentCommand {
+impl<C: Component> Command for RemoveComponentCommand<C> {
   fn execute(&mut self, storage: &mut Storage, tick: Tick) {
     #[cfg(feature = "debug")]
     trace!(
       "Executing Remove Component Command for Entity {} with Component {:?}",
       self.id,
-      self.comp
+      C::sid()
     );
 
-    storage.remove_comp(self.id, self.comp, tick);
+    storage.remove_comp::<C>(self.id, tick);
   }
 }
 
@@ -212,6 +215,6 @@ mod test {
     let mut world = World::default();
     let mut commands = Commands::create(UnsafeWorldCell::new(&mut world));
 
-    commands.remove_comp(Id(0), std::any::TypeId::of::<A>());
+    commands.remove_comp::<A>(Id(0));
   }
 }

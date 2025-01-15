@@ -9,6 +9,9 @@ pub mod systems;
 pub mod tick;
 pub mod world;
 
+#[cfg(test)]
+mod test;
+
 pub use gravitron_ecs_macros::Component;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Default)]

@@ -8,7 +8,7 @@ use crate::{components::Component, ComponentId};
 
 #[derive(Default)]
 pub struct SystemMeta {
-  querys: QueryMeta,
+  queries: QueryMeta,
   res: HashMap<TypeId, AccessType>,
   cmds: bool,
 }
@@ -47,7 +47,7 @@ impl SystemMeta {
 
   pub fn add_query(&mut self, query: QueryMeta) {
     for (c, a) in query.comps {
-      match self.querys.comps.get(&c) {
+      match self.queries.comps.get(&c) {
         Some(&AccessType::Read) => {
           if a == AccessType::Write {
             panic!("Systen Access Error: Cannot access component {} mutable in the same system if it is already used immutable", query.names.get(&c).unwrap());
@@ -57,9 +57,9 @@ impl SystemMeta {
           panic!("Systen Access Error: Cannot access component {} multiple times in the same system if it is already used mutable", query.names.get(&c).unwrap());
         }
         None => {
-          self.querys.comps.insert(c, a);
+          self.queries.comps.insert(c, a);
           self
-            .querys
+            .queries
             .names
             .insert(c, query.names.get(&c).unwrap().clone());
         }
@@ -77,8 +77,8 @@ impl SystemMeta {
 
   pub fn overlaps(&self, other: &SystemMeta) -> bool {
     let mut overlap = false;
-    for (comp, access) in &self.querys.comps {
-      if let Some(other_access) = other.querys.comps.get(comp) {
+    for (comp, access) in &self.queries.comps {
+      if let Some(other_access) = other.queries.comps.get(comp) {
         overlap = *access == AccessType::Write || *other_access == AccessType::Write || overlap;
       }
     }

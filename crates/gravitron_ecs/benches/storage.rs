@@ -42,7 +42,7 @@ fn edit_n(storage: &mut Storage, n: u64) {
       ComponentBox {
         comp: Box::new(A { _x: 0.0 }),
         added: Tick::default(),
-        changed: Tick::default(),
+        changed: (Tick::default(), Tick::default()),
       },
     );
   }
@@ -50,7 +50,7 @@ fn edit_n(storage: &mut Storage, n: u64) {
 
 fn get_n(storage: &mut Storage, n: u64) {
   for i in 0..n {
-    storage.get_comp(Id(i), TypeId::of::<A>());
+    storage.get_comp::<A>(Id(i));
   }
 }
 

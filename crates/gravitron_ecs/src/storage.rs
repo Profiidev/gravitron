@@ -22,7 +22,7 @@ pub struct Row {
 pub struct ComponentBox {
   pub comp: Box<dyn Component>,
   pub added: Tick,
-  pub changed: Tick,
+  pub changed: (Tick, Tick),
 }
 
 struct ArchetypeEdge<'a> {
@@ -117,7 +117,7 @@ impl Storage<'_> {
       comp_box.push(ComponentBox {
         comp,
         added: tick,
-        changed: Tick::default(),
+        changed: (Tick::INVALID, Tick::INVALID),
       });
     }
 
@@ -186,11 +186,11 @@ impl Storage<'_> {
   }
 
   #[allow(unused)]
-  pub fn get_comp(&self, entity: EntityId, comp: ComponentId) -> Option<&dyn Component> {
+  pub fn get_comp<C: Component>(&self, entity: EntityId) -> Option<&dyn Component> {
     let record = self.entity_index.get(&entity)?;
     let archetype = unsafe { record.archetype.archetype() };
 
-    let archetypes = self.component_index.get(&comp)?;
+    let archetypes = self.component_index.get(&C::sid())?;
     let a_record = archetypes.get(&archetype.id)?;
 
     let row = archetype.rows.get(record.row)?;
@@ -200,10 +200,10 @@ impl Storage<'_> {
   }
 
   #[allow(unused)]
-  pub fn has_comp(&self, entity: EntityId, comp: ComponentId) -> bool {
+  pub fn has_comp<C: Component>(&self, entity: EntityId) -> bool {
     let record = self.entity_index.get(&entity).unwrap();
     let archetype = unsafe { record.archetype.archetype() };
-    archetype.r#type.contains(&comp)
+    archetype.r#type.contains(&C::sid())
   }
 
   pub fn add_comp(&mut self, entity: EntityId, comp: ComponentBox) {
@@ -259,22 +259,22 @@ impl Storage<'_> {
     }
   }
 
-  pub fn remove_comp(&mut self, entity: EntityId, comp: ComponentId, tick: Tick) {
+  pub fn remove_comp<C: Component>(&mut self, entity: EntityId, tick: Tick) {
     #[cfg(feature = "debug")]
-    trace!("Removing Component {:?} from Entity {}", comp, entity);
+    trace!("Removing Component {:?} from Entity {}", C::sid(), entity);
 
     let record = self.entity_index.get_mut(&entity).unwrap();
     let from = unsafe { record.archetype.archetype_mut() };
 
-    if !from.r#type.contains(&comp) {
+    if !from.r#type.contains(&C::sid()) {
       return;
     }
 
-    let to = if let Some(to) = from.edges.get(&comp) {
+    let to = if let Some(to) = from.edges.get(&C::sid()) {
       unsafe { to.remove.archetype_mut() }
     } else {
       let mut r#type = from.r#type.clone();
-      r#type.retain(|t| t != &comp);
+      r#type.retain(|t| t != &C::sid());
       r#type.sort_unstable();
 
       let to = if let Some(to) = self.archetype_index.get_mut(&r#type) {
@@ -285,7 +285,7 @@ impl Storage<'_> {
       };
 
       from.edges.insert(
-        comp,
+        C::sid(),
         ArchetypeEdge {
           remove: UnsafeArchetypeCell::new(to),
           add: UnsafeArchetypeCell::null(),
@@ -296,11 +296,11 @@ impl Storage<'_> {
     };
 
     let record = self.entity_index.get_mut(&entity).unwrap();
-    let removed_comp = from.r#type.iter().position(|&c| c == comp).unwrap();
+    let removed_comp = from.r#type.iter().position(|&c| c == C::sid()).unwrap();
 
     let mut entity = from.rows.swap_remove(record.row);
     entity.comps.remove(removed_comp);
-    entity.removed.insert(comp, tick);
+    entity.removed.insert(C::sid(), tick);
     to.rows.push(entity);
 
     let old_row = record.row;
@@ -387,11 +387,11 @@ mod test {
       ComponentBox {
         comp: Box::new(A {}),
         added: Tick::default(),
-        changed: Tick::default(),
+        changed: (Tick::default(), Tick::default()),
       },
     );
 
-    assert!(storage.has_comp(id, A::sid()));
+    assert!(storage.has_comp::<A>(id));
   }
 
   #[test]
@@ -404,12 +404,12 @@ mod test {
       ComponentBox {
         comp: Box::new(A {}),
         added: Tick::default(),
-        changed: Tick::default(),
+        changed: (Tick::default(), Tick::default()),
       },
     );
-    storage.remove_comp(id, A::sid(), Tick::default());
+    storage.remove_comp::<A>(id, Tick::default());
 
-    assert!(!storage.has_comp(id, A::sid()));
+    assert!(!storage.has_comp::<A>(id));
   }
 
   #[test]
@@ -422,11 +422,11 @@ mod test {
       ComponentBox {
         comp: Box::new(A {}),
         added: Tick::default(),
-        changed: Tick::default(),
+        changed: (Tick::default(), Tick::default()),
       },
     );
 
-    assert!(storage.has_comp(id, A::sid()));
+    assert!(storage.has_comp::<A>(id));
   }
 
   #[test]
@@ -439,11 +439,11 @@ mod test {
       ComponentBox {
         comp: Box::new(A {}),
         added: Tick::default(),
-        changed: Tick::default(),
+        changed: (Tick::default(), Tick::default()),
       },
     );
 
-    let comp = storage.get_comp(id, A::sid()).unwrap();
+    let comp = storage.get_comp::<A>(id).unwrap();
     assert!(comp.id() == A::sid());
   }
 }
