@@ -1,6 +1,6 @@
 use std::{
   any::{Any, TypeId},
-  collections::{HashMap, VecDeque},
+  collections::HashMap,
   marker::PhantomData,
   ptr,
 };
@@ -9,8 +9,7 @@ use std::{
 use log::{debug, trace};
 
 use crate::{
-  commands::Commands, components::Component, entity::IntoEntity, storage::Storage, ComponentId,
-  EntityId, SystemId,
+  commands::Commands, entity::IntoEntity, storage::Storage, tick::Tick, EntityId, SystemId,
 };
 
 #[derive(Default)]
@@ -18,6 +17,7 @@ pub struct World {
   storage: Storage<'static>,
   resources: HashMap<TypeId, Box<dyn Any>>,
   commands: HashMap<SystemId, Commands>,
+  tick: Tick,
 }
 
 impl World {
@@ -26,8 +26,12 @@ impl World {
     World::default()
   }
 
+  pub fn tick(&self) -> Tick {
+    self.tick
+  }
+
   pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
-    self.storage.create_entity(entity.into_entity())
+    self.storage.create_entity(entity.into_entity(), self.tick)
   }
 
   pub fn set_resource<R: 'static>(&mut self, res: R) {
@@ -69,7 +73,7 @@ impl World {
     None
   }
 
-  pub fn get_commands_mut(&mut self, id: SystemId) -> &mut Commands {
+  pub(crate) fn get_commands_mut(&mut self, id: SystemId) -> &mut Commands {
     #[cfg(feature = "debug")]
     trace!("Getting Commands");
 
@@ -78,24 +82,25 @@ impl World {
     self.commands.entry(id).or_insert(commands)
   }
 
-  pub fn execute_commands(&mut self) {
+  pub(crate) fn execute_commands(&mut self) {
     #[cfg(feature = "debug")]
     trace!("Executing Commands");
 
     for cmds in self.commands.values_mut() {
-      cmds.execute(&mut self.storage);
+      cmds.execute(&mut self.storage, self.tick);
     }
   }
 
-  pub fn get_entities_mut(
-    &mut self,
-    t: Vec<ComponentId>,
-  ) -> VecDeque<(EntityId, &mut Vec<Box<dyn Component>>)> {
-    self.storage.get_all_entities_for_archetypes(t)
+  pub(crate) fn storage_mut(&mut self) -> &mut Storage<'static> {
+    &mut self.storage
   }
 
-  pub fn reserve_entity_id(&mut self) -> EntityId {
+  pub(crate) fn reserve_entity_id(&mut self) -> EntityId {
     self.storage.reserve_entity_id()
+  }
+
+  pub fn next_tick(&mut self) {
+    self.tick = self.tick.next();
   }
 }
 
@@ -111,10 +116,14 @@ impl<'w> UnsafeWorldCell<'w> {
     Self(ptr::from_mut(world), PhantomData)
   }
 
+  /// # Safety
+  /// Caller must ensure safe access
   pub unsafe fn world_mut(&self) -> &'w mut World {
     &mut *self.0
   }
 
+  /// # Safety
+  /// Caller must ensure safe access
   pub unsafe fn world(&self) -> &'w World {
     &*self.0
   }

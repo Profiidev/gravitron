@@ -179,7 +179,7 @@ impl<'a> DescriptorSet<'a> {
 
 #[derive(Clone)]
 pub struct BufferDescriptor {
-  pub type_: vk::DescriptorType,
+  pub r#type: vk::DescriptorType,
   pub buffer_usage: vk::BufferUsageFlags,
   pub stage: vk::ShaderStageFlags,
   pub size: usize,
@@ -188,7 +188,7 @@ pub struct BufferDescriptor {
 impl BufferDescriptor {
   pub fn new_storage(stage: vk::ShaderStageFlags, size: usize) -> DescriptorType<'static> {
     DescriptorType::StorageBuffer(Self {
-      type_: vk::DescriptorType::STORAGE_BUFFER,
+      r#type: vk::DescriptorType::STORAGE_BUFFER,
       buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
       stage,
       size,
@@ -197,7 +197,7 @@ impl BufferDescriptor {
 
   pub fn new_uniform(stage: vk::ShaderStageFlags, size: usize) -> DescriptorType<'static> {
     DescriptorType::UniformBuffer(Self {
-      type_: vk::DescriptorType::UNIFORM_BUFFER,
+      r#type: vk::DescriptorType::UNIFORM_BUFFER,
       buffer_usage: vk::BufferUsageFlags::UNIFORM_BUFFER,
       stage,
       size,
@@ -207,7 +207,7 @@ impl BufferDescriptor {
 
 #[derive(Clone)]
 pub struct ImageDescriptor<'a> {
-  pub type_: vk::DescriptorType,
+  pub r#type: vk::DescriptorType,
   pub stage: vk::ShaderStageFlags,
   pub images: Vec<ImageConfig<'a>>,
 }
@@ -218,7 +218,7 @@ impl<'a> ImageDescriptor<'a> {
     images: Vec<ImageConfig<'a>>,
   ) -> DescriptorType<'a> {
     DescriptorType::Image(Self {
-      type_: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+      r#type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
       stage,
       images,
     })

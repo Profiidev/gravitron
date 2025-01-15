@@ -40,7 +40,7 @@ pub fn get_descriptor_set_layouts(
           descriptor_set_layout_binding_descs.push(
             vk::DescriptorSetLayoutBinding::default()
               .binding(i as u32)
-              .descriptor_type(desc.type_)
+              .descriptor_type(desc.r#type)
               .descriptor_count(1)
               .stage_flags(desc.stage),
           );
@@ -49,7 +49,7 @@ pub fn get_descriptor_set_layouts(
           descriptor_set_layout_binding_descs.push(
             vk::DescriptorSetLayoutBinding::default()
               .binding(i as u32)
-              .descriptor_type(desc.type_)
+              .descriptor_type(desc.r#type)
               .descriptor_count(desc.images.len() as u32)
               .stage_flags(desc.stage),
           );
@@ -96,7 +96,7 @@ pub fn get_descriptor_set_layouts(
           let write_desc_set = vk::WriteDescriptorSet::default()
             .dst_set(descriptor_sets[j])
             .dst_binding(i as u32)
-            .descriptor_type(desc.type_)
+            .descriptor_type(desc.r#type)
             .buffer_info(&buffer_info_descriptor);
 
           unsafe {
@@ -125,7 +125,7 @@ pub fn get_descriptor_set_layouts(
           let write_desc_set = vk::WriteDescriptorSet::default()
             .dst_binding(i as u32)
             .dst_set(descriptor_sets[j])
-            .descriptor_type(desc.type_)
+            .descriptor_type(desc.r#type)
             .image_info(&image_infos);
 
           unsafe {
@@ -198,10 +198,10 @@ pub fn get_light_framebuffer_descriptor_set(
 pub fn add_descriptor(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, desc: &DescriptorType) {
   match desc {
     DescriptorType::StorageBuffer(desc) | DescriptorType::UniformBuffer(desc) => {
-      internal_add(pool_sizes, desc.type_);
+      internal_add(pool_sizes, desc.r#type);
     }
     DescriptorType::Image(desc) => {
-      internal_add(pool_sizes, desc.type_);
+      internal_add(pool_sizes, desc.r#type);
     }
   }
   fn internal_add(pool_sizes: &mut Vec<vk::DescriptorPoolSize>, ty: vk::DescriptorType) {

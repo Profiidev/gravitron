@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Deref;
 
 #[allow(unused_imports)]
 use log::{trace, warn};
@@ -35,15 +36,15 @@ pub fn renderer_recording(
   #[cfg(feature = "debug")]
   trace!("Recording Render Instructions");
 
-  if let Some(camera) = camera.into_iter().next() {
-    vulkan.update_camera(camera);
+  if let Some((_, camera)) = camera.into_iter().next() {
+    vulkan.update_camera(camera.deref());
   } else {
     warn!("No camera found. Can't render anything");
     return;
   };
 
   let mut models: HashMap<ModelId, HashMap<String, Vec<InstanceData>>> = HashMap::new();
-  for (mesh_render, transform) in to_render {
+  for (_, mesh_render, transform) in to_render {
     let shader = models.entry(mesh_render.model_id).or_default();
     let instances = shader
       .entry(mesh_render.material.shader.clone())
@@ -60,7 +61,7 @@ pub fn renderer_recording(
   }
 
   let mut pls = Vec::new();
-  for (pl, t) in pls_query {
+  for (_, pl, t) in pls_query {
     pls.push(PointLight {
       position: t.position().into(),
       color: pl.color,
@@ -69,7 +70,7 @@ pub fn renderer_recording(
     });
   }
   let mut sls = Vec::new();
-  for (sl, t) in sls_query {
+  for (_, sl, t) in sls_query {
     sls.push(SpotLight {
       position: t.position().into(),
       direction: (t.rotation() * glam::Vec3::X).into(),
@@ -80,7 +81,7 @@ pub fn renderer_recording(
     });
   }
 
-  let dl = if let Some((dl, t)) = dl_query.into_iter().next() {
+  let dl = if let Some((_, dl, t)) = dl_query.into_iter().next() {
     DirectionalLight {
       direction: (t.rotation() * glam::Vec3::X).into(),
       color: dl.color,

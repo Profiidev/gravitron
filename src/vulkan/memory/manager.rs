@@ -4,7 +4,6 @@ use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 
-use crate::Id;
 use crate::{
   config::vulkan::ImageConfig,
   vulkan::{
@@ -29,9 +28,9 @@ use super::{
 pub struct MemoryManager {
   buffers: HashMap<BufferId, BufferType>,
   buffer_used: HashMap<BufferId, vk::Fence>,
-  last_buffer_id: Id,
+  last_buffer_id: u64,
   images: HashMap<ImageId, ImageType>,
-  last_image_id: Id,
+  last_image_id: u64,
   allocator: ManuallyDrop<vulkan::Allocator>,
   device: ash::Device,
   transfers: Vec<Transfer>,

@@ -14,6 +14,7 @@ pub struct Res<'a, T: 'static> {
 impl<T: 'static> Deref for Res<'_, T> {
   type Target = T;
 
+  #[inline]
   fn deref(&self) -> &Self::Target {
     self.value
   }
@@ -22,6 +23,7 @@ impl<T: 'static> Deref for Res<'_, T> {
 impl<T: 'static> SystemParam for Res<'_, T> {
   type Item<'new> = Res<'new, T>;
 
+  #[inline]
   fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
     let world = unsafe { world.world() };
 
@@ -30,6 +32,7 @@ impl<T: 'static> SystemParam for Res<'_, T> {
     }
   }
 
+  #[inline]
   fn check_metadata(meta: &mut SystemMeta) {
     meta.add_res::<T>(metadata::AccessType::Read);
   }
@@ -42,12 +45,14 @@ pub struct ResMut<'a, T: 'static> {
 impl<T: 'static> Deref for ResMut<'_, T> {
   type Target = T;
 
+  #[inline]
   fn deref(&self) -> &Self::Target {
     self.value
   }
 }
 
 impl<T: 'static> DerefMut for ResMut<'_, T> {
+  #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.value
   }
@@ -56,6 +61,7 @@ impl<T: 'static> DerefMut for ResMut<'_, T> {
 impl<T: 'static> SystemParam for ResMut<'_, T> {
   type Item<'new> = ResMut<'new, T>;
 
+  #[inline]
   fn get_param(world: UnsafeWorldCell<'_>, _: SystemId) -> Self::Item<'_> {
     let world = unsafe { world.world_mut() };
 
@@ -64,6 +70,7 @@ impl<T: 'static> SystemParam for ResMut<'_, T> {
     }
   }
 
+  #[inline]
   fn check_metadata(meta: &mut SystemMeta) {
     meta.add_res::<T>(metadata::AccessType::Write);
   }

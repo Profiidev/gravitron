@@ -20,7 +20,7 @@ use gravitron::{
   },
   engine::Gravitron,
   math,
-  vulkan::graphics::resources::material::Material,
+  vulkan::graphics::resources::{material::Material, model::CUBE_MODEL},
 };
 use winit::keyboard::KeyCode;
 
@@ -44,14 +44,14 @@ fn main() {
     ));
   let config = EngineConfig::default().set_vulkan_config(vulkan);
   let mut builder = Gravitron::builder(config)
-    .add_system(test)
-    .add_system(test2)
-    .add_system(test3);
+    .add_main_system(test)
+    .add_main_system(test2)
+    .add_main_system(test3);
   let mut transform = Transform::default();
   transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
   builder.create_entity((
     MeshRenderer {
-      model_id: 0,
+      model_id: CUBE_MODEL,
       material: Material {
         color: math::Vec4::new(1.0, 1.0, 0.0, 1.0),
         metallic: 1.0,
@@ -66,7 +66,7 @@ fn main() {
   transform.set_position(math::Vec3::new(0.0, 0.0, 0.0));
   builder.create_entity((
     MeshRenderer {
-      model_id: 0,
+      model_id: CUBE_MODEL,
       material: Material {
         shader: "testing".into(),
         ..Default::default()
@@ -123,8 +123,7 @@ fn main() {
     t,
   ));
 
-  let engine = builder.build();
-  engine.run();
+  let _ = builder.run();
 }
 
 #[derive(Component, Default)]
@@ -133,7 +132,7 @@ pub struct Marker {
 }
 
 fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
-  for (t, m) in q {
+  for (_, mut t, mut m) in q {
     let mut pos = t.position();
     pos.x = m.t.cos() * 5.0;
     pos.z = m.t.sin() * 5.0;
@@ -141,7 +140,7 @@ fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mu
     m.t += 0.5 * info.delta_time();
   }
   let renderer = MeshRenderer {
-    model_id: 0,
+    model_id: CUBE_MODEL,
     material: Material {
       texture_id: 1,
       ..Default::default()
@@ -151,7 +150,7 @@ fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mu
 }
 
 fn test2(info: Res<EngineInfo>, q: Query<(&mut Transform, &DirectionalLight, &mut Marker)>) {
-  for (t, _, m) in q {
+  for (_, mut t, _, mut m) in q {
     let rot = m.t;
     t.set_rotation(rot, 0.0, rot);
     m.t += 0.05 * info.delta_time();
