@@ -5,12 +5,12 @@ impl Tick {
   pub(crate) const INVALID: Tick = Tick(u64::MAX);
 
   #[inline]
-  pub const fn last(&self) -> Tick {
+  pub(crate) const fn last(&self) -> Tick {
     Tick(self.0 - 1)
   }
 
   #[inline]
-  pub const fn next(&self) -> Tick {
+  pub(crate) const fn next(&self) -> Tick {
     Tick(self.0 + 1)
   }
 }

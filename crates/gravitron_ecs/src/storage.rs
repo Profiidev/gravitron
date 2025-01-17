@@ -1,4 +1,4 @@
-use gxhash::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::{
   marker::PhantomData,
   ptr,
@@ -8,7 +8,7 @@ use std::{
 #[cfg(feature = "debug")]
 use log::trace;
 
-use crate::{components::Component, tick::Tick, ArchetypeId, ComponentId, EntityId, Id};
+use crate::{components::{Component, UnsafeDowncast}, tick::Tick, ArchetypeId, ComponentId, EntityId, Id};
 
 type Type = Vec<ComponentId>;
 type ArchetypeMap<'a> = HashMap<ArchetypeId, ArchetypeRecord<'a>>;
@@ -86,14 +86,14 @@ pub struct QueryResult<'a> {
 }
 
 impl Storage<'_> {
-  pub fn create_entity(&mut self, comps: Vec<Box<dyn Component>>, tick: Tick) -> EntityId {
+  pub(crate) fn create_entity(&mut self, comps: Vec<Box<dyn Component>>, tick: Tick) -> EntityId {
     let id = Id(self.top_id.fetch_add(1, Ordering::Relaxed));
 
     self.create_entity_with_id(comps, id, tick);
     id
   }
 
-  pub fn create_entity_with_id(
+  pub(crate) fn create_entity_with_id(
     &mut self,
     mut comps: Vec<Box<dyn Component>>,
     id: EntityId,
@@ -136,7 +136,7 @@ impl Storage<'_> {
     );
   }
 
-  pub fn reserve_entity_id(&mut self) -> EntityId {
+  pub(crate) fn reserve_entity_id(&mut self) -> EntityId {
     #[cfg(feature = "debug")]
     trace!("Reserving EntityId");
     Id(self.top_id.fetch_add(1, Ordering::Relaxed))
@@ -158,7 +158,7 @@ impl Storage<'_> {
     Some(())
   }
 
-  pub fn create_archetype(&mut self, r#type: Type) {
+  fn create_archetype(&mut self, r#type: Type) {
     #[cfg(feature = "debug")]
     trace!("Creating Archetype {:?}", r#type);
 
@@ -185,21 +185,19 @@ impl Storage<'_> {
     }
   }
 
-  #[allow(unused)]
-  pub fn get_comp<C: Component>(&self, entity: EntityId) -> Option<&dyn Component> {
+  pub fn get_comp<C: Component>(&mut self, entity: EntityId) -> Option<&mut C> {
     let record = self.entity_index.get(&entity)?;
-    let archetype = unsafe { record.archetype.archetype() };
+    let archetype = unsafe { record.archetype.archetype_mut() };
 
     let archetypes = self.component_index.get(&C::sid())?;
     let a_record = archetypes.get(&archetype.id)?;
 
-    let row = archetype.rows.get(record.row)?;
-    let component = row.comps.get(a_record.column)?;
+    let row = archetype.rows.get_mut(record.row)?;
+    let component = row.comps.get_mut(a_record.column)?;
 
-    Some(&*component.comp)
+    Some(unsafe { component.comp.downcast_mut_unchecked() })
   }
 
-  #[allow(unused)]
   pub fn has_comp<C: Component>(&self, entity: EntityId) -> bool {
     let record = self.entity_index.get(&entity).unwrap();
     let archetype = unsafe { record.archetype.archetype() };
@@ -259,15 +257,15 @@ impl Storage<'_> {
     }
   }
 
-  pub fn remove_comp<C: Component>(&mut self, entity: EntityId, tick: Tick) {
+  pub fn remove_comp<C: Component>(&mut self, entity: EntityId, tick: Tick) -> Option<Box<C>> {
     #[cfg(feature = "debug")]
     trace!("Removing Component {:?} from Entity {}", C::sid(), entity);
 
-    let record = self.entity_index.get_mut(&entity).unwrap();
+    let record = self.entity_index.get_mut(&entity)?;
     let from = unsafe { record.archetype.archetype_mut() };
 
     if !from.r#type.contains(&C::sid()) {
-      return;
+      return None;
     }
 
     let to = if let Some(to) = from.edges.get(&C::sid()) {
@@ -295,11 +293,11 @@ impl Storage<'_> {
       to
     };
 
-    let record = self.entity_index.get_mut(&entity).unwrap();
-    let removed_comp = from.r#type.iter().position(|&c| c == C::sid()).unwrap();
+    let record = self.entity_index.get_mut(&entity)?;
+    let removed_comp = from.r#type.iter().position(|&c| c == C::sid())?;
 
     let mut entity = from.rows.swap_remove(record.row);
-    entity.comps.remove(removed_comp);
+    let component = entity.comps.remove(removed_comp);
     entity.removed.insert(C::sid(), tick);
     to.rows.push(entity);
 
@@ -308,9 +306,11 @@ impl Storage<'_> {
     record.archetype = UnsafeArchetypeCell::new(to);
 
     if let Some(swapped) = from.rows.get(old_row) {
-      let swapped_record = self.entity_index.get_mut(&swapped.id).unwrap();
+      let swapped_record = self.entity_index.get_mut(&swapped.id)?;
       swapped_record.row = old_row;
     }
+
+    Some(unsafe { component.comp.downcast_unchecked() })
   }
 
   pub(crate) fn query_data<F>(&mut self, comps: &[ComponentId], filter: F) -> Vec<QueryResult>
@@ -350,6 +350,48 @@ impl Storage<'_> {
     }
 
     result
+  }
+
+  pub(crate) fn entity_by_id<F>(
+    &mut self,
+    entity: EntityId,
+    comps: &[ComponentId],
+    filter: F,
+  ) -> Option<(&mut Row, Vec<usize>)>
+  where
+    F: Fn(&[ComponentId]) -> bool,
+  {
+    let record = self.entity_index.get_mut(&entity)?;
+    let archetype = unsafe { record.archetype.archetype_mut() };
+
+    if !comps.iter().all(|c| archetype.r#type.contains(c)) || !filter(&archetype.r#type) {
+      return None;
+    }
+
+    let columns = comps
+      .iter()
+      .map(|c| {
+        self
+          .component_index
+          .get(c)
+          .unwrap()
+          .get(&archetype.id)
+          .unwrap()
+          .column
+      })
+      .collect();
+
+    Some((&mut archetype.rows[record.row], columns))
+  }
+}
+
+impl ComponentBox {
+  pub fn new<C: Component>(comp: C, tick: Tick) -> Self {
+    ComponentBox {
+      changed: (Tick::INVALID, Tick::INVALID),
+      added: tick,
+      comp: Box::new(comp)
+    }
   }
 }
 

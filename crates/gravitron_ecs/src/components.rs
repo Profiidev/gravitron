@@ -26,6 +26,13 @@ pub unsafe trait UnsafeDowncast {
   unsafe fn downcast_mut_unchecked<T: Any>(&mut self) -> &mut T {
     &mut *data_mut(self)
   }
+
+  /// # Safety
+  /// see trait
+  unsafe fn downcast_unchecked<T: Any>(self: Box<Self>) -> Box<T> {
+    let raw: *mut Self = std::mem::transmute(self);
+    std::mem::transmute(data_mut::<Self, T>(raw))
+  }
 }
 
 ///from https://github.com/reem/rust-traitobject

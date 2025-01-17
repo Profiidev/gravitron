@@ -33,6 +33,24 @@ pub struct QueryIter<'a, Q: QueryParam, F: QueryFilter> {
   marker: PhantomData<(Q, F)>,
 }
 
+impl<Q: QueryParam, F: QueryFilter> Query<'_, Q, F> {
+  pub fn by_id(&mut self, entity: EntityId) -> Option<Q::Item<'_>> {
+    let world = unsafe { self.world.world_mut() };
+    let tick = world.tick();
+
+    let storage = world.storage_mut();
+    let ids = Q::get_comp_ids();
+
+    let (row, columns) = storage.entity_by_id(entity, &ids, F::filter_archetype)?;
+
+    if F::filter_entity(row, tick) {
+      Some(Q::into_query(row, &columns, tick))
+    } else {
+      None
+    }
+  }
+}
+
 impl<'a, Q: QueryParam + 'a, F: QueryFilter> IntoIterator for Query<'a, Q, F> {
   type Item = Q::Item<'a>;
   type IntoIter = QueryIter<'a, Q, F>;

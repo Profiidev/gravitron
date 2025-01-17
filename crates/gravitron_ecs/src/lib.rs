@@ -4,7 +4,7 @@ pub mod commands;
 pub mod components;
 pub mod entity;
 pub mod scheduler;
-pub(crate) mod storage;
+pub mod storage;
 pub mod systems;
 pub mod tick;
 pub mod world;
