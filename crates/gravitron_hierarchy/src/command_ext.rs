@@ -1,5 +1,9 @@
 use gravitron_ecs::{
-  commands::Commands, entity::IntoEntity, storage::{ComponentBox, Storage}, tick::Tick, EntityId
+  commands::Commands,
+  entity::IntoEntity,
+  storage::{ComponentBox, Storage},
+  tick::Tick,
+  EntityId,
 };
 
 use crate::components::{Children, Parent};
@@ -63,7 +67,7 @@ impl HierarchyCommandExt for Commands {
 
   #[inline]
   fn remove_entity_with_children(&mut self, entity: EntityId) {
-    self.remove_children(entity);   
+    self.remove_children(entity);
     self.remove_entity(entity);
   }
 }

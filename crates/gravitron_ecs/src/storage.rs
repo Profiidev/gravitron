@@ -8,7 +8,11 @@ use std::{
 #[cfg(feature = "debug")]
 use log::trace;
 
-use crate::{components::{Component, UnsafeDowncast}, tick::Tick, ArchetypeId, ComponentId, EntityId, Id};
+use crate::{
+  components::{Component, UnsafeDowncast},
+  tick::Tick,
+  ArchetypeId, ComponentId, EntityId, Id,
+};
 
 type Type = Vec<ComponentId>;
 type ArchetypeMap<'a> = HashMap<ArchetypeId, ArchetypeRecord<'a>>;
@@ -390,7 +394,7 @@ impl ComponentBox {
     ComponentBox {
       changed: (Tick::INVALID, Tick::INVALID),
       added: tick,
-      comp: Box::new(comp)
+      comp: Box::new(comp),
     }
   }
 }
