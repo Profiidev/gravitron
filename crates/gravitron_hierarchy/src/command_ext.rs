@@ -22,11 +22,7 @@ impl HierarchyCommandExt for Commands {
     self.add_comp(id, Parent(entity));
 
     self.custom_fn_command(move |storage, tick| {
-      if let Some(children) = storage.get_comp::<Children>(entity) {
-        children.0.push(id);
-      } else {
-        storage.add_comp(entity, ComponentBox::new(Children(vec![id]), tick));
-      }
+      add_self_to_parent(storage, id, entity, tick);
     });
 
     id
@@ -35,23 +31,8 @@ impl HierarchyCommandExt for Commands {
   #[inline]
   fn set_parent(&mut self, entity: EntityId, new_parent: EntityId) {
     self.custom_fn_command(move |storage, tick| {
-      if let Some(parent) = storage.get_comp::<Parent>(entity) {
-        let old_parent = parent.0;
-
-        if let Some(children) = storage.get_comp::<Children>(old_parent) {
-          if children.0.len() == 1 {
-            storage.remove_comp::<Children>(entity, tick);
-          } else {
-            children.0.retain(|id| *id != entity);
-          }
-        }
-      }
-
-      if let Some(children) = storage.get_comp::<Children>(entity) {
-        children.0.push(entity);
-      } else {
-        storage.add_comp(entity, ComponentBox::new(Children(vec![entity]), tick));
-      }
+      remove_self_from_parent(storage, entity, tick);
+      add_self_to_parent(storage, entity, new_parent, tick);
     });
 
     self.remove_comp::<Parent>(entity);
@@ -68,6 +49,11 @@ impl HierarchyCommandExt for Commands {
   #[inline]
   fn remove_entity_with_children(&mut self, entity: EntityId) {
     self.remove_children(entity);
+
+    self.custom_fn_command(move |storage, tick| {
+      remove_self_from_parent(storage, entity, tick);
+    });
+
     self.remove_entity(entity);
   }
 }
@@ -78,5 +64,27 @@ fn remove_children_recursive(storage: &mut Storage, entity: EntityId, tick: Tick
       remove_children_recursive(storage, *id, tick);
       storage.remove_entity(*id);
     }
+  }
+}
+
+fn remove_self_from_parent(storage: &mut Storage, entity: EntityId, tick: Tick) {
+  if let Some(parent) = storage.remove_comp::<Parent>(entity, tick) {
+    let old_parent = parent.0;
+
+    if let Some(children) = storage.get_comp::<Children>(old_parent) {
+      if children.0.len() == 1 {
+        storage.remove_comp::<Children>(entity, tick);
+      } else {
+        children.0.retain(|id| *id != entity);
+      }
+    }
+  }
+}
+
+fn add_self_to_parent(storage: &mut Storage, entity: EntityId, parent: EntityId, tick: Tick) {
+  if let Some(children) = storage.get_comp::<Children>(parent) {
+    children.0.push(entity);
+  } else {
+    storage.add_comp(parent, ComponentBox::new(Children(vec![entity]), tick));
   }
 }
