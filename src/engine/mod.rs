@@ -138,10 +138,10 @@ impl Gravitron {
 impl ApplicationHandler for Gravitron {
   fn resumed(&mut self, event_loop: &ActiveEventLoop) {
     let window_attributes = winit::window::WindowAttributes::default()
-      .with_title(self.config.app.title.clone())
+      .with_title(self.config.vulkan.title.clone())
       .with_inner_size(Size::Logical(LogicalSize::new(
-        self.config.app.width as f64,
-        self.config.app.height as f64,
+        self.config.vulkan.width as f64,
+        self.config.vulkan.height as f64,
       )));
 
     debug!("Creating Window");

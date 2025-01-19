@@ -1,10 +1,11 @@
+use gravitron_renderer::config::VulkanConfig;
+
 pub mod app;
-pub mod vulkan;
 
 #[derive(Default)]
 pub struct EngineConfig {
   pub app: app::AppConfig,
-  pub vulkan: vulkan::VulkanConfig,
+  pub vulkan: VulkanConfig,
 }
 
 impl EngineConfig {
@@ -13,7 +14,7 @@ impl EngineConfig {
     self
   }
 
-  pub fn set_vulkan_config(mut self, vulkan: vulkan::VulkanConfig) -> Self {
+  pub fn set_vulkan_config(mut self, vulkan: VulkanConfig) -> Self {
     self.vulkan = vulkan;
     self
   }

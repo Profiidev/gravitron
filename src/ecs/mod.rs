@@ -1,14 +1,12 @@
-pub mod components;
 pub mod resources;
-pub mod systems;
 
 use std::hash::Hash;
 
-pub use gravitron_ecs::{commands, Component, ComponentId, EntityId, Id};
-use gravitron_ecs::{
-  scheduler::{Scheduler, SchedulerBuilder},
-  world::World,
-};
+pub use gravitron_ecs::*;
+pub use gravitron_hierarchy as hierarchy;
+
+use scheduler::{Scheduler, SchedulerBuilder};
+use world::World;
 
 pub struct ECS {
   pub(crate) world: World,
