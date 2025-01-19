@@ -1,14 +1,15 @@
-pub fn add(left: u64, right: u64) -> u64 {
-  left + right
-}
+use app::{App, AppBuilder, Build, Finalize};
 
-#[cfg(test)]
-mod tests {
-  use super::*;
+pub mod app;
+pub mod manager;
+pub mod stages;
+pub mod config;
 
-  #[test]
-  fn it_works() {
-    let result = add(2, 2);
-    assert_eq!(result, 4);
+pub trait Plugin: 'static {
+  fn build(&self, _builder: &mut AppBuilder<Build>) {}
+  fn finalize(&self, _builder: &mut AppBuilder<Finalize>) {}
+  fn cleanup(&self, _app: &mut App) {}
+  fn name(&self) -> &str {
+    std::any::type_name::<Self>()
   }
 }

@@ -1,8 +1,13 @@
 use anyhow::Error;
 use ash::{khr, vk};
+use gravitron_plugin::config::window::WindowConfig;
 
 use crate::{
-  config::VulkanConfig, device::Device, instance::InstanceDevice, memory::manager::MemoryManager, pipeline::pools::{CommandBufferType, Pools}, surface::Surface
+  device::Device,
+  instance::InstanceDevice,
+  memory::manager::MemoryManager,
+  pipeline::pools::{CommandBufferType, Pools},
+  surface::Surface,
 };
 
 use super::framebuffer::Framebuffer;
@@ -25,7 +30,7 @@ impl SwapChain {
     device: &Device,
     surfaces: &Surface,
     memory_manager: &mut MemoryManager,
-    config: &VulkanConfig,
+    window_config: &WindowConfig,
     pools: &mut Pools,
     render_pass: vk::RenderPass,
     light_render_pass: vk::RenderPass,
@@ -38,8 +43,8 @@ impl SwapChain {
 
     let mut extent = surface_capabilities.current_extent;
     if extent.width == u32::MAX || extent.height == u32::MAX {
-      extent.width = config.width;
-      extent.height = config.height;
+      extent.width = window_config.width;
+      extent.height = window_config.height;
     }
 
     let frame_buffer_count =

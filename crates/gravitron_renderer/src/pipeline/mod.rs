@@ -4,7 +4,7 @@ use anyhow::Error;
 use ash::vk;
 use descriptors::{get_descriptor_set_layouts, get_light_framebuffer_descriptor_set};
 
-use crate::config::{ComputePipelineConfig, GraphicsPipelineConfig};
+use gravitron_plugin::config::vulkan::{ComputePipelineConfig, GraphicsPipelineConfig};
 
 use super::{
   graphics::swapchain::SwapChain,

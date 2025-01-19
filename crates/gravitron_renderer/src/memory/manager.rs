@@ -3,9 +3,9 @@ use std::{collections::HashMap, mem::ManuallyDrop};
 use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
+use gravitron_plugin::config::vulkan::ImageConfig;
 
 use crate::{
-  config::ImageConfig,
   device::Device,
   instance::InstanceDevice,
   pipeline::pools::{CommandBufferType, Pools},

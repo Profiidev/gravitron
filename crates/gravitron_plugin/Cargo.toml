@@ -12,3 +12,5 @@ readme = "README.md"
 
 [dependencies]
 gravitron_ecs = { workspace = true }
+ash = { workspace = true }
+log = { workspace = true }

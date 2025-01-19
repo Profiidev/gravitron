@@ -1,8 +1,7 @@
 use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
-
-use crate::config::{ImageConfig, ImageData};
+use gravitron_plugin::config::vulkan::{ImageConfig, ImageData};
 
 use super::{buffer::Buffer, image::Image, manager::Transfer};
 

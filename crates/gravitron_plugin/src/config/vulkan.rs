@@ -2,47 +2,14 @@ use ash::vk;
 
 pub use vk::{Filter, ShaderStageFlags};
 
+#[derive(Default)]
 pub struct VulkanConfig {
-  pub title: String,
-  pub width: u32,
-  pub height: u32,
-  pub version: u32,
   pub renderer: RendererConfig<'static>,
   pub shaders: Vec<PipelineType<'static>>,
   pub textures: Vec<ImageConfig<'static>>,
 }
 
-impl Default for VulkanConfig {
-  fn default() -> Self {
-    Self {
-      title: "Gravitron".into(),
-      width: 800,
-      height: 600,
-      version: 1,
-      renderer: Default::default(),
-      shaders: Default::default(),
-      textures: Default::default(),
-    }
-  }
-}
-
 impl VulkanConfig {
-  pub fn set_version(mut self, version: u32) -> Self {
-    self.version = version;
-    self
-  }
-
-  pub fn set_dimensions(mut self, width: u32, height: u32) -> Self {
-    self.width = width;
-    self.height = height;
-    self
-  }
-
-  pub fn set_title(mut self, title: String) -> Self {
-    self.title = title;
-    self
-  }
-
   pub fn set_renderer_config(mut self, renderer: RendererConfig<'static>) -> Self {
     self.renderer = renderer;
     self

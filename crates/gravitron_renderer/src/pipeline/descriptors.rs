@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use ash::vk;
+use gravitron_plugin::config::vulkan::{DescriptorSet, DescriptorType};
 
 use crate::{
-  config::{DescriptorSet, DescriptorType},
   graphics::swapchain::{SwapChain, IMAGES_PER_FRAME_BUFFER},
   memory::{manager::MemoryManager, types::BufferBlockSize, BufferMemory},
 };

@@ -774,6 +774,7 @@ dependencies = [
  "glam",
  "gravitron_ecs",
  "gravitron_hierarchy",
+ "gravitron_plugin",
  "gravitron_renderer",
  "gravitron_utils",
  "log",
@@ -820,7 +821,9 @@ dependencies = [
 name = "gravitron_plugin"
 version = "0.1.0"
 dependencies = [
+ "ash",
  "gravitron_ecs",
+ "log",
 ]
 
 [[package]]
@@ -833,6 +836,7 @@ dependencies = [
  "glam",
  "gpu-allocator",
  "gravitron_ecs",
+ "gravitron_plugin",
  "image",
  "log",
  "thiserror 2.0.11",

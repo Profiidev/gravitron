@@ -2,10 +2,12 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use ash::vk;
+use gravitron_plugin::config::{
+  vulkan::{PipelineType, VulkanConfig},
+  window::WindowConfig,
+};
 use resources::model::{ModelId, ModelManager, VertexData, PLANE_MODEL};
 use swapchain::SwapChain;
-
-use crate::config::{PipelineType, VulkanConfig};
 
 use super::{
   device::Device,
@@ -45,6 +47,7 @@ impl Renderer {
     memory_manager: &mut MemoryManager,
     surface: &Surface,
     config: &mut VulkanConfig,
+    window_config: &WindowConfig,
     pools: &mut Pools,
   ) -> Result<Self, Error> {
     let logical_device = device.get_device();
@@ -62,7 +65,7 @@ impl Renderer {
       device,
       surface,
       memory_manager,
-      config,
+      window_config,
       pools,
       render_pass,
       light_render_pass,

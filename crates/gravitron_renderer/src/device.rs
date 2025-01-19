@@ -1,7 +1,6 @@
 use anyhow::Error;
 use ash::{ext, khr, vk};
-
-use crate::config::RendererConfig;
+use gravitron_plugin::config::vulkan::RendererConfig;
 
 use super::{error::QueueFamilyMissingError, surface::Surface};
 

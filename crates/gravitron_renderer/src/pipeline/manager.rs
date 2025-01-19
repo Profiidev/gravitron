@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use ash::vk;
+use gravitron_plugin::config::vulkan::{DescriptorSet, DescriptorType, ImageConfig, PipelineType};
 
 use crate::{
-  config::{DescriptorSet, DescriptorType, ImageConfig, PipelineType},
   ecs::components::camera::Camera,
   graphics::{
     resources::lighting::{LightInfo, PointLight, SpotLight},

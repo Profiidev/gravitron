@@ -9,12 +9,14 @@ quote = "1.0.38"
 proc-macro2 = "1.0.93"
 glam = "0.29.2"
 thiserror = "2.0.11"
+ash = "0.38.0"
 winit = { version = "0.30.8", features = ["wayland"] }
 gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.3" }
 gravitron_ecs = { path = "./crates/gravitron_ecs", version = "0.3.0" }
 gravitron_hierarchy = { path = "./crates/gravitron_hierarchy", version = "0.1.0" }
 gravitron_renderer = { path = "./crates/gravitron_renderer", version = "0.1.0" }
 gravitron_macro_utils = { path = "./crates/gravitron_macro_utils", version = "0.1.1" }
+gravitron_plugin = { path = "./crates/gravitron_plugin", version = "0.1.0" }
 
 [package]
 name = "gravitron"
@@ -38,6 +40,7 @@ gravitron_utils = { workspace = true }
 gravitron_ecs = { workspace = true }
 gravitron_hierarchy = { workspace = true }
 gravitron_renderer = { workspace = true }
+gravitron_plugin = { workspace = true }
 
 [features]
 default = ["debug"]
