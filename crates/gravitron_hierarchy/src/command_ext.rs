@@ -9,17 +9,16 @@ use gravitron_ecs::{
 use crate::components::{Children, Parent};
 
 pub trait HierarchyCommandExt {
-  fn create_children(&mut self, entity: EntityId, child: impl IntoEntity) -> EntityId;
-  fn set_parent(&mut self, entity: EntityId, parent: EntityId);
+  fn create_child(&mut self, entity: EntityId, child: impl IntoEntity) -> EntityId;
+  fn set_parent(&mut self, entity: EntityId, new_parent: EntityId);
   fn remove_children(&mut self, entity: EntityId);
   fn remove_entity_with_children(&mut self, entity: EntityId);
 }
 
 impl HierarchyCommandExt for Commands {
   #[inline]
-  fn create_children(&mut self, entity: EntityId, child: impl IntoEntity) -> EntityId {
+  fn create_child(&mut self, entity: EntityId, child: impl IntoEntity) -> EntityId {
     let id = self.create_entity(child);
-    self.add_comp(id, Parent(entity));
 
     self.custom_fn_command(move |storage, tick| {
       add_self_to_parent(storage, id, entity, tick);
@@ -34,9 +33,6 @@ impl HierarchyCommandExt for Commands {
       remove_self_from_parent(storage, entity, tick);
       add_self_to_parent(storage, entity, new_parent, tick);
     });
-
-    self.remove_comp::<Parent>(entity);
-    self.add_comp(entity, Parent(new_parent));
   }
 
   #[inline]
@@ -73,7 +69,7 @@ fn remove_self_from_parent(storage: &mut Storage, entity: EntityId, tick: Tick) 
 
     if let Some(children) = storage.get_comp::<Children>(old_parent) {
       if children.0.len() == 1 {
-        storage.remove_comp::<Children>(entity, tick);
+        storage.remove_comp::<Children>(old_parent, tick);
       } else {
         children.0.retain(|id| *id != entity);
       }
@@ -87,4 +83,7 @@ fn add_self_to_parent(storage: &mut Storage, entity: EntityId, parent: EntityId,
   } else {
     storage.add_comp(parent, ComponentBox::new(Children(vec![entity]), tick));
   }
+
+  storage.remove_comp::<Parent>(entity, tick);
+  storage.add_comp(entity, ComponentBox::new(Parent(parent), tick));
 }
