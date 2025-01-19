@@ -4,15 +4,13 @@ use anyhow::Error;
 use ash::vk;
 
 use crate::{
-  config::vulkan::{DescriptorSet, DescriptorType, ImageConfig, PipelineType},
+  config::{DescriptorSet, DescriptorType, ImageConfig, PipelineType},
   ecs::components::camera::Camera,
-  vulkan::{
-    graphics::{
-      resources::lighting::{LightInfo, PointLight, SpotLight},
-      swapchain::SwapChain,
-    },
-    memory::{manager::MemoryManager, BufferMemory},
+  graphics::{
+    resources::lighting::{LightInfo, PointLight, SpotLight},
+    swapchain::SwapChain,
   },
+  memory::{manager::MemoryManager, BufferMemory},
 };
 
 use super::{
@@ -45,7 +43,7 @@ impl PipelineManager {
     let mut pool_sizes = vec![];
 
     let mut textures_used = vec![ImageConfig::new_bytes(
-      include_bytes!("../../../assets/default.png").to_vec(),
+      include_bytes!("../../../../assets/default.png").to_vec(),
       vk::Filter::LINEAR,
     )];
     textures_used.extend(textures);

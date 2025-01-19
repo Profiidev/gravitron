@@ -4,11 +4,9 @@ use anyhow::Error;
 use ash::vk;
 
 use crate::{
-  config::vulkan::{DescriptorSet, DescriptorType},
-  vulkan::{
-    graphics::swapchain::{SwapChain, IMAGES_PER_FRAME_BUFFER},
-    memory::{manager::MemoryManager, types::BufferBlockSize, BufferMemory},
-  },
+  config::{DescriptorSet, DescriptorType},
+  graphics::swapchain::{SwapChain, IMAGES_PER_FRAME_BUFFER},
+  memory::{manager::MemoryManager, types::BufferBlockSize, BufferMemory},
 };
 
 #[allow(clippy::complexity)]

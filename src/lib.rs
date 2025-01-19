@@ -1,7 +1,6 @@
 pub mod config;
 pub mod ecs;
 pub mod engine;
-pub mod vulkan;
 
 pub use ecs::Id;
 

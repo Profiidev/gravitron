@@ -1,6 +1,6 @@
 use ash::vk;
 
-use crate::vulkan::device::QueueFamilies;
+use crate::device::QueueFamilies;
 
 pub struct Pools {
   command_pool_graphics: vk::CommandPool,

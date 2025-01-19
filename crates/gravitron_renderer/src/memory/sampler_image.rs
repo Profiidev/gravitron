@@ -2,7 +2,7 @@ use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 
-use crate::config::vulkan::{ImageConfig, ImageData};
+use crate::config::{ImageConfig, ImageData};
 
 use super::{buffer::Buffer, image::Image, manager::Transfer};
 

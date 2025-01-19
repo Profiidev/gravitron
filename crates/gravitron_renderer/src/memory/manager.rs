@@ -5,12 +5,10 @@ use ash::vk;
 use gpu_allocator::vulkan;
 
 use crate::{
-  config::vulkan::ImageConfig,
-  vulkan::{
-    device::Device,
-    instance::InstanceDevice,
-    pipeline::pools::{CommandBufferType, Pools},
-  },
+  config::ImageConfig,
+  device::Device,
+  instance::InstanceDevice,
+  pipeline::pools::{CommandBufferType, Pools},
 };
 
 use super::{

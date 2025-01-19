@@ -2,14 +2,7 @@ use anyhow::Error;
 use ash::{khr, vk};
 
 use crate::{
-  config::app::AppConfig,
-  vulkan::{
-    device::Device,
-    instance::InstanceDevice,
-    memory::manager::MemoryManager,
-    pipeline::pools::{CommandBufferType, Pools},
-    surface::Surface,
-  },
+  config::VulkanConfig, device::Device, instance::InstanceDevice, memory::manager::MemoryManager, pipeline::pools::{CommandBufferType, Pools}, surface::Surface
 };
 
 use super::framebuffer::Framebuffer;
@@ -32,7 +25,7 @@ impl SwapChain {
     device: &Device,
     surfaces: &Surface,
     memory_manager: &mut MemoryManager,
-    config: &AppConfig,
+    config: &VulkanConfig,
     pools: &mut Pools,
     render_pass: vk::RenderPass,
     light_render_pass: vk::RenderPass,

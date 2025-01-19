@@ -1,7 +1,7 @@
 use anyhow::Error;
 use ash::{ext, khr, vk};
 
-use crate::config::vulkan::RendererConfig;
+use crate::config::RendererConfig;
 
 use super::{error::QueueFamilyMissingError, surface::Surface};
 

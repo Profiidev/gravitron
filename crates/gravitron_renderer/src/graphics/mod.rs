@@ -5,10 +5,7 @@ use ash::vk;
 use resources::model::{ModelId, ModelManager, VertexData, PLANE_MODEL};
 use swapchain::SwapChain;
 
-use crate::config::{
-  app::AppConfig,
-  vulkan::{PipelineType, VulkanConfig},
-};
+use crate::config::{PipelineType, VulkanConfig};
 
 use super::{
   device::Device,
@@ -48,7 +45,6 @@ impl Renderer {
     memory_manager: &mut MemoryManager,
     surface: &Surface,
     config: &mut VulkanConfig,
-    app_config: &AppConfig,
     pools: &mut Pools,
   ) -> Result<Self, Error> {
     let logical_device = device.get_device();
@@ -66,7 +62,7 @@ impl Renderer {
       device,
       surface,
       memory_manager,
-      app_config,
+      config,
       pools,
       render_pass,
       light_render_pass,

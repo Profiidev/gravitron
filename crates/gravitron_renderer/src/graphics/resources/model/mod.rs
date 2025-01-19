@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::vulkan::memory::{
+use crate::memory::{
   manager::MemoryManager,
   types::{BufferBlockSize, BufferId},
   BufferMemory,

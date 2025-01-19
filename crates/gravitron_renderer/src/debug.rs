@@ -5,7 +5,7 @@ use ash::{
 };
 use log::LevelFilter;
 
-use crate::config::vulkan::RendererConfig;
+use crate::config::RendererConfig;
 
 const VALIDATION_LAYER: &std::ffi::CStr = c"VK_LAYER_KHRONOS_validation";
 

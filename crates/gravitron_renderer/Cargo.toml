@@ -11,3 +11,17 @@ exclude = ["CHANGELOG.md"]
 readme = "README.md"
 
 [dependencies]
+ash = "0.38.0"
+ash-window = "0.13.0"
+gpu-allocator = { version = "0.27.0", default-features = false, features = ["vulkan"] }
+vk-shader-macros = "0.2.9"
+image = { version = "0.25.5", default-features = false, features = ["rayon", "png"] }
+glam = { workspace = true }
+log = { workspace = true }
+winit = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+gravitron_ecs = { workspace = true }
+
+[features]
+debug = ["gravitron_ecs/debug"]

@@ -11,13 +11,11 @@ use crate::ecs::components::lighting::{
 };
 use crate::ecs::components::renderer::MeshRenderer;
 use crate::ecs::components::transform::Transform;
-use crate::ecs::{systems::query::Query, systems::resources::ResMut};
+use gravitron_ecs::{systems::query::Query, systems::resources::ResMut};
 
-use crate::vulkan::graphics::resources::lighting::{
-  DirectionalLight, LightInfo, PointLight, SpotLight,
-};
-use crate::vulkan::graphics::resources::model::{InstanceData, ModelId};
-use crate::vulkan::Vulkan;
+use crate::graphics::resources::lighting::{DirectionalLight, LightInfo, PointLight, SpotLight};
+use crate::graphics::resources::model::{InstanceData, ModelId};
+use crate::Vulkan;
 
 pub fn init_renderer(vulkan: ResMut<Vulkan>) {
   #[cfg(feature = "debug")]
