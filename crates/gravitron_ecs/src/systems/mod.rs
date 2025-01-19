@@ -11,7 +11,7 @@ use metadata::SystemMeta;
 
 use crate::{world::UnsafeWorldCell, Id, SystemId};
 
-pub(crate) mod metadata;
+pub mod metadata;
 pub mod query;
 pub mod resources;
 
@@ -110,7 +110,7 @@ pub trait IntoSystem<Input> {
   fn into_system(self) -> Self::System;
 }
 
-pub(crate) trait SystemParam {
+pub trait SystemParam {
   type Item<'new>;
 
   fn get_param(world: UnsafeWorldCell<'_>, id: SystemId) -> Self::Item<'_>;

@@ -26,4 +26,4 @@ impl Display for Id {
 pub type ComponentId = TypeId;
 pub type EntityId = Id;
 type ArchetypeId = Id;
-type SystemId = Id;
+pub type SystemId = Id;

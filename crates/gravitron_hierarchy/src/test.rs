@@ -9,7 +9,10 @@ use std::{
 use gravitron_ecs::{
   commands::Commands,
   scheduler::SchedulerBuilder,
-  systems::{query::Query, resources::ResMut},
+  systems::{
+    query::{filter::Without, Query},
+    resources::ResMut,
+  },
   world::World,
   Component, Id,
 };
@@ -17,6 +20,7 @@ use gravitron_ecs::{
 use crate::{
   command_ext::HierarchyCommandExt,
   components::{Children, Parent},
+  propagation::PropagationQuery,
 };
 
 #[derive(Component)]
@@ -203,6 +207,75 @@ fn remove_with_children() {
   let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
   scheduler.add_system(move |q: Query<&A>| {
     assert_eq!(q.into_iter().collect::<Vec<_>>().len(), 0);
+  });
+
+  let mut scheduler = scheduler.build(true);
+  scheduler.run(&mut world);
+}
+
+#[derive(Component)]
+struct Offset(usize);
+
+#[derive(Component)]
+struct GlobalOffset(usize);
+
+#[test]
+fn test_component_propagation() {
+  let orig_hook = panic::take_hook();
+  panic::set_hook(Box::new(move |panic_info| {
+    orig_hook(panic_info);
+    process::exit(1);
+  }));
+
+  let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
+  let mut world = World::new();
+
+  let id = world.create_entity(Offset(1));
+
+  scheduler.add_system(move |cmds: &mut Commands, q: Query<&Offset, Without<A>>| {
+    for (id, _) in q {
+      cmds.create_child(id, Offset(2));
+      cmds.add_comp(id, A {});
+    }
+  });
+
+  let mut scheduler = scheduler.build(true);
+
+  for _ in 0..4 {
+    scheduler.run(&mut world);
+  }
+
+  let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
+
+  scheduler.add_system(
+    move |prop: PropagationQuery<Offset, GlobalOffset>, cmds: &mut Commands| {
+      prop.propagate(
+        |mut global, state| {
+          global.0 = *state;
+        },
+        |state| GlobalOffset(*state),
+        |offset, state| *state += offset.0,
+        0_usize,
+        cmds,
+      );
+    },
+  );
+
+  let mut scheduler = scheduler.build(true);
+  scheduler.run(&mut world);
+
+  let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
+  scheduler.add_system(move |mut q: Query<&GlobalOffset>| {
+    let (_, offset) = q.by_id(id).unwrap();
+    assert_eq!(offset.0, 1);
+
+    let mut i = 0;
+    for (_, offset) in q {
+      dbg!(offset.0);
+      i += offset.0;
+    }
+
+    assert_eq!(i, 16);
   });
 
   let mut scheduler = scheduler.build(true);
