@@ -817,6 +817,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gravitron_plugin"
+version = "0.1.0"
+dependencies = [
+ "gravitron_ecs",
+]
+
+[[package]]
 name = "gravitron_renderer"
 version = "0.1.0"
 dependencies = [

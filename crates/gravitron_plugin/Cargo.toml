@@ -1,0 +1,14 @@
+[package]
+name = "gravitron_plugin"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+keywords = ["game", "gravitron"]
+categories = ["game-engines"]
+repository = "https://github.com/Profiidev/gravitron"
+description = "Gravitron Plugin"
+exclude = ["CHANGELOG.md"]
+readme = "README.md"
+
+[dependencies]
+gravitron_ecs = { workspace = true }
