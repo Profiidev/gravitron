@@ -6,9 +6,7 @@ mod storage;
 #[allow(unused)]
 mod tick;
 
-pub mod components {
-  pub use gravitron_ecs::components::Component;
-}
+use gravitron_ecs::{components::Component, Component};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Default)]
 pub struct Id(pub(crate) u64);
@@ -25,7 +23,6 @@ type ArchetypeId = Id;
 use std::{any::TypeId, fmt::Display, hint::black_box, time::Instant};
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use gravitron_ecs::{components::Component, Component};
 use storage::{ComponentBox, Storage};
 use tick::Tick;
 

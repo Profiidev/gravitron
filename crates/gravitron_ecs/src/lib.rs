@@ -4,7 +4,7 @@ pub mod commands;
 pub mod components;
 pub mod entity;
 pub mod scheduler;
-pub(crate) mod storage;
+pub mod storage;
 pub mod systems;
 pub mod tick;
 pub mod world;
@@ -26,4 +26,4 @@ impl Display for Id {
 pub type ComponentId = TypeId;
 pub type EntityId = Id;
 type ArchetypeId = Id;
-type SystemId = Id;
+pub type SystemId = Id;

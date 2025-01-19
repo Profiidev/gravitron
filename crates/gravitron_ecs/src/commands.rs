@@ -27,10 +27,9 @@ impl Commands {
   }
 
   pub(crate) fn execute(&mut self, storage: &mut Storage, tick: Tick) {
-    for cmd in &mut self.commands {
+    for mut cmd in std::mem::take(&mut self.commands) {
       cmd.execute(storage, tick)
     }
-    self.commands = Vec::new();
   }
 
   pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
@@ -82,6 +81,16 @@ impl Commands {
       id: entity,
       phantom: PhantomData::<C>,
     }));
+  }
+
+  pub fn custom_fn_command<F>(&mut self, func: F)
+  where
+    F: Fn(&mut Storage, Tick) + 'static,
+  {
+    #[cfg(feature = "debug")]
+    trace!("Registering Custom Fn Command",);
+
+    self.commands.push(Box::new(CustomFnCommand { func }));
   }
 }
 
@@ -170,6 +179,22 @@ impl<C: Component> Command for RemoveComponentCommand<C> {
     );
 
     storage.remove_comp::<C>(self.id, tick);
+  }
+}
+
+struct CustomFnCommand<F>
+where
+  F: Fn(&mut Storage, Tick),
+{
+  func: F,
+}
+
+impl<F> Command for CustomFnCommand<F>
+where
+  F: Fn(&mut Storage, Tick),
+{
+  fn execute(&mut self, storage: &mut Storage, tick: Tick) {
+    (self.func)(storage, tick)
   }
 }
 
