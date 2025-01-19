@@ -1,11 +1,17 @@
-use std::sync::{
-  atomic::{AtomicUsize, Ordering},
-  Arc,
+use std::{
+  panic, process,
+  sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+  },
 };
 
 use gravitron_ecs::{
-  commands::Commands, scheduler::SchedulerBuilder, systems::{query::Query, resources::ResMut}, world::World, Component,
-  Id,
+  commands::Commands,
+  scheduler::SchedulerBuilder,
+  systems::{query::Query, resources::ResMut},
+  world::World,
+  Component, Id,
 };
 
 use crate::{
@@ -116,5 +122,89 @@ fn set_parent() {
 
   let mut scheduler = scheduler.build(true);
 
+  scheduler.run(&mut world);
+}
+
+#[test]
+fn remove_children() {
+  let orig_hook = panic::take_hook();
+  panic::set_hook(Box::new(move |panic_info| {
+    orig_hook(panic_info);
+    process::exit(1);
+  }));
+
+  let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
+  let mut world = World::new();
+
+  let id = world.create_entity(A {});
+
+  scheduler.add_system(move |cmds: &mut Commands, q: Query<&A>| {
+    for (id, _) in q {
+      cmds.create_child(id, A {});
+    }
+  });
+
+  let mut scheduler = scheduler.build(true);
+
+  for _ in 0..4 {
+    scheduler.run(&mut world);
+  }
+
+  let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
+  scheduler.add_system(move |cmds: &mut Commands| {
+    cmds.remove_children(id);
+  });
+
+  let mut scheduler = scheduler.build(true);
+  scheduler.run(&mut world);
+
+  let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
+  scheduler.add_system(move |q: Query<&A>| {
+    assert_eq!(q.into_iter().collect::<Vec<_>>().len(), 1);
+  });
+
+  let mut scheduler = scheduler.build(true);
+  scheduler.run(&mut world);
+}
+
+#[test]
+fn remove_with_children() {
+  let orig_hook = panic::take_hook();
+  panic::set_hook(Box::new(move |panic_info| {
+    orig_hook(panic_info);
+    process::exit(1);
+  }));
+
+  let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
+  let mut world = World::new();
+
+  let id = world.create_entity(A {});
+
+  scheduler.add_system(move |cmds: &mut Commands, q: Query<&A>| {
+    for (id, _) in q {
+      cmds.create_child(id, A {});
+    }
+  });
+
+  let mut scheduler = scheduler.build(true);
+
+  for _ in 0..4 {
+    scheduler.run(&mut world);
+  }
+
+  let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
+  scheduler.add_system(move |cmds: &mut Commands| {
+    cmds.remove_entity_with_children(id);
+  });
+
+  let mut scheduler = scheduler.build(true);
+  scheduler.run(&mut world);
+
+  let mut scheduler: SchedulerBuilder<usize> = SchedulerBuilder::default();
+  scheduler.add_system(move |q: Query<&A>| {
+    assert_eq!(q.into_iter().collect::<Vec<_>>().len(), 0);
+  });
+
+  let mut scheduler = scheduler.build(true);
   scheduler.run(&mut world);
 }
