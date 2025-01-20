@@ -38,10 +38,12 @@ impl EventLoop {
     )
   }
 
+  #[inline]
   pub(crate) fn update_events(&mut self) {
     self.events = self.receiver.try_iter().collect();
   }
 
+  #[inline]
   pub fn events(&self) -> &[WindowEvent] {
     &self.events
   }

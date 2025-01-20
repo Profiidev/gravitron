@@ -12,25 +12,30 @@ pub struct CameraBuilder {
 }
 
 impl CameraBuilder {
+  #[inline]
   pub fn new() -> Self {
     Self::default()
   }
 
+  #[inline]
   pub fn fov(mut self, fov: f32) -> Self {
     self.fov = fov.clamp(0.01, std::f32::consts::PI - 0.01);
     self
   }
 
+  #[inline]
   pub fn aspect_ratio(mut self, aspect_ratio: f32) -> Self {
     self.aspect_ratio = aspect_ratio;
     self
   }
 
+  #[inline]
   pub fn near(mut self, near: f32) -> Self {
     self.near = near.max(self.far);
     self
   }
 
+  #[inline]
   pub fn far(mut self, far: f32) -> Self {
     self.far = far.min(self.near);
     self
@@ -74,10 +79,12 @@ pub struct Camera {
 }
 
 impl Camera {
+  #[inline]
   pub fn builder() -> CameraBuilder {
     CameraBuilder::new()
   }
 
+  #[inline]
   fn update_view_matrix(&mut self, transform: &Transform) {
     self.view_matrix = glam::Mat4::look_at_rh(
       transform.position(),
@@ -86,15 +93,18 @@ impl Camera {
     );
   }
 
+  #[inline]
   fn update_projection_matrix(&mut self) {
     self.projection_matrix =
       glam::Mat4::perspective_rh(self.fov, self.aspect_ratio, self.near, self.far);
   }
 
+  #[inline]
   pub fn view_matrix(&self) -> glam::Mat4 {
     self.view_matrix
   }
 
+  #[inline]
   pub fn projection_matrix(&self) -> glam::Mat4 {
     self.projection_matrix
   }

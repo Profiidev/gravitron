@@ -29,34 +29,41 @@ pub struct App<S: Status> {
 }
 
 impl<S: Status> App<S> {
+  #[inline]
   pub fn get_resource<R: 'static>(&self) -> Option<&R> {
     self.world.get_resource()
   }
 
+  #[inline]
   pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
     self.world.get_resource_mut()
   }
 }
 
 impl App<Running> {
+  #[inline]
   pub fn set_resource<R: 'static>(&mut self, res: R) {
     self.world.set_resource(res);
   }
 
+  #[inline]
   pub fn run_init(&mut self) {
     self.init_scheduler.run(&mut self.world);
   }
 
+  #[inline]
   pub fn run_main(&mut self) {
     self.main_scheduler.run(&mut self.world);
   }
 
+  #[inline]
   pub fn run_cleanup(&mut self) {
     self.cleanup_scheduler.run(&mut self.world);
   }
 }
 
 impl<S: Stage> AppBuilder<S> {
+  #[inline]
   pub fn add_init_system<I, Sy: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = Sy>,
@@ -64,6 +71,7 @@ impl<S: Stage> AppBuilder<S> {
     self.init_scheduler.add_system(system);
   }
 
+  #[inline]
   pub fn add_init_system_at_stage<I, Sy: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = Sy>,
@@ -72,6 +80,7 @@ impl<S: Stage> AppBuilder<S> {
     self.init_scheduler.add_system_at_stage(system, stage);
   }
 
+  #[inline]
   pub fn add_main_system<I, Sy: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = Sy>,
@@ -79,6 +88,7 @@ impl<S: Stage> AppBuilder<S> {
     self.main_scheduler.add_system(system);
   }
 
+  #[inline]
   pub fn add_main_system_at_stage<I, Sy: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = Sy>,
@@ -87,6 +97,7 @@ impl<S: Stage> AppBuilder<S> {
     self.main_scheduler.add_system_at_stage(system, stage);
   }
 
+  #[inline]
   pub fn add_cleanup_system<I, Sy: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = Sy>,
@@ -94,6 +105,7 @@ impl<S: Stage> AppBuilder<S> {
     self.cleanup_scheduler.add_system(system);
   }
 
+  #[inline]
   pub fn add_cleanup_system_at_stage<I, Sy: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = Sy>,
@@ -102,10 +114,12 @@ impl<S: Stage> AppBuilder<S> {
     self.cleanup_scheduler.add_system_at_stage(system, stage);
   }
 
+  #[inline]
   pub fn add_resource<R: 'static>(&mut self, res: R) {
     self.world.add_resource(res);
   }
 
+  #[inline]
   pub fn config(&self) -> &AppConfig {
     &self.config
   }
@@ -122,10 +136,12 @@ impl<S: Stage> AppBuilder<S> {
 }
 
 impl AppBuilder<Build> {
+  #[inline]
   pub(crate) fn new() -> Self {
     Self::default()
   }
 
+  #[inline]
   pub fn config_mut(&mut self) -> &mut AppConfig {
     &mut self.config
   }
@@ -143,10 +159,12 @@ impl AppBuilder<Build> {
 }
 
 impl AppBuilder<Finalize> {
+  #[inline]
   pub fn get_resource<R: 'static>(&self) -> Option<&R> {
     self.world.get_resource()
   }
 
+  #[inline]
   pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
     self.world.get_resource_mut()
   }

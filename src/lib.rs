@@ -9,13 +9,9 @@ pub use log;
 pub use gravitron_utils as utils;
 
 pub mod renderer {
-  pub use gravitron_renderer::{error, glsl, graphics, include_glsl, memory, RendererPlugin};
+  pub use gravitron_renderer::{error, glsl, graphics, include_glsl, memory};
 }
 
 pub mod plugin {
-  pub use gravitron_plugin::{app, config, manager, Plugin};
-}
-
-pub mod window {
-  pub use gravitron_window::WindowPlugin;
+  pub use gravitron_plugin::{app, config, Plugin};
 }

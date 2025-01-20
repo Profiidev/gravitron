@@ -15,10 +15,12 @@ pub struct PluginManager {
 }
 
 impl PluginManager {
+  #[inline]
   pub fn new() -> Self {
     Self::default()
   }
 
+  #[inline]
   pub fn add_plugin(&mut self, plugin: impl Plugin) {
     self.plugins.push(Box::new(plugin));
   }

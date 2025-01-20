@@ -11,7 +11,7 @@ use gravitron_plugin::{
 pub mod ecs;
 mod window;
 
-pub struct WindowPlugin {}
+pub struct WindowPlugin;
 
 impl Plugin for WindowPlugin {
   fn build(&self, builder: &mut AppBuilder<Build>) {

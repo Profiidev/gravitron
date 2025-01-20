@@ -9,10 +9,12 @@ pub struct WindowHandle {
 }
 
 impl WindowHandle {
+  #[inline]
   pub fn window(&self) -> RawWindowHandle {
     self.window
   }
 
+  #[inline]
   pub fn display(&self) -> RawDisplayHandle {
     self.display
   }

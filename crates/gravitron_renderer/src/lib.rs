@@ -20,7 +20,7 @@ pub mod memory;
 mod pipeline;
 mod surface;
 
-pub struct RendererPlugin {}
+pub struct RendererPlugin;
 
 impl Plugin for RendererPlugin {
   fn build(&self, builder: &mut AppBuilder<Build>) {

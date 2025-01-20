@@ -12,22 +12,27 @@ pub struct Input {
 }
 
 impl Input {
+  #[inline]
   pub fn is_key_pressed(&self, code: &KeyCode) -> bool {
     self.inputs.contains(code)
   }
 
+  #[inline]
   pub fn get_cursor_pos(&self) -> (f64, f64) {
     self.cursor_pos
   }
 
+  #[inline]
   pub fn get_cursor_x(&self) -> f64 {
     self.cursor_pos.0
   }
 
+  #[inline]
   pub fn get_cursor_y(&self) -> f64 {
     self.cursor_pos.1
   }
 
+  #[inline]
   pub fn release(&mut self, code: &KeyCode) {
     self.inputs.remove(code);
   }
