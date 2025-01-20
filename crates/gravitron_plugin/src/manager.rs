@@ -4,7 +4,6 @@ use log::info;
 
 use crate::{
   app::{App, AppBuilder, Cleanup, Running},
-  config::AppConfig,
   ecs::resources::{engine_commands::EngineCommands, engine_info::EngineInfo},
   Plugin,
 };
@@ -44,9 +43,7 @@ impl PluginManager {
   }
 
   pub fn run(&self, app: &mut App<Running>) {
-    let config = app
-      .get_resource::<AppConfig>()
-      .expect("Failed to get AppConfig");
+    let config = app.get_config();
 
     let mut last_frame = Instant::now();
     let frame_time = Duration::from_secs(1) / config.window.fps;

@@ -8,6 +8,7 @@ use gravitron_ecs::{
 
 use crate::{
   config::AppConfig,
+  ecs::resources::engine_commands::EngineCommands,
   stages::{CleanupSystemStage, InitSystemStage, MainSystemStage},
 };
 
@@ -25,6 +26,7 @@ pub struct App<S: Status> {
   init_scheduler: Scheduler,
   main_scheduler: Scheduler,
   cleanup_scheduler: Scheduler,
+  config: AppConfig,
   marker: PhantomData<S>,
 }
 
@@ -37,6 +39,11 @@ impl<S: Status> App<S> {
   #[inline]
   pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
     self.world.get_resource_mut()
+  }
+
+  #[inline]
+  pub(crate) fn get_config(&self) -> &AppConfig {
+    &self.config
   }
 }
 
@@ -124,12 +131,15 @@ impl<S: Stage> AppBuilder<S> {
     &self.config
   }
 
-  pub(crate) fn build(self) -> App<Running> {
+  pub(crate) fn build(mut self) -> App<Running> {
+    self.world.add_resource(EngineCommands::default());
+
     App {
       world: self.world,
       init_scheduler: self.init_scheduler.build(false),
       main_scheduler: self.main_scheduler.build(false),
       cleanup_scheduler: self.cleanup_scheduler.build(false),
+      config: self.config,
       marker: PhantomData,
     }
   }

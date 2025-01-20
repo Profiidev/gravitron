@@ -160,7 +160,7 @@ impl<K: Clone + Ord + Hash> SchedulerBuilder<K> {
       stages
     };
 
-    let longest = stages.iter().map(|s| s.len()).max().unwrap();
+    let longest = stages.iter().map(|s| s.len()).max().unwrap_or(1);
     debug!("Scheduler initialized");
 
     Scheduler {

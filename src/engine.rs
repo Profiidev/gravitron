@@ -53,6 +53,8 @@ impl GravitronBuilder {
 
 impl Default for GravitronBuilder {
   fn default() -> Self {
+    env_logger::init();
+
     let mut plugin_manager = PluginManager::new();
 
     plugin_manager.add_plugin(WindowPlugin);

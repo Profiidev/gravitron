@@ -7,8 +7,11 @@ use gravitron::{
       renderer::MeshRenderer,
       transform::Transform,
     },
-    resources::{engine_info::EngineInfo, input::Input},
-    systems::{query::Query, resources::Res},
+    resources::{engine_commands::EngineCommands, engine_info::EngineInfo, input::Input},
+    systems::{
+      query::Query,
+      resources::{Res, ResMut},
+    },
     Component,
   },
   engine::Gravitron,
@@ -173,8 +176,8 @@ fn test2(info: Res<EngineInfo>, q: Query<(&mut Transform, &DirectionalLight, &mu
   }
 }
 
-fn test3(input: Res<Input>) {
-  if input.is_key_pressed(&KeyCode::KeyW) {
-    println!("W");
+fn test3(input: Res<Input>, mut cmds: ResMut<EngineCommands>) {
+  if input.is_key_pressed(&KeyCode::Escape) {
+    cmds.shutdown();
   }
 }

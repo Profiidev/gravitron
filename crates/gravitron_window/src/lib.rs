@@ -1,5 +1,5 @@
 use ecs::{
-  resources::{event_loop::EventLoop, handle::WindowHandle},
+  resources::{event_loop::EventLoop, handle::WindowHandle, input::Input},
   systems::input_update::update_input,
 };
 use gravitron_plugin::{
@@ -24,7 +24,8 @@ impl Plugin for WindowPlugin {
     let (event_loop, window) = EventLoop::init(builder.config().window.clone());
 
     builder.add_resource(event_loop);
-    builder.add_resource(WindowHandle::new(&window));
+    builder.add_resource(WindowHandle::new(&window).expect("Failed to create window handle"));
     builder.add_resource(window);
+    builder.add_resource(Input::default());
   }
 }

@@ -8,6 +8,7 @@ use winit::{
   dpi::{LogicalSize, Size},
   event::WindowEvent,
   event_loop::{ActiveEventLoop, EventLoop},
+  platform::wayland::EventLoopBuilderExtWayland,
   window::{Window, WindowAttributes, WindowId},
 };
 
@@ -24,6 +25,7 @@ impl WindowHandler {
     sender: Sender<WindowEvent>,
   ) -> Result<(), Error> {
     let mut event_loop = EventLoop::builder();
+    event_loop.with_any_thread(true);
     let event_loop = event_loop.build()?;
 
     event_loop.run_app(&mut WindowHandler {
