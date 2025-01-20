@@ -2,7 +2,7 @@ use ash::vk;
 
 pub use vk::{Filter, ShaderStageFlags};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct VulkanConfig {
   pub renderer: RendererConfig<'static>,
   pub shaders: Vec<PipelineType<'static>>,
@@ -64,11 +64,10 @@ impl<'a> ImageConfig<'a> {
   }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RendererConfig<'a> {
   pub layers: Vec<&'a std::ffi::CStr>,
   pub instance_extensions: Vec<&'a std::ffi::CStr>,
-  pub instance_next: Vec<Box<dyn vk::ExtendsInstanceCreateInfo + Send>>,
   pub device_extensions: Vec<&'a std::ffi::CStr>,
   pub device_features: vk::PhysicalDeviceFeatures,
 }
@@ -80,11 +79,13 @@ impl<'a> RendererConfig<'a> {
   }
 }
 
+#[derive(Clone)]
 pub enum PipelineType<'a> {
   Graphics(GraphicsPipelineConfig<'a>),
   Compute(ComputePipelineConfig<'a>),
 }
 
+#[derive(Clone)]
 pub struct GraphicsPipelineConfig<'a> {
   pub name: String,
   pub geo_shader: Option<Vec<u32>>,
@@ -118,6 +119,7 @@ impl<'a> GraphicsPipelineConfig<'a> {
   }
 }
 
+#[derive(Clone)]
 pub struct ComputePipelineConfig<'a> {
   pub name: String,
   pub shader: Vec<u32>,

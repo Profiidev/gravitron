@@ -11,4 +11,5 @@ exclude = ["CHANGELOG.md"]
 readme = "README.md"
 
 [dependencies]
+winit = { workspace = true }
 gravitron_plugin = { workspace = true }

@@ -18,11 +18,11 @@ image = { version = "0.25.5", default-features = false, features = ["rayon", "pn
 glam = { workspace = true }
 ash = { workspace = true }
 log = { workspace = true }
-winit = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 gravitron_ecs = { workspace = true }
 gravitron_plugin = { workspace = true }
+gravitron_window = { workspace = true }
 
 [features]
 debug = ["gravitron_ecs/debug"]

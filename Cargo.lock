@@ -837,11 +837,11 @@ dependencies = [
  "gpu-allocator",
  "gravitron_ecs",
  "gravitron_plugin",
+ "gravitron_window",
  "image",
  "log",
  "thiserror 2.0.11",
  "vk-shader-macros",
- "winit",
 ]
 
 [[package]]
@@ -856,6 +856,7 @@ name = "gravitron_window"
 version = "0.1.0"
 dependencies = [
  "gravitron_plugin",
+ "winit",
 ]
 
 [[package]]

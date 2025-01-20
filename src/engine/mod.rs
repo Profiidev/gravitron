@@ -141,11 +141,6 @@ impl ApplicationHandler for Gravitron {
       .add_resource(WindowCmds::default());
 
     self.window = Some(window);
-
-    debug!("Building ECS");
-    self.build_schedulers();
-
-    info!("Starting Engine");
   }
 
   fn window_event(

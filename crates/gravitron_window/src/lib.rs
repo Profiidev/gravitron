@@ -1,14 +1,10 @@
-pub fn add(left: u64, right: u64) -> u64 {
-  left + right
-}
+use gravitron_plugin::{app::{AppBuilder, Finalize}, Plugin};
 
-#[cfg(test)]
-mod tests {
-  use super::*;
+pub mod ecs;
 
-  #[test]
-  fn it_works() {
-    let result = add(2, 2);
-    assert_eq!(result, 4);
+pub struct WindowPlugin {}
+
+impl Plugin for WindowPlugin {
+  fn finalize(&self, builder: &mut AppBuilder<Finalize>) {
   }
 }

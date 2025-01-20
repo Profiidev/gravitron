@@ -19,7 +19,7 @@ use crate::{
 };
 use anyhow::Error;
 use gravitron_plugin::config::{vulkan::VulkanConfig, window::WindowConfig};
-use winit::window::Window;
+use gravitron_window::ecs::resources::handle::WindowHandle;
 
 pub struct Vulkan {
   #[allow(dead_code)]
@@ -39,18 +39,19 @@ impl Vulkan {
   pub fn init(
     mut config: VulkanConfig,
     window_config: &WindowConfig,
-    window: &Window,
+    window: &WindowHandle,
     #[cfg(target_os = "linux")] is_wayland: bool,
   ) -> Result<Self, Error> {
     let entry = unsafe { ash::Entry::load() }?;
 
+    let mut instance_next = Vec::new();
     #[cfg(feature = "debug")]
-    let debugger_info = Debugger::init_info(&mut config.renderer);
+    let debugger_info = Debugger::init_info(&mut config.renderer, &mut instance_next);
 
     let mut instance_config = InstanceDeviceConfig::default()
       .add_layers(config.renderer.layers.clone())
       .add_extensions(config.renderer.instance_extensions.clone())
-      .add_instance_nexts(std::mem::take(&mut config.renderer.instance_next));
+      .add_instance_nexts(instance_next);
 
     let instance = InstanceDevice::init(
       &mut instance_config,

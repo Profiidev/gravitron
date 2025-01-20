@@ -6,14 +6,17 @@ use gravitron_ecs::{
   world::World,
 };
 
-use crate::{config::window::WindowConfig, stages::{CleanupSystemStage, InitSystemStage, MainSystemStage}};
+use crate::{
+  config::AppConfig,
+  stages::{CleanupSystemStage, InitSystemStage, MainSystemStage},
+};
 
 pub struct AppBuilder<S: Stage> {
   world: World,
   init_scheduler: SchedulerBuilder<InitSystemStage>,
   main_scheduler: SchedulerBuilder<MainSystemStage>,
   cleanup_scheduler: SchedulerBuilder<CleanupSystemStage>,
-  config: WindowConfig,
+  config: AppConfig,
   marker: PhantomData<S>,
 }
 
@@ -74,7 +77,7 @@ impl<S: Stage> AppBuilder<S> {
     self.world.add_resource(res);
   }
 
-  pub fn config(&self) -> &WindowConfig {
+  pub fn config(&self) -> &AppConfig {
     &self.config
   }
 
@@ -95,7 +98,7 @@ impl AppBuilder<Build> {
     Self::default()
   }
 
-  pub fn config_mut(&mut self) -> &mut WindowConfig {
+  pub fn config_mut(&mut self) -> &mut AppConfig {
     &mut self.config
   }
 

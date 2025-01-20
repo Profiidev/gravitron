@@ -1,9 +1,6 @@
 use anyhow::Error;
 use ash::{khr, vk};
-use winit::{
-  raw_window_handle::{HasDisplayHandle, HasWindowHandle},
-  window::Window,
-};
+use gravitron_window::ecs::resources::handle::WindowHandle;
 
 pub struct Surface {
   surface_loader: khr::surface::Instance,
@@ -14,12 +11,11 @@ impl Surface {
   pub fn init(
     entry: &ash::Entry,
     instance: &ash::Instance,
-    window: &Window,
+    window: &WindowHandle,
   ) -> Result<Self, Error> {
-    let display_handle = window.display_handle().unwrap().as_raw();
-    let window_handle = window.window_handle().unwrap().as_raw();
-    let surface =
-      unsafe { ash_window::create_surface(entry, instance, display_handle, window_handle, None) }?;
+    let surface = unsafe {
+      ash_window::create_surface(entry, instance, window.display(), window.window(), None)
+    }?;
     let surface_loader = khr::surface::Instance::new(entry, instance);
 
     Ok(Self {

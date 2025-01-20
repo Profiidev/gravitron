@@ -23,7 +23,10 @@ impl Debugger {
     Ok(Self { debug_utils })
   }
 
-  pub fn init_info(vulkan_config: &mut RendererConfig) -> DebuggerInfo {
+  pub fn init_info(
+    vulkan_config: &mut RendererConfig,
+    instance_next: &mut Vec<Box<dyn ExtendsInstanceCreateInfo + Send>>,
+  ) -> DebuggerInfo {
     let debug_log_level = get_log_flags();
     let is_info_level = debug_log_level.contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
 
@@ -47,7 +50,7 @@ impl Debugger {
 
     let validation_ext = vk::ValidationFeaturesEXT::default()
       .enabled_validation_features(&[vk::ValidationFeatureEnableEXT::DEBUG_PRINTF]);
-    vulkan_config.instance_next.push(Box::new(validation_ext));
+    instance_next.push(Box::new(validation_ext));
 
     vulkan_config
       .instance_extensions
@@ -56,9 +59,7 @@ impl Debugger {
       .instance_extensions
       .push(ext::debug_utils::NAME);
 
-    vulkan_config
-      .instance_next
-      .append(&mut debugger_info.instance_next());
+    instance_next.append(&mut debugger_info.instance_next());
 
     debugger_info
   }

@@ -1,4 +1,7 @@
-use ecs::systems::renderer::{execute_renderer, init_renderer, renderer_recording};
+use ecs::{
+  resources::vulkan::Vulkan,
+  systems::renderer::{execute_renderer, init_renderer, renderer_recording},
+};
 use gravitron_plugin::{
   app::{AppBuilder, Build, Finalize},
   stages::MainSystemStage,
@@ -27,6 +30,14 @@ impl Plugin for RendererPlugin {
   }
 
   fn finalize(&self, builder: &mut AppBuilder<Finalize>) {
-    
+    let config = builder.config();
+    let window = builder
+      .get_resource()
+      .expect("Error: Window Plugin must be initialized before the Renderer Plugin");
+
+    let vulkan = Vulkan::init(config.vulkan.clone(), &config.window, window, false)
+      .expect("Error: Failed to create Vulkan Instance");
+
+    builder.add_resource(vulkan);
   }
 }
