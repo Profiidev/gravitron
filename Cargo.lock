@@ -856,6 +856,7 @@ name = "gravitron_window"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "gravitron_ecs",
  "gravitron_plugin",
  "gravitron_utils",
  "winit",

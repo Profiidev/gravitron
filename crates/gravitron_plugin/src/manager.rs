@@ -1,7 +1,11 @@
+use std::time::{Duration, Instant};
+
 use log::info;
 
 use crate::{
-  app::{App, AppBuilder},
+  app::{App, AppBuilder, Cleanup, Running},
+  config::AppConfig,
+  ecs::resources::{engine_commands::EngineCommands, engine_info::EngineInfo},
   Plugin,
 };
 
@@ -19,7 +23,7 @@ impl PluginManager {
     self.plugins.push(Box::new(plugin));
   }
 
-  pub fn build(&self) -> App {
+  pub fn build(&self) -> App<Running> {
     let mut builder = AppBuilder::new();
 
     for plugin in &self.plugins {
@@ -37,7 +41,37 @@ impl PluginManager {
     builder.build()
   }
 
-  pub fn cleanup(&self, app: &mut App) {
+  pub fn run(&self, app: &mut App<Running>) {
+    let config = app
+      .get_resource::<AppConfig>()
+      .expect("Failed to get AppConfig");
+
+    let mut last_frame = Instant::now();
+    let frame_time = Duration::from_secs(1) / config.window.fps;
+
+    loop {
+      let elapsed = last_frame.elapsed();
+
+      if elapsed > frame_time {
+        app.set_resource(EngineInfo {
+          delta_time: elapsed.as_secs_f32(),
+        });
+
+        last_frame = Instant::now();
+
+        app.run_main();
+
+        let cmds = app
+          .get_resource::<EngineCommands>()
+          .expect("Failed to get Engine Commands");
+        if cmds.is_shutdown() {
+          break;
+        }
+      }
+    }
+  }
+
+  pub fn cleanup(&self, app: &mut App<Cleanup>) {
     for plugin in &self.plugins {
       info!("Running cleanup for Plugin {}", plugin.name());
       plugin.cleanup(app);

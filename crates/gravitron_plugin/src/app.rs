@@ -20,20 +20,39 @@ pub struct AppBuilder<S: Stage> {
   marker: PhantomData<S>,
 }
 
-pub struct App {
+pub struct App<S: Status> {
   world: World,
   init_scheduler: Scheduler,
   main_scheduler: Scheduler,
   cleanup_scheduler: Scheduler,
+  marker: PhantomData<S>,
 }
 
-impl App {
+impl<S: Status> App<S> {
   pub fn get_resource<R: 'static>(&self) -> Option<&R> {
     self.world.get_resource()
   }
 
   pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
     self.world.get_resource_mut()
+  }
+}
+
+impl App<Running> {
+  pub fn set_resource<R: 'static>(&mut self, res: R) {
+    self.world.set_resource(res);
+  }
+
+  pub fn run_init(&mut self) {
+    self.init_scheduler.run(&mut self.world);
+  }
+
+  pub fn run_main(&mut self) {
+    self.main_scheduler.run(&mut self.world);
+  }
+
+  pub fn run_cleanup(&mut self) {
+    self.cleanup_scheduler.run(&mut self.world);
   }
 }
 
@@ -91,14 +110,13 @@ impl<S: Stage> AppBuilder<S> {
     &self.config
   }
 
-  pub(crate) fn build(mut self) -> App {
-    self.world.add_resource(self.config);
-
+  pub(crate) fn build(self) -> App<Running> {
     App {
       world: self.world,
       init_scheduler: self.init_scheduler.build(false),
       main_scheduler: self.main_scheduler.build(false),
       cleanup_scheduler: self.cleanup_scheduler.build(false),
+      marker: PhantomData,
     }
   }
 }
@@ -160,3 +178,11 @@ impl Stage for Build {}
 
 pub struct Finalize {}
 impl Stage for Finalize {}
+
+pub trait Status {}
+
+pub struct Running {}
+impl Status for Running {}
+
+pub struct Cleanup {}
+impl Status for Cleanup {}

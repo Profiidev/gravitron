@@ -12,6 +12,7 @@ use crate::window::WindowHandler;
 pub struct EventLoop {
   _thread: JoinHandle<()>,
   receiver: Receiver<WindowEvent>,
+  events: Vec<WindowEvent>,
 }
 
 impl EventLoop {
@@ -31,12 +32,17 @@ impl EventLoop {
       Self {
         _thread: thread,
         receiver,
+        events: Vec::new(),
       },
       window,
     )
   }
 
-  pub(crate) fn get_events(&self) -> Vec<WindowEvent> {
-    self.receiver.try_iter().collect()
+  pub(crate) fn update_events(&mut self) {
+    self.events = self.receiver.try_iter().collect();
+  }
+
+  pub fn events(&self) -> &[WindowEvent] {
+    &self.events
   }
 }
