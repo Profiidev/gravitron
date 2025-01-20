@@ -27,6 +27,16 @@ pub struct App {
   cleanup_scheduler: Scheduler,
 }
 
+impl App {
+  pub fn get_resource<R: 'static>(&self) -> Option<&R> {
+    self.world.get_resource()
+  }
+
+  pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
+    self.world.get_resource_mut()
+  }
+}
+
 impl<S: Stage> AppBuilder<S> {
   pub fn add_init_system<I, Sy: System + 'static>(
     &mut self,
@@ -126,6 +136,12 @@ impl AppBuilder<Finalize> {
 
 impl Default for AppBuilder<Build> {
   fn default() -> Self {
+    let orig_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+      orig_hook(panic_info);
+      std::process::exit(1);
+    }));
+
     Self {
       world: Default::default(),
       init_scheduler: Default::default(),

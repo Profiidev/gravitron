@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct WindowConfig {
   pub title: String,
   pub width: u32,

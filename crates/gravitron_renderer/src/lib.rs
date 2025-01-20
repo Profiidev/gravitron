@@ -3,7 +3,7 @@ use ecs::{
   systems::renderer::{execute_renderer, init_renderer, renderer_recording},
 };
 use gravitron_plugin::{
-  app::{AppBuilder, Build, Finalize},
+  app::{App, AppBuilder, Build, Finalize},
   stages::MainSystemStage,
   Plugin,
 };
@@ -39,5 +39,12 @@ impl Plugin for RendererPlugin {
       .expect("Error: Failed to create Vulkan Instance");
 
     builder.add_resource(vulkan);
+  }
+
+  fn cleanup(&self, app: &mut App) {
+    let vulkan = app
+      .get_resource_mut::<Vulkan>()
+      .expect("Failed to Cleanup Vulkan");
+    vulkan.destroy();
   }
 }

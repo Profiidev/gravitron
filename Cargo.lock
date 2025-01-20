@@ -855,7 +855,9 @@ dependencies = [
 name = "gravitron_window"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "gravitron_plugin",
+ "gravitron_utils",
  "winit",
 ]
 

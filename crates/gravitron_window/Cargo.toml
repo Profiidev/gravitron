@@ -12,4 +12,6 @@ readme = "README.md"
 
 [dependencies]
 winit = { workspace = true }
+anyhow = { workspace = true }
 gravitron_plugin = { workspace = true }
+gravitron_utils = { workspace = true }
