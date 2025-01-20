@@ -769,7 +769,6 @@ dependencies = [
 name = "gravitron"
 version = "0.3.0"
 dependencies = [
- "anyhow",
  "env_logger",
  "glam",
  "gravitron_ecs",
@@ -779,7 +778,6 @@ dependencies = [
  "gravitron_utils",
  "gravitron_window",
  "log",
- "winit",
 ]
 
 [[package]]

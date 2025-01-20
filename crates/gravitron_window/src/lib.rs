@@ -8,6 +8,8 @@ use gravitron_plugin::{
   Plugin,
 };
 
+pub use winit;
+
 pub mod ecs;
 mod window;
 

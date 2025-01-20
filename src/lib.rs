@@ -15,3 +15,7 @@ pub mod renderer {
 pub mod plugin {
   pub use gravitron_plugin::{app, config, Plugin};
 }
+
+pub mod window {
+  pub use gravitron_window::winit;
+}
