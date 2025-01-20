@@ -42,6 +42,7 @@ gravitron_ecs = { workspace = true }
 gravitron_hierarchy = { workspace = true }
 gravitron_renderer = { workspace = true }
 gravitron_plugin = { workspace = true }
+gravitron_window = { workspace = true }
 
 [features]
 default = ["debug"]

@@ -777,6 +777,7 @@ dependencies = [
  "gravitron_plugin",
  "gravitron_renderer",
  "gravitron_utils",
+ "gravitron_window",
  "log",
  "winit",
 ]

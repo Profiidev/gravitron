@@ -2,9 +2,9 @@ use app::{App, AppBuilder, Build, Cleanup, Finalize};
 
 pub mod app;
 pub mod config;
+pub mod ecs;
 pub mod manager;
 pub mod stages;
-pub mod ecs;
 
 pub trait Plugin: 'static {
   fn build(&self, _builder: &mut AppBuilder<Build>) {}
