@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/gravitron_ecs", "crates/gravitron_hierarchy", "crates/gravitron_macro_utils", "crates/gravitron_plugin", "crates/gravitron_renderer", "crates/gravitron_utils"]
+members = ["crates/gravitron_ecs", "crates/gravitron_hierarchy", "crates/gravitron_macro_utils", "crates/gravitron_plugin", "crates/gravitron_renderer", "crates/gravitron_utils", "crates/gravitron_window"]
 
 [workspace.dependencies]
 log = "0.4.22"
@@ -17,6 +17,7 @@ gravitron_hierarchy = { path = "./crates/gravitron_hierarchy", version = "0.1.0"
 gravitron_renderer = { path = "./crates/gravitron_renderer", version = "0.1.0" }
 gravitron_macro_utils = { path = "./crates/gravitron_macro_utils", version = "0.1.1" }
 gravitron_plugin = { path = "./crates/gravitron_plugin", version = "0.1.0" }
+gravitron_window = { path = "./crates/gravitron_plugin", version = "0.1.0" }
 
 [package]
 name = "gravitron"

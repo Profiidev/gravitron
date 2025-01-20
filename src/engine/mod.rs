@@ -76,38 +76,6 @@ impl Gravitron {
     Ok(())
   }
 
-  fn ecs_mut(&mut self) -> &mut ECS {
-    match &mut self.ecs {
-      ECSEnum::Ready(ecs) => ecs,
-      _ => unreachable!("Wrong ecs usage"),
-    }
-  }
-
-  fn ecs_builder_mut(&mut self) -> &mut ECSBuilder<SystemStage> {
-    match &mut self.ecs {
-      ECSEnum::Builder(ecs) => ecs,
-      _ => unreachable!("Wrong ecs usage"),
-    }
-  }
-
-  fn build_schedulers(&mut self) {
-    let temp = unsafe { mem::MaybeUninit::zeroed().assume_init() };
-    let builder = mem::replace(&mut self.ecs, temp);
-    let builder = match builder {
-      ECSEnum::Builder(builder) => builder,
-      _ => unreachable!("Ecs already build"),
-    };
-
-    let temp = mem::replace(
-      &mut self.ecs,
-      ECSEnum::Ready(ECS {
-        world: builder.world,
-        main_scheduler: builder.main_scheduler.build(false),
-      }),
-    );
-    mem::forget(temp);
-  }
-
   fn run(&mut self, event_loop: &ActiveEventLoop) {
     let elapsed = self.last_frame.elapsed();
     if elapsed > self.frame_time {
@@ -228,44 +196,5 @@ impl ApplicationHandler for Gravitron {
     debug!("Cleaning up Engine");
     let vulkan = self.ecs_mut().world.get_resource_mut::<Vulkan>().unwrap();
     vulkan.destroy();
-  }
-}
-
-pub struct GravitronBuilder {
-  ecs: ECSBuilder<SystemStage>,
-  config: EngineConfig,
-}
-
-impl GravitronBuilder {
-  pub fn new(config: EngineConfig) -> Self {
-    #[cfg(feature = "debug")]
-    env_logger::init();
-
-    GravitronBuilder {
-      ecs: Default::default(),
-      config,
-    }
-  }
-
-  pub fn add_resource<R: 'static>(mut self, res: R) -> Self {
-    self.ecs.world.add_resource(res);
-    self
-  }
-
-  pub fn add_main_system<I, S: System + 'static>(
-    mut self,
-    system: impl IntoSystem<I, System = S>,
-  ) -> Self {
-    self.ecs.main_scheduler.add_system(system);
-    self
-  }
-
-  pub fn create_entity(&mut self, entity: impl IntoEntity) -> EntityId {
-    self.ecs.world.create_entity(entity)
-  }
-
-  pub fn run(self) -> Result<(), Error> {
-    let Self { config, ecs } = self;
-    Gravitron::init(config, ecs)
   }
 }

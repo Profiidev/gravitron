@@ -6,18 +6,19 @@ use gravitron_ecs::{
   world::World,
 };
 
-use crate::{config::window::WindowConfig, stages::SystemStage};
+use crate::{config::window::WindowConfig, stages::{CleanupSystemStage, InitSystemStage, MainSystemStage}};
 
 pub struct AppBuilder<S: Stage> {
   world: World,
-  init_scheduler: SchedulerBuilder,
-  main_scheduler: SchedulerBuilder<SystemStage>,
-  cleanup_scheduler: SchedulerBuilder,
+  init_scheduler: SchedulerBuilder<InitSystemStage>,
+  main_scheduler: SchedulerBuilder<MainSystemStage>,
+  cleanup_scheduler: SchedulerBuilder<CleanupSystemStage>,
   config: WindowConfig,
   marker: PhantomData<S>,
 }
 
 pub struct App {
+  world: World,
   init_scheduler: Scheduler,
   main_scheduler: Scheduler,
   cleanup_scheduler: Scheduler,
@@ -31,6 +32,14 @@ impl<S: Stage> AppBuilder<S> {
     self.init_scheduler.add_system(system);
   }
 
+  pub fn add_init_system_at_stage<I, Sy: System + 'static>(
+    &mut self,
+    system: impl IntoSystem<I, System = Sy>,
+    stage: InitSystemStage,
+  ) {
+    self.init_scheduler.add_system_at_stage(system, stage);
+  }
+
   pub fn add_main_system<I, Sy: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = Sy>,
@@ -41,7 +50,7 @@ impl<S: Stage> AppBuilder<S> {
   pub fn add_main_system_at_stage<I, Sy: System + 'static>(
     &mut self,
     system: impl IntoSystem<I, System = Sy>,
-    stage: SystemStage,
+    stage: MainSystemStage,
   ) {
     self.main_scheduler.add_system_at_stage(system, stage);
   }
@@ -53,6 +62,14 @@ impl<S: Stage> AppBuilder<S> {
     self.cleanup_scheduler.add_system(system);
   }
 
+  pub fn add_cleanup_system_at_stage<I, Sy: System + 'static>(
+    &mut self,
+    system: impl IntoSystem<I, System = Sy>,
+    stage: CleanupSystemStage,
+  ) {
+    self.cleanup_scheduler.add_system_at_stage(system, stage);
+  }
+
   pub fn add_resource<R: 'static>(&mut self, res: R) {
     self.world.add_resource(res);
   }
@@ -61,8 +78,11 @@ impl<S: Stage> AppBuilder<S> {
     &self.config
   }
 
-  pub(crate) fn build(self) -> App {
+  pub(crate) fn build(mut self) -> App {
+    self.world.add_resource(self.config);
+
     App {
+      world: self.world,
       init_scheduler: self.init_scheduler.build(false),
       main_scheduler: self.main_scheduler.build(false),
       cleanup_scheduler: self.cleanup_scheduler.build(false),
@@ -88,6 +108,16 @@ impl AppBuilder<Build> {
       config: self.config,
       marker: PhantomData,
     }
+  }
+}
+
+impl AppBuilder<Finalize> {
+  pub fn get_resource<R: 'static>(&self) -> Option<&R> {
+    self.world.get_resource()
+  }
+
+  pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
+    self.world.get_resource_mut()
   }
 }
 
