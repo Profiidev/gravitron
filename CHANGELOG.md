@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-01-21
+
+### 🚀 Features
+
+- Defered rendering stage 2
+- Auto detect wayland
+- Added added and changed to components
+- Save comp removed tick
+- Inital hierarchy implementation
+- Added renderer crate
+- Added plugin crate
+- First plugin logic
+- Added gravitron window
+- Added window resources
+- Added input resource
+- Added engine struct
+- Added additional logging
+
+### 🐛 Bug Fixes
+
+- Wrong import of trait
+- Wrong import of trait
+- Test main wrong imports
+- Fixed some oversights in rework
+
+### 🚜 Refactor
+
+- Moved modelid to struct
+- Changed query structure
+- Removed combined ecs struct and made scheduler pub
+- Renamed type_ to r#type
+- Moved render code to crate
+- Removed some errors
+- Renderer now using window handle resource
+- Fixed imports
+
+### 📚 Documentation
+
+- Fixed readme
+
+### ⚡ Performance
+
+- Removed into_query overhead
+
+### ⚙️ Miscellaneous Tasks
+
+- Moved some dependencies to workspace
+
+
 ## [0.3.0] - 2024-10-29
 
 ### 🚀 Features
