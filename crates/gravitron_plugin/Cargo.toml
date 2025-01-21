@@ -1,16 +1,19 @@
 [package]
-name = "gravitron_hierarchy"
+name = "gravitron_plugin"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 keywords = ["game", "gravitron"]
+categories = ["game-engines"]
 repository = "https://github.com/Profiidev/gravitron"
-description = "Gravitron's ECS Hierarchy"
+description = "Gravitron Plugin"
 exclude = ["CHANGELOG.md"]
 readme = "README.md"
 
 [dependencies]
 gravitron_ecs = { workspace = true }
+ash = { workspace = true }
+log = { workspace = true }
 
 [features]
 debug = ["gravitron_ecs/debug"]

@@ -1,0 +1,28 @@
+[package]
+name = "gravitron_renderer"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+keywords = ["game", "gravitron"]
+categories = ["game-engines"]
+repository = "https://github.com/Profiidev/gravitron"
+description = "Gravitron Renderer"
+exclude = ["CHANGELOG.md"]
+readme = "README.md"
+
+[dependencies]
+ash-window = "0.13.0"
+gpu-allocator = { version = "0.27.0", default-features = false, features = ["vulkan"] }
+vk-shader-macros = "0.2.9"
+image = { version = "0.25.5", default-features = false, features = ["rayon", "png"] }
+glam = { workspace = true }
+ash = { workspace = true }
+log = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+gravitron_ecs = { workspace = true }
+gravitron_plugin = { workspace = true }
+gravitron_window = { workspace = true }
+
+[features]
+debug = ["gravitron_ecs/debug", "gravitron_plugin/debug", "gravitron_window/debug"]

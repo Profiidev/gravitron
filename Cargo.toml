@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/gravitron_ecs", "crates/gravitron_hierarchy", "crates/gravitron_macro_utils", "crates/gravitron_utils"]
+members = ["crates/gravitron_ecs", "crates/gravitron_hierarchy", "crates/gravitron_macro_utils", "crates/gravitron_plugin", "crates/gravitron_renderer", "crates/gravitron_utils", "crates/gravitron_window"]
 
 [workspace.dependencies]
 log = "0.4.22"
@@ -7,9 +7,17 @@ anyhow = "1.0.95"
 syn = { version = "2.0.95", features = ["full"] }
 quote = "1.0.38"
 proc-macro2 = "1.0.93"
+glam = "0.29.2"
+thiserror = "2.0.11"
+ash = "0.38.0"
+winit = { version = "0.30.8", features = ["wayland"] }
 gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.3" }
 gravitron_ecs = { path = "./crates/gravitron_ecs", version = "0.3.0" }
+gravitron_hierarchy = { path = "./crates/gravitron_hierarchy", version = "0.1.0" }
+gravitron_renderer = { path = "./crates/gravitron_renderer", version = "0.1.0" }
 gravitron_macro_utils = { path = "./crates/gravitron_macro_utils", version = "0.1.1" }
+gravitron_plugin = { path = "./crates/gravitron_plugin", version = "0.1.0" }
+gravitron_window = { path = "./crates/gravitron_window", version = "0.1.0" }
 
 [package]
 name = "gravitron"
@@ -24,22 +32,18 @@ keywords = ["game", "engine", "gravitron"]
 readme = "README.md"
 
 [dependencies]
-ash = "0.38.0"
-ash-window = "0.13.0"
-glam = "0.29.2"
-gpu-allocator = { version = "0.27.0", default-features = false, features = ["vulkan"] }
-thiserror = "2.0.11"
-vk-shader-macros = "0.2.9"
-winit = { version = "0.30.8", features = ["wayland"] }
 env_logger = "0.11.6"
-image = { version = "0.25.5", default-features = false, features = ["rayon", "png"] }
 log = { workspace = true }
-anyhow = { workspace = true }
+glam = { workspace = true }
 gravitron_utils = { workspace = true }
 gravitron_ecs = { workspace = true }
+gravitron_hierarchy = { workspace = true }
+gravitron_renderer = { workspace = true }
+gravitron_plugin = { workspace = true }
+gravitron_window = { workspace = true }
 
 [features]
 default = ["debug"]
-debug = ["gravitron_ecs/debug"]
+debug = ["gravitron_ecs/debug", "gravitron_renderer/debug", "gravitron_utils/debug", "gravitron_hierarchy/debug", "gravitron_plugin/debug", "gravitron_window/debug"]
 
 [lib]
