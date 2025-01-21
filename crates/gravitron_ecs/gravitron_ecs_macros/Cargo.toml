@@ -7,6 +7,7 @@ keywords = ["ecs", "game", "gravitron"]
 categories = ["game-engines", "data-structures"]
 repository = "https://github.com/Profiidev/gravitron"
 description = "Macros for Gravitron's ECS"
+readme = "README.md"
 
 [dependencies]
 syn = { workspace = true }
