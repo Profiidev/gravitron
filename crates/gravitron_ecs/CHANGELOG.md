@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-01-21
+
+### 🚀 Features
+
+- Faster hashmap
+- Added inline in ecs
+- Added added and changed to components
+- Save comp removed tick
+- Added filter to query
+- Inital hierarchy implementation
+- Added simpler way to propergate top down through hierarchy
+- Added option for changing system execution type
+
+### 🐛 Bug Fixes
+
+- Archetype res invalid
+- Fixed some oversights in rework
+
+### 🚜 Refactor
+
+- Moved id to struct
+- Moved modelid to struct
+- Changed query structure
+- Removed combined ecs struct and made scheduler pub
+- Renamed type_ to r#type
+
+### 📚 Documentation
+
+- Fixed readme
+
+### ⚡ Performance
+
+- Added some more benches
+- Removed into_query overhead
+
+### 🎨 Styling
+
+- Fixed format
+
+### 🧪 Testing
+
+- Fixed benches
+- Added query filter tests
+
+### ⚙️ Miscellaneous Tasks
+
+- Moved some dependencies to workspace
+- Fixed windows tests
+
+
 ## [0.3.0] - 2024-10-29
 
 ### 🚀 Features

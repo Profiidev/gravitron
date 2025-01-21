@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5] - 2025-01-21
+
+### 🚀 Features
+
+- Added inline in ecs
+- Added filter to query
+
+### 📚 Documentation
+
+- Fixed readme
+
+### ⚙️ Miscellaneous Tasks
+
+- Moved some dependencies to workspace
+
+
 ## [0.1.4] - 2024-10-29
 
 ### 🚀 Features
