@@ -75,6 +75,8 @@ impl ApplicationHandler for WindowHandler {
 
     self.ready_signal.send(window);
     #[cfg(target_os = "linux")]
+    debug!("Window is using wayland: {}", event_loop.is_wayland());
+    #[cfg(target_os = "linux")]
     self.wayland_signal.send(event_loop.is_wayland());
   }
 

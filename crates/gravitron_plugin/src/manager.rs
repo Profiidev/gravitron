@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use log::{debug, info, trace};
+use log::{debug, trace};
 
 use crate::{
   app::{App, AppBuilder, Cleanup, Running},
@@ -21,6 +21,7 @@ impl PluginManager {
 
   #[inline]
   pub fn add_plugin(&mut self, plugin: impl Plugin) {
+    debug!("Adding Plugin {}", plugin.name());
     self.plugins.push(Box::new(plugin));
   }
 
@@ -28,14 +29,14 @@ impl PluginManager {
     let mut builder = AppBuilder::new();
 
     for plugin in &self.plugins {
-      info!("Running build for Plugin {}", plugin.name());
+      debug!("Running build for Plugin {}", plugin.name());
       plugin.build(&mut builder);
     }
 
     let mut builder = builder.finalize();
 
     for plugin in &self.plugins {
-      info!("Running finalize for Plugin {}", plugin.name());
+      debug!("Running finalize for Plugin {}", plugin.name());
       plugin.finalize(&mut builder);
     }
 
@@ -75,7 +76,7 @@ impl PluginManager {
 
   pub fn cleanup(&self, app: &mut App<Cleanup>) {
     for plugin in &self.plugins {
-      info!("Running cleanup for Plugin {}", plugin.name());
+      debug!("Running cleanup for Plugin {}", plugin.name());
       plugin.cleanup(app);
     }
   }
