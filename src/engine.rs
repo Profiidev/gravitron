@@ -5,6 +5,7 @@ use gravitron_plugin::{
 };
 use gravitron_renderer::RendererPlugin;
 use gravitron_window::WindowPlugin;
+use log::info;
 
 pub struct GravitronBuilder {
   plugin_manager: PluginManager,
@@ -42,6 +43,7 @@ impl GravitronBuilder {
   }
 
   pub fn build(self) -> Gravitron {
+    info!("Building App");
     let app = self.plugin_manager.build();
 
     Gravitron {
@@ -55,8 +57,10 @@ impl Default for GravitronBuilder {
   fn default() -> Self {
     env_logger::init();
 
+    info!("Creating PluginManager");
     let mut plugin_manager = PluginManager::new();
 
+    info!("Adding default plugins");
     plugin_manager.add_plugin(WindowPlugin);
     plugin_manager.add_plugin(RendererPlugin);
 

@@ -3,6 +3,9 @@ use std::sync::mpsc::Sender;
 use anyhow::Error;
 use gravitron_plugin::config::window::WindowConfig;
 use gravitron_utils::thread::Signal;
+use log::debug;
+#[cfg(feature = "debug")]
+use log::trace;
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
@@ -24,10 +27,16 @@ impl WindowHandler {
     ready_signal: Signal<Window>,
     sender: Sender<WindowEvent>,
   ) -> Result<(), Error> {
+    debug!("Creating EventLoop");
     let mut event_loop = EventLoop::builder();
+
+    debug!("Configuring EventLoop");
     event_loop.with_any_thread(true);
+
+    debug!("Building EventLoop");
     let event_loop = event_loop.build()?;
 
+    debug!("Running EventLoop");
     event_loop.run_app(&mut WindowHandler {
       config,
       ready_signal,
@@ -47,6 +56,7 @@ impl ApplicationHandler for WindowHandler {
         self.config.height as f64,
       )));
 
+    debug!("Creating Window");
     let window = event_loop
       .create_window(window_attributes)
       .expect("Error: Failed to create Window");
@@ -60,6 +70,8 @@ impl ApplicationHandler for WindowHandler {
     _window_id: WindowId,
     event: WindowEvent,
   ) {
+    #[cfg(feature = "debug")]
+    trace!("New wind event in window");
     self.sender.send(event).expect("Failed to send WindowEvent");
   }
 }

@@ -858,6 +858,7 @@ dependencies = [
  "gravitron_ecs",
  "gravitron_plugin",
  "gravitron_utils",
+ "log",
  "winit",
 ]
 

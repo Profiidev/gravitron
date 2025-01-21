@@ -44,6 +44,6 @@ gravitron_window = { workspace = true }
 
 [features]
 default = ["debug"]
-debug = ["gravitron_ecs/debug", "gravitron_renderer/debug", "gravitron_utils/debug"]
+debug = ["gravitron_ecs/debug", "gravitron_renderer/debug", "gravitron_utils/debug", "gravitron_hierarchy/debug", "gravitron_plugin/debug", "gravitron_window/debug"]
 
 [lib]

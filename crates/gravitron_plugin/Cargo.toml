@@ -14,3 +14,6 @@ readme = "README.md"
 gravitron_ecs = { workspace = true }
 ash = { workspace = true }
 log = { workspace = true }
+
+[features]
+debug = ["gravitron_ecs/debug"]

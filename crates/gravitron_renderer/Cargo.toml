@@ -25,4 +25,4 @@ gravitron_plugin = { workspace = true }
 gravitron_window = { workspace = true }
 
 [features]
-debug = ["gravitron_ecs/debug"]
+debug = ["gravitron_ecs/debug", "gravitron_plugin/debug", "gravitron_window/debug"]

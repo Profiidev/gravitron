@@ -11,3 +11,6 @@ readme = "README.md"
 
 [dependencies]
 gravitron_ecs = { workspace = true }
+
+[features]
+debug = ["gravitron_ecs/debug"]

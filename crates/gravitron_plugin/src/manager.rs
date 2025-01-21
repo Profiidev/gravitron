@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use log::info;
+use log::{debug, info, trace};
 
 use crate::{
   app::{App, AppBuilder, Cleanup, Running},
@@ -64,8 +64,11 @@ impl PluginManager {
           .get_resource::<EngineCommands>()
           .expect("Failed to get Engine Commands");
         if cmds.is_shutdown() {
+          debug!("Exiting game loop");
           break;
         }
+
+        trace!("Frame took {:?}", last_frame.elapsed());
       }
     }
   }
