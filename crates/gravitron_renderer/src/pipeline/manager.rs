@@ -43,7 +43,7 @@ impl PipelineManager {
     let mut pool_sizes = vec![];
 
     let mut textures_used = vec![ImageConfig::new_bytes(
-      include_bytes!("../../../../assets/default.png").to_vec(),
+      include_bytes!("../../assets/default.png").to_vec(),
       vk::Filter::LINEAR,
     )];
     textures_used.extend(textures);
