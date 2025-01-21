@@ -7,6 +7,8 @@ use gravitron_plugin::{
   stages::MainSystemStage,
   Plugin,
 };
+#[cfg(target_os = "linux")]
+use gravitron_window::ecs::resources::event_loop::EventLoop;
 pub use vk_shader_macros::{glsl, include_glsl};
 
 #[cfg(feature = "debug")]
@@ -35,8 +37,19 @@ impl Plugin for RendererPlugin {
       .get_resource()
       .expect("Error: Window Plugin must be initialized before the Renderer Plugin");
 
-    let vulkan = Vulkan::init(config.vulkan.clone(), &config.window, window, false)
-      .expect("Error: Failed to create Vulkan Instance");
+    #[cfg(target_os = "linux")]
+    let event_loop = builder
+      .get_resource::<EventLoop>()
+      .expect("Error: Window Plugin must be initialized before the Renderer Plugin");
+
+    let vulkan = Vulkan::init(
+      config.vulkan.clone(),
+      &config.window,
+      window,
+      #[cfg(target_os = "linux")]
+      event_loop.wayland(),
+    )
+    .expect("Error: Failed to create Vulkan Instance");
 
     builder.add_resource(vulkan);
   }

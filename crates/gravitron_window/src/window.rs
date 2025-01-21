@@ -6,18 +6,24 @@ use gravitron_utils::thread::Signal;
 use log::debug;
 #[cfg(feature = "debug")]
 use log::trace;
+#[cfg(target_os = "linux")]
+use winit::platform::wayland::{ActiveEventLoopExtWayland, EventLoopBuilderExtWayland};
 use winit::{
   application::ApplicationHandler,
   dpi::{LogicalSize, Size},
   event::WindowEvent,
   event_loop::{ActiveEventLoop, EventLoop},
-  platform::wayland::EventLoopBuilderExtWayland,
   window::{Window, WindowAttributes, WindowId},
 };
+
+#[cfg(target_os = "windows")]
+use winit::platform::windows::EventLoopBuilderExtWindows;
 
 pub struct WindowHandler {
   config: WindowConfig,
   ready_signal: Signal<Window>,
+  #[cfg(target_os = "linux")]
+  wayland_signal: Signal<bool>,
   sender: Sender<WindowEvent>,
 }
 
@@ -26,12 +32,16 @@ impl WindowHandler {
     config: WindowConfig,
     ready_signal: Signal<Window>,
     sender: Sender<WindowEvent>,
+    #[cfg(target_os = "linux")] wayland_signal: Signal<bool>,
   ) -> Result<(), Error> {
     debug!("Creating EventLoop");
     let mut event_loop = EventLoop::builder();
 
-    debug!("Configuring EventLoop");
-    event_loop.with_any_thread(true);
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    {
+      debug!("Configuring EventLoop");
+      event_loop.with_any_thread(true);
+    }
 
     debug!("Building EventLoop");
     let event_loop = event_loop.build()?;
@@ -41,6 +51,8 @@ impl WindowHandler {
       config,
       ready_signal,
       sender,
+      #[cfg(target_os = "linux")]
+      wayland_signal,
     })?;
 
     Ok(())
@@ -62,6 +74,8 @@ impl ApplicationHandler for WindowHandler {
       .expect("Error: Failed to create Window");
 
     self.ready_signal.send(window);
+    #[cfg(target_os = "linux")]
+    self.wayland_signal.send(event_loop.is_wayland());
   }
 
   fn window_event(
