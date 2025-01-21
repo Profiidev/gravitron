@@ -9,6 +9,7 @@ use gravitron_plugin::{
 };
 #[cfg(target_os = "linux")]
 use gravitron_window::ecs::resources::event_loop::EventLoop;
+use log::debug;
 pub use vk_shader_macros::{glsl, include_glsl};
 
 #[cfg(feature = "debug")]
@@ -55,6 +56,7 @@ impl Plugin for RendererPlugin {
   }
 
   fn cleanup(&self, app: &mut App<Cleanup>) {
+    debug!("Cleaning up Vulkan");
     let vulkan = app
       .get_resource_mut::<Vulkan>()
       .expect("Failed to Cleanup Vulkan");
