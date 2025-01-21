@@ -66,88 +66,90 @@ impl Plugin for Game {
 
     builder.config_mut().vulkan = vulkan;
 
-    builder.add_init_system(|cmds: &mut Commands| {
-      let mut transform = Transform::default();
-      transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
-      cmds.create_entity((
-        MeshRenderer {
-          model_id: CUBE_MODEL,
-          material: Material {
-            color: math::Vec4::new(1.0, 1.0, 0.0, 1.0),
-            metallic: 1.0,
-            roughness: 0.5,
-            ..Default::default()
-          },
-        },
-        transform,
-        Marker::default(),
-      ));
-      let mut transform = Transform::default();
-      transform.set_position(math::Vec3::new(0.0, 0.0, 0.0));
-      cmds.create_entity((
-        MeshRenderer {
-          model_id: CUBE_MODEL,
-          material: Material {
-            shader: "testing".into(),
-            ..Default::default()
-          },
-        },
-        transform,
-      ));
-
-      let mut camera_transform = Transform::default();
-      camera_transform.set_rotation(
-        0.0,
-        std::f32::consts::FRAC_PI_4 * 3.0,
-        -std::f32::consts::FRAC_PI_4,
-      );
-      camera_transform.set_position(math::Vec3::new(10.0, 10.0, 10.0));
-      cmds.create_entity((
-        CameraBuilder::new().build(&camera_transform),
-        camera_transform,
-      ));
-
-      let mut dl_t = Transform::default();
-      dl_t.set_rotation(0.0, std::f32::consts::FRAC_PI_4 * 3.0, 0.0);
-      cmds.create_entity((
-        DirectionalLight {
-          color: glam::Vec3::new(1.0, 0.0, 0.0),
-          intensity: 1.0,
-          ambient_color: glam::Vec3::new(1.0, 1.0, 1.0),
-          ambient_intensity: 0.1,
-        },
-        dl_t,
-        Marker::default(),
-      ));
-
-      let mut t = Transform::default();
-      t.set_position(glam::Vec3::new(0.0, 1.1, 0.0));
-      cmds.create_entity((
-        PointLight {
-          color: glam::Vec3::new(1.0, 0.0, 1.0),
-          intensity: 10.0,
-          range: 1.0,
-        },
-        t,
-      ));
-      let mut t = Transform::default();
-      t.set_position(glam::Vec3::new(5.0, 1.1, 0.0));
-      t.set_rotation(std::f32::consts::PI, 0.0, 0.0);
-      cmds.create_entity((
-        SpotLight {
-          color: glam::Vec3::new(0.0, 1.0, 0.0),
-          intensity: 1.0,
-          range: 1.0,
-          angle: 1.0,
-        },
-        t,
-      ));
-    });
+    builder.add_init_system(init);
 
     builder.add_main_system(test);
     builder.add_main_system(test2);
     builder.add_main_system(test3);
   }
+}
+
+fn init(cmds: &mut Commands) {
+  let mut transform = Transform::default();
+  transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
+  cmds.create_entity((
+    MeshRenderer {
+      model_id: CUBE_MODEL,
+      material: Material {
+        color: math::Vec4::new(1.0, 1.0, 0.0, 1.0),
+        metallic: 1.0,
+        roughness: 0.5,
+        ..Default::default()
+      },
+    },
+    transform,
+    Marker::default(),
+  ));
+  let mut transform = Transform::default();
+  transform.set_position(math::Vec3::new(0.0, 0.0, 0.0));
+  cmds.create_entity((
+    MeshRenderer {
+      model_id: CUBE_MODEL,
+      material: Material {
+        shader: "testing".into(),
+        ..Default::default()
+      },
+    },
+    transform,
+  ));
+
+  let mut camera_transform = Transform::default();
+  camera_transform.set_rotation(
+    0.0,
+    std::f32::consts::FRAC_PI_4 * 3.0,
+    -std::f32::consts::FRAC_PI_4,
+  );
+  camera_transform.set_position(math::Vec3::new(10.0, 10.0, 10.0));
+  cmds.create_entity((
+    CameraBuilder::new().build(&camera_transform),
+    camera_transform,
+  ));
+
+  let mut dl_t = Transform::default();
+  dl_t.set_rotation(0.0, std::f32::consts::FRAC_PI_4 * 3.0, 0.0);
+  cmds.create_entity((
+    DirectionalLight {
+      color: glam::Vec3::new(1.0, 0.0, 0.0),
+      intensity: 1.0,
+      ambient_color: glam::Vec3::new(1.0, 1.0, 1.0),
+      ambient_intensity: 0.1,
+    },
+    dl_t,
+    Marker::default(),
+  ));
+
+  let mut t = Transform::default();
+  t.set_position(glam::Vec3::new(0.0, 1.1, 0.0));
+  cmds.create_entity((
+    PointLight {
+      color: glam::Vec3::new(1.0, 0.0, 1.0),
+      intensity: 10.0,
+      range: 1.0,
+    },
+    t,
+  ));
+  let mut t = Transform::default();
+  t.set_position(glam::Vec3::new(5.0, 1.1, 0.0));
+  t.set_rotation(std::f32::consts::PI, 0.0, 0.0);
+  cmds.create_entity((
+    SpotLight {
+      color: glam::Vec3::new(0.0, 1.0, 0.0),
+      intensity: 1.0,
+      range: 1.0,
+      angle: 1.0,
+    },
+    t,
+  ));
 }
 
 fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
