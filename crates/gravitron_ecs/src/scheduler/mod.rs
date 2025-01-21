@@ -69,9 +69,9 @@ impl<K: Clone + Ord + Hash> SchedulerBuilder<K> {
     stage.push(Box::new(system.into_system()));
   }
 
-  pub fn build(mut self, sync_system_exec: bool) -> Scheduler {
-    let stages = if sync_system_exec {
-      debug!("Initializing Scheduler for sync Execution");
+  pub fn build(mut self, parallel_system_exec: bool) -> Scheduler {
+    let stages = if parallel_system_exec {
+      debug!("Initializing Scheduler for synchronize Execution");
 
       let mut stages = Vec::new();
 
@@ -89,7 +89,7 @@ impl<K: Clone + Ord + Hash> SchedulerBuilder<K> {
 
       stages
     } else {
-      debug!("Initializing Scheduler for async Execution");
+      debug!("Initializing Scheduler for parallel Execution");
 
       let mut systems_left = self.systems_without_stage;
       let mut keys = self.systems_with_stage.keys().cloned().collect::<Vec<_>>();
@@ -235,7 +235,7 @@ mod test {
   }
 
   #[test]
-  fn async_no_set_stage() {
+  fn parallel_no_set_stage() {
     let mut builder: SchedulerBuilder<usize> = SchedulerBuilder::default();
 
     builder.add_system(s1);
@@ -252,7 +252,7 @@ mod test {
   }
 
   #[test]
-  fn async_set_stage() {
+  fn parallel_set_stage() {
     let mut builder = SchedulerBuilder::default();
 
     builder.add_system_at_stage(s1, 0);

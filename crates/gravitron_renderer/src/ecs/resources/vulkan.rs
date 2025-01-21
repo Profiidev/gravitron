@@ -18,7 +18,7 @@ use crate::{
   surface::Surface,
 };
 use anyhow::Error;
-use gravitron_plugin::config::{vulkan::VulkanConfig, window::WindowConfig};
+use gravitron_plugin::config::{vulkan::VulkanConfig, AppConfig};
 use gravitron_window::ecs::resources::handle::WindowHandle;
 
 pub struct Vulkan {
@@ -38,7 +38,7 @@ pub struct Vulkan {
 impl Vulkan {
   pub fn init(
     mut config: VulkanConfig,
-    window_config: &WindowConfig,
+    app_config: &AppConfig,
     window: &WindowHandle,
     #[cfg(target_os = "linux")] is_wayland: bool,
   ) -> Result<Self, Error> {
@@ -56,7 +56,7 @@ impl Vulkan {
     let instance = InstanceDevice::init(
       &mut instance_config,
       &entry,
-      window_config,
+      app_config,
       #[cfg(target_os = "linux")]
       is_wayland,
     )?;
@@ -82,7 +82,7 @@ impl Vulkan {
       &mut memory_manager,
       &surface,
       &mut config,
-      window_config,
+      &app_config.window,
       &mut pools,
     )?;
 

@@ -46,7 +46,7 @@ impl PluginManager {
     let config = app.get_config();
 
     let mut last_frame = Instant::now();
-    let frame_time = Duration::from_secs(1) / config.window.fps;
+    let frame_time = Duration::from_secs(1) / config.engine.fps;
 
     loop {
       let elapsed = last_frame.elapsed();

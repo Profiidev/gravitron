@@ -136,9 +136,15 @@ impl<S: Stage> AppBuilder<S> {
 
     App {
       world: self.world,
-      init_scheduler: self.init_scheduler.build(false),
-      main_scheduler: self.main_scheduler.build(false),
-      cleanup_scheduler: self.cleanup_scheduler.build(false),
+      init_scheduler: self
+        .init_scheduler
+        .build(self.config.engine.parallel_systems),
+      main_scheduler: self
+        .main_scheduler
+        .build(self.config.engine.parallel_systems),
+      cleanup_scheduler: self
+        .cleanup_scheduler
+        .build(self.config.engine.parallel_systems),
       config: self.config,
       marker: PhantomData,
     }

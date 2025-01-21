@@ -44,7 +44,7 @@ impl Plugin for RendererPlugin {
 
     let vulkan = Vulkan::init(
       config.vulkan.clone(),
-      &config.window,
+      config,
       window,
       #[cfg(target_os = "linux")]
       event_loop.wayland(),
