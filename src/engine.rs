@@ -23,9 +23,14 @@ impl Gravitron {
   }
 
   pub fn run(mut self) -> ! {
+    info!("Running Gravitron");
     self.app.run_init();
-    self.plugin_manager.run(&mut self.app);
-    self.app.run_cleanup();
+    self.app.run_main();
+
+    info!("Cleaning up Gravitron");
+    let mut app = self.app.run_cleanup();
+
+    self.plugin_manager.cleanup(&mut app);
 
     std::process::exit(0);
   }
@@ -43,7 +48,7 @@ impl GravitronBuilder {
   }
 
   pub fn build(self) -> Gravitron {
-    info!("Building App");
+    info!("Building Gravitron");
     let app = self.plugin_manager.build();
 
     Gravitron {

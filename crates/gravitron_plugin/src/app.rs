@@ -1,14 +1,20 @@
-use std::marker::PhantomData;
+use std::{
+  marker::PhantomData,
+  time::{Duration, Instant},
+};
 
 use gravitron_ecs::{
   scheduler::{Scheduler, SchedulerBuilder},
   systems::{IntoSystem, System},
   world::World,
 };
+use log::debug;
+#[cfg(feature = "debug")]
+use log::trace;
 
 use crate::{
   config::AppConfig,
-  ecs::resources::engine_commands::EngineCommands,
+  ecs::resources::{engine_commands::EngineCommands, engine_info::EngineInfo},
   stages::{CleanupSystemStage, InitSystemStage, MainSystemStage},
 };
 
@@ -40,11 +46,6 @@ impl<S: Status> App<S> {
   pub fn get_resource_mut<R: 'static>(&mut self) -> Option<&mut R> {
     self.world.get_resource_mut()
   }
-
-  #[inline]
-  pub(crate) fn get_config(&self) -> &AppConfig {
-    &self.config
-  }
 }
 
 impl App<Running> {
@@ -58,14 +59,48 @@ impl App<Running> {
     self.init_scheduler.run(&mut self.world);
   }
 
-  #[inline]
   pub fn run_main(&mut self) {
-    self.main_scheduler.run(&mut self.world);
+    let mut last_frame = Instant::now();
+    let frame_time = Duration::from_secs(1) / self.config.engine.fps;
+
+    loop {
+      let elapsed = last_frame.elapsed();
+
+      if elapsed > frame_time {
+        self.set_resource(EngineInfo {
+          delta_time: elapsed.as_secs_f32(),
+        });
+
+        last_frame = Instant::now();
+
+        self.main_scheduler.run(&mut self.world);
+
+        let cmds = self
+          .get_resource::<EngineCommands>()
+          .expect("Failed to get Engine Commands");
+        if cmds.is_shutdown() {
+          debug!("Exiting game loop");
+          break;
+        }
+
+        #[cfg(feature = "debug")]
+        trace!("Frame took {:?}", last_frame.elapsed());
+      }
+    }
   }
 
   #[inline]
-  pub fn run_cleanup(&mut self) {
+  pub fn run_cleanup(mut self) -> App<Cleanup> {
     self.cleanup_scheduler.run(&mut self.world);
+
+    App {
+      world: self.world,
+      init_scheduler: self.init_scheduler,
+      main_scheduler: self.main_scheduler,
+      cleanup_scheduler: self.cleanup_scheduler,
+      config: self.config,
+      marker: PhantomData,
+    }
   }
 }
 
