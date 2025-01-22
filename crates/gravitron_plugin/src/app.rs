@@ -83,6 +83,8 @@ impl App<Running> {
           break;
         }
 
+        self.world.next_tick();
+
         #[cfg(feature = "debug")]
         trace!("Frame took {:?}", last_frame.elapsed());
       }
