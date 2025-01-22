@@ -23,6 +23,7 @@ thiserror = { workspace = true }
 gravitron_ecs = { workspace = true }
 gravitron_plugin = { workspace = true }
 gravitron_window = { workspace = true }
+gravitron_hierarchy = { workspace = true }
 
 [features]
-debug = ["gravitron_ecs/debug", "gravitron_plugin/debug", "gravitron_window/debug"]
+debug = ["gravitron_ecs/debug", "gravitron_plugin/debug", "gravitron_window/debug", "gravitron_hierarchy/debug"]

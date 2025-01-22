@@ -4,8 +4,6 @@ use anyhow::Error;
 use gravitron_plugin::config::window::WindowConfig;
 use gravitron_utils::thread::Signal;
 use log::debug;
-#[cfg(feature = "debug")]
-use log::trace;
 #[cfg(target_os = "linux")]
 use winit::platform::wayland::{ActiveEventLoopExtWayland, EventLoopBuilderExtWayland};
 use winit::{
@@ -86,8 +84,6 @@ impl ApplicationHandler for WindowHandler {
     _window_id: WindowId,
     event: WindowEvent,
   ) {
-    #[cfg(feature = "debug")]
-    trace!("New wind event in window");
     self.sender.send(event).expect("Failed to send WindowEvent");
   }
 }

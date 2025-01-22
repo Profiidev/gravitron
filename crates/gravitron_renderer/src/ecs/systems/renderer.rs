@@ -10,7 +10,7 @@ use crate::ecs::components::lighting::{
   SpotLight as SpotLightComp,
 };
 use crate::ecs::components::renderer::MeshRenderer;
-use crate::ecs::components::transform::Transform;
+use crate::ecs::components::transform::GlobalTransform;
 use crate::ecs::resources::vulkan::Vulkan;
 use gravitron_ecs::{systems::query::Query, systems::resources::ResMut};
 
@@ -25,10 +25,10 @@ pub fn init_renderer(vulkan: ResMut<Vulkan>) {
 
 pub fn renderer_recording(
   mut vulkan: ResMut<Vulkan>,
-  to_render: Query<(&MeshRenderer, &Transform)>,
-  dl_query: Query<(&DirectionalLightComp, &Transform)>,
-  pls_query: Query<(&PointLightComp, &Transform)>,
-  sls_query: Query<(&SpotLightComp, &Transform)>,
+  to_render: Query<(&MeshRenderer, &GlobalTransform)>,
+  dl_query: Query<(&DirectionalLightComp, &GlobalTransform)>,
+  pls_query: Query<(&PointLightComp, &GlobalTransform)>,
+  sls_query: Query<(&SpotLightComp, &GlobalTransform)>,
   camera: Query<&Camera>,
 ) {
   #[cfg(feature = "debug")]

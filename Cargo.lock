@@ -836,6 +836,7 @@ dependencies = [
  "glam",
  "gpu-allocator",
  "gravitron_ecs",
+ "gravitron_hierarchy",
  "gravitron_plugin",
  "gravitron_window",
  "image",
