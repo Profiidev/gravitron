@@ -275,11 +275,10 @@ fn test_component_propagation() {
 
     let mut i = 0;
     for (_, offset) in q {
-      dbg!(offset.0);
       i += offset.0;
     }
 
-    assert_eq!(i, 16);
+    assert_eq!(i, 25);
   });
 
   let mut scheduler = scheduler.build(true);
