@@ -17,7 +17,7 @@ use gravitron_ecs::{
 
 use crate::components::{Children, Parent};
 
-type RootQuery<'a, D> = Query<'a, &'a Children, (Without<Parent>, With<D>)>;
+type RootQuery<'a, D> = Query<'a, &'a D, (Without<Parent>, With<D>)>;
 
 /// # Important
 /// If you use this you cant use the G component in any other query in the same system
@@ -39,27 +39,24 @@ pub trait PropagationUpdate: Default {
 
 impl<'a, D: Component, G: Component + PropagationUpdate<Data = D>> PropagationQuery<'a, D, G> {
   pub fn propagate(mut self, cmds: &mut Commands) {
-    for (id, children) in self.root_query.take().unwrap() {
-      let children = children.children().to_vec();
-
-      self.propagate_recursive((id, children), G::default(), cmds);
+    for (id, _) in self.root_query.take().unwrap() {
+      self.propagate_recursive(id, G::default(), cmds);
     }
   }
 
-  fn propagate_recursive(&mut self, entity: (Id, Vec<Id>), mut state: G, cmds: &mut Commands) {
-    if let Some((_, data)) = self.data_query.by_id(entity.0) {
+  fn propagate_recursive(&mut self, entity: Id, mut state: G, cmds: &mut Commands) {
+    if let Some((_, data)) = self.data_query.by_id(entity) {
       state.update(data.deref());
-      if let Some((_, mut global)) = self.global_data_query.by_id(entity.0) {
+      if let Some((_, mut global)) = self.global_data_query.by_id(entity) {
         *global = state.copy();
       } else {
-        cmds.add_comp(entity.0, state.copy());
+        cmds.add_comp(entity, state.copy());
       }
 
-      for child in entity.1 {
-        if let Some((id, children)) = self.nodes_query.by_id(child) {
-          let children: Vec<Id> = children.children().to_vec();
-
-          self.propagate_recursive((id, children), state.copy(), cmds);
+      if let Some((_, children)) = self.nodes_query.by_id(entity) {
+        #[allow(clippy::unnecessary_to_owned)]
+        for child in children.children().to_vec() {
+          self.propagate_recursive(child, state.copy(), cmds);
         }
       }
     }
@@ -99,8 +96,8 @@ pub struct UpdatePropagationQuery<'a, D: Component, G: Component + PropagationUp
   global_data_query: Query<'a, &'a mut G>,
   nodes_query: Query<'a, &'a Children, With<D>>,
   nodes_parent_query: Query<'a, &'a Parent, With<D>>,
-  changed_query: Option<Query<'a, &'a Children, Changed<D>>>,
-  added_query: Option<Query<'a, &'a Children, Added<D>>>,
+  changed_query: Option<Query<'a, &'a D, Changed<D>>>,
+  added_query: Option<Query<'a, &'a D, Added<D>>>,
 }
 
 impl<'a, D: Component, G: Component + PropagationUpdate<Data = D>>
@@ -115,12 +112,12 @@ impl<'a, D: Component, G: Component + PropagationUpdate<Data = D>>
 
   fn iterate_over_query<F: QueryFilter>(
     &mut self,
-    query: Query<'a, &'a Children, F>,
+    query: Query<'a, &'a D, F>,
     cmds: &mut Commands,
   ) {
     let mut seen = Vec::new();
 
-    for (id, children) in query {
+    for (id, _) in query {
       if seen.contains(&id) {
         continue;
       }
@@ -135,35 +132,33 @@ impl<'a, D: Component, G: Component + PropagationUpdate<Data = D>>
         G::default()
       };
 
-      let children = children.children().to_vec();
-      self.propagate_recursive((id, children), global, cmds, &mut seen);
+      self.propagate_recursive(id, global, cmds, &mut seen);
     }
   }
 
   fn propagate_recursive(
     &mut self,
-    entity: (Id, Vec<Id>),
+    entity: Id,
     mut state: G,
     cmds: &mut Commands,
     seen: &mut Vec<Id>,
   ) {
-    if let Some((_, data)) = self.data_query.by_id(entity.0) {
+    if let Some((_, data)) = self.data_query.by_id(entity) {
       state.update(data.deref());
-      if let Some((_, mut global)) = self.global_data_query.by_id(entity.0) {
+      if let Some((_, mut global)) = self.global_data_query.by_id(entity) {
         *global = state.copy();
       } else {
-        cmds.add_comp(entity.0, state.copy());
+        cmds.add_comp(entity, state.copy());
       }
 
-      for child in entity.1 {
-        if let Some((id, children)) = self.nodes_query.by_id(child) {
-          if !seen.contains(&id) {
-            seen.push(id);
+      if let Some((_, children)) = self.nodes_query.by_id(entity) {
+        #[allow(clippy::unnecessary_to_owned)]
+        for child in children.children().to_vec() {
+          if !seen.contains(&child) {
+            seen.push(child);
           }
 
-          let children: Vec<Id> = children.children().to_vec();
-
-          self.propagate_recursive((id, children), state.copy(), cmds, seen);
+          self.propagate_recursive(child, state.copy(), cmds, seen);
         }
       }
     }
