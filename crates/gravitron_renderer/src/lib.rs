@@ -2,6 +2,7 @@ use ecs::{
   resources::vulkan::Vulkan,
   systems::renderer::{execute_renderer, init_renderer, renderer_recording},
 };
+use gravitron_components::ComponentPlugin;
 use gravitron_plugin::{
   app::{App, AppBuilder, Build, Cleanup, Finalize},
   stages::MainSystemStage,
@@ -9,6 +10,7 @@ use gravitron_plugin::{
 };
 #[cfg(target_os = "linux")]
 use gravitron_window::ecs::resources::event_loop::EventLoop;
+use gravitron_window::WindowPlugin;
 use log::debug;
 pub use vk_shader_macros::{glsl, include_glsl};
 
@@ -61,5 +63,9 @@ impl Plugin for RendererPlugin {
       .get_resource_mut::<Vulkan>()
       .expect("Failed to Cleanup Vulkan");
     vulkan.destroy();
+  }
+
+  fn dependencies(&self) -> Vec<gravitron_plugin::PluginID> {
+    vec![WindowPlugin.id(), ComponentPlugin.id()]
   }
 }

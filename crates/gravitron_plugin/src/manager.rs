@@ -1,10 +1,7 @@
-use std::time::{Duration, Instant};
-
-use log::{debug, info, trace};
+use log::debug;
 
 use crate::{
   app::{App, AppBuilder, Cleanup, Running},
-  ecs::resources::{engine_commands::EngineCommands, engine_info::EngineInfo},
   Plugin,
 };
 
@@ -21,6 +18,22 @@ impl PluginManager {
 
   #[inline]
   pub fn add_plugin(&mut self, plugin: impl Plugin) {
+    debug!("Adding Plugin {}", plugin.id().0);
+
+    if self.plugins.iter().any(|p| p.id() == plugin.id()) {
+      panic!("Error: can not add the plugin {} twice", plugin.id().0);
+    }
+
+    for dep in plugin.dependencies() {
+      if !self.plugins.iter().map(|p| p.id()).any(|p| p == dep) {
+        panic!(
+          "Error: the plugin {} needs to be added before the plugin {}!",
+          dep.0,
+          plugin.id().0
+        );
+      }
+    }
+
     self.plugins.push(Box::new(plugin));
   }
 
@@ -28,54 +41,23 @@ impl PluginManager {
     let mut builder = AppBuilder::new();
 
     for plugin in &self.plugins {
-      info!("Running build for Plugin {}", plugin.name());
+      debug!("Running build for Plugin {}", plugin.id().0);
       plugin.build(&mut builder);
     }
 
     let mut builder = builder.finalize();
 
     for plugin in &self.plugins {
-      info!("Running finalize for Plugin {}", plugin.name());
+      debug!("Running finalize for Plugin {}", plugin.id().0);
       plugin.finalize(&mut builder);
     }
 
     builder.build()
   }
 
-  pub fn run(&self, app: &mut App<Running>) {
-    let config = app.get_config();
-
-    let mut last_frame = Instant::now();
-    let frame_time = Duration::from_secs(1) / config.engine.fps;
-
-    loop {
-      let elapsed = last_frame.elapsed();
-
-      if elapsed > frame_time {
-        app.set_resource(EngineInfo {
-          delta_time: elapsed.as_secs_f32(),
-        });
-
-        last_frame = Instant::now();
-
-        app.run_main();
-
-        let cmds = app
-          .get_resource::<EngineCommands>()
-          .expect("Failed to get Engine Commands");
-        if cmds.is_shutdown() {
-          debug!("Exiting game loop");
-          break;
-        }
-
-        trace!("Frame took {:?}", last_frame.elapsed());
-      }
-    }
-  }
-
   pub fn cleanup(&self, app: &mut App<Cleanup>) {
     for plugin in &self.plugins {
-      info!("Running cleanup for Plugin {}", plugin.name());
+      debug!("Running cleanup for Plugin {}", plugin.id().0);
       plugin.cleanup(app);
     }
   }

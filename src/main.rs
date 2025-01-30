@@ -7,9 +7,10 @@ use gravitron::{
       renderer::MeshRenderer,
       transform::Transform,
     },
+    hierarchy::command_ext::HierarchyCommandExt,
     resources::{engine_commands::EngineCommands, engine_info::EngineInfo, input::Input},
     systems::{
-      query::Query,
+      query::{filter::With, Query},
       resources::{Res, ResMut},
     },
     Component,
@@ -28,6 +29,7 @@ use gravitron::{
     include_glsl,
   },
   window::winit::keyboard::KeyCode,
+  Id,
 };
 
 fn main() {
@@ -41,6 +43,9 @@ fn main() {
 pub struct Marker {
   t: f32,
 }
+
+#[derive(Component)]
+pub struct Center;
 
 struct Game;
 
@@ -71,10 +76,14 @@ impl Plugin for Game {
     builder.add_main_system(test);
     builder.add_main_system(test2);
     builder.add_main_system(test3);
+    builder.add_main_system(test4);
+
+    builder.add_resource(Id::default());
+    builder.add_resource(false);
   }
 }
 
-fn init(cmds: &mut Commands) {
+fn init(cmds: &mut Commands, mut id: ResMut<Id>) {
   let mut transform = Transform::default();
   transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
   cmds.create_entity((
@@ -92,7 +101,7 @@ fn init(cmds: &mut Commands) {
   ));
   let mut transform = Transform::default();
   transform.set_position(math::Vec3::new(0.0, 0.0, 0.0));
-  cmds.create_entity((
+  *id = cmds.create_entity((
     MeshRenderer {
       model_id: CUBE_MODEL,
       material: Material {
@@ -101,6 +110,7 @@ fn init(cmds: &mut Commands) {
       },
     },
     transform,
+    Center,
   ));
 
   let mut camera_transform = Transform::default();
@@ -152,7 +162,12 @@ fn init(cmds: &mut Commands) {
   ));
 }
 
-fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mut Marker)>) {
+fn test(
+  cmd: &mut Commands,
+  info: Res<EngineInfo>,
+  q: Query<(&mut Transform, &mut Marker)>,
+  id: Res<Id>,
+) {
   for (_, mut t, mut m) in q {
     let mut pos = t.position();
     pos.x = m.t.cos() * 5.0;
@@ -167,7 +182,7 @@ fn test(cmd: &mut Commands, info: Res<EngineInfo>, q: Query<(&mut Transform, &mu
       ..Default::default()
     },
   };
-  cmd.create_entity((Transform::default(), Marker::default(), renderer));
+  cmd.create_child(*id, (Transform::default(), Marker::default(), renderer));
 }
 
 fn test2(info: Res<EngineInfo>, q: Query<(&mut Transform, &DirectionalLight, &mut Marker)>) {
@@ -181,5 +196,25 @@ fn test2(info: Res<EngineInfo>, q: Query<(&mut Transform, &DirectionalLight, &mu
 fn test3(input: Res<Input>, mut cmds: ResMut<EngineCommands>) {
   if input.is_key_pressed(&KeyCode::Escape) {
     cmds.shutdown();
+  }
+}
+
+fn test4(query: Query<&mut Transform, With<Center>>, res: Res<EngineInfo>, mut b: ResMut<bool>) {
+  for (_, mut t) in query {
+    let pos = t.position();
+    let mut mov = math::Vec3::new(0.0, 0.2, 0.0) * res.delta_time();
+
+    if pos.y > 2.0 {
+      *b = true;
+    }
+    if pos.y < -2.0 {
+      *b = false;
+    }
+
+    if *b {
+      mov = -mov;
+    }
+
+    t.set_position(pos + mov);
   }
 }

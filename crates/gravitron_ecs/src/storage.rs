@@ -326,7 +326,10 @@ impl Storage<'_> {
     }
 
     let mut result = vec![];
-    let possible = self.component_index.get(&comps[0]).unwrap();
+    let Some(possible) = self.component_index.get(&comps[0]) else {
+      return result;
+    };
+
     for record in possible.values() {
       let archetype = unsafe { record.archetype.archetype_mut() };
 

@@ -20,7 +20,7 @@ use gravitron_ecs::{
 use crate::{
   command_ext::HierarchyCommandExt,
   components::{Children, Parent},
-  propagation::PropagationQuery,
+  propagation::{PropagationQuery, PropagationUpdate},
 };
 
 #[derive(Component)]
@@ -216,8 +216,20 @@ fn remove_with_children() {
 #[derive(Component)]
 struct Offset(usize);
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy, Default)]
 struct GlobalOffset(usize);
+
+impl PropagationUpdate for GlobalOffset {
+  type Data = Offset;
+
+  fn copy(&self) -> Self {
+    *self
+  }
+
+  fn update(&mut self, data: &Self::Data) {
+    self.0 += data.0;
+  }
+}
 
 #[test]
 fn test_component_propagation() {
@@ -249,15 +261,7 @@ fn test_component_propagation() {
 
   scheduler.add_system(
     move |prop: PropagationQuery<Offset, GlobalOffset>, cmds: &mut Commands| {
-      prop.propagate(
-        |mut global, state| {
-          global.0 = *state;
-        },
-        |state| GlobalOffset(*state),
-        |offset, state| *state += offset.0,
-        0_usize,
-        cmds,
-      );
+      prop.propagate(cmds);
     },
   );
 
@@ -271,11 +275,10 @@ fn test_component_propagation() {
 
     let mut i = 0;
     for (_, offset) in q {
-      dbg!(offset.0);
       i += offset.0;
     }
 
-    assert_eq!(i, 16);
+    assert_eq!(i, 25);
   });
 
   let mut scheduler = scheduler.build(true);

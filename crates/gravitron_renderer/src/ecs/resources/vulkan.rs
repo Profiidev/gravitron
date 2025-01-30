@@ -44,7 +44,10 @@ impl Vulkan {
   ) -> Result<Self, Error> {
     let entry = unsafe { ash::Entry::load() }?;
 
+    #[cfg(feature = "debug")]
     let mut instance_next = Vec::new();
+    #[cfg(not(feature = "debug"))]
+    let instance_next = Vec::new();
     #[cfg(feature = "debug")]
     let debugger_info = Debugger::init_info(&mut config.renderer, &mut instance_next);
 
