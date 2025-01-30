@@ -26,7 +26,11 @@ impl PluginManager {
 
     for dep in plugin.dependencies() {
       if !self.plugins.iter().map(|p| p.id()).any(|p| p == dep) {
-        panic!("Error: the plugin {} needs to be added before the plugin {}!", dep.0, plugin.id().0);
+        panic!(
+          "Error: the plugin {} needs to be added before the plugin {}!",
+          dep.0,
+          plugin.id().0
+        );
       }
     }
 
