@@ -1,0 +1,16 @@
+[package]
+name = "gravitron_components"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+keywords = ["game", "gravitron"]
+repository = "https://github.com/Profiidev/gravitron"
+description = "Gravitron's ECS Components"
+exclude = ["CHANGELOG.md"]
+readme = "README.md"
+
+[dependencies]
+glam = { workspace = true }
+gravitron_ecs = { workspace = true }
+gravitron_hierarchy = { workspace = true }
+gravitron_plugin = { workspace = true }

@@ -104,7 +104,7 @@ impl PropagationUpdate for GlobalTransform {
     self.position += data.position;
     self.rotation *= data.rotation;
     self.scaling *= data.scaling;
-  
+
     self.update_position_matrix();
   }
 }

@@ -10,8 +10,8 @@ use crate::ecs::components::lighting::{
   SpotLight as SpotLightComp,
 };
 use crate::ecs::components::renderer::MeshRenderer;
-use crate::ecs::components::transform::GlobalTransform;
 use crate::ecs::resources::vulkan::Vulkan;
+use gravitron_components::components::transform::GlobalTransform;
 use gravitron_ecs::{systems::query::Query, systems::resources::ResMut};
 
 use crate::graphics::resources::lighting::{DirectionalLight, LightInfo, PointLight, SpotLight};

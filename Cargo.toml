@@ -1,5 +1,14 @@
 [workspace]
-members = ["crates/gravitron_ecs", "crates/gravitron_hierarchy", "crates/gravitron_macro_utils", "crates/gravitron_plugin", "crates/gravitron_renderer", "crates/gravitron_utils", "crates/gravitron_window"]
+members = [
+  "crates/gravitron_components",
+  "crates/gravitron_ecs",
+  "crates/gravitron_hierarchy",
+  "crates/gravitron_macro_utils",
+  "crates/gravitron_plugin",
+  "crates/gravitron_renderer",
+  "crates/gravitron_utils",
+  "crates/gravitron_window",
+]
 
 [workspace.dependencies]
 log = "0.4.22"
@@ -18,6 +27,7 @@ gravitron_renderer = { path = "./crates/gravitron_renderer", version = "0.1.0" }
 gravitron_macro_utils = { path = "./crates/gravitron_macro_utils", version = "0.1.2" }
 gravitron_plugin = { path = "./crates/gravitron_plugin", version = "0.1.0" }
 gravitron_window = { path = "./crates/gravitron_window", version = "0.1.0" }
+gravitron_components = { path = "./crates/gravitron_components", version = "0.1.0" }
 
 [package]
 name = "gravitron"
@@ -27,7 +37,16 @@ license = "MIT OR Apache-2.0"
 description = "A GameEngine based on an ECS and Vulkan"
 repository = "https://github.com/Profiidev/gravitron"
 categories = ["game-engines", "graphics", "gui", "rendering"]
-exclude = [".github/", "crates/", "Cargo.lock", "nextest.toml", "CHANGELOG.md", "cliff.toml", "release-plz.toml", "rustfmt.toml"]
+exclude = [
+  ".github/",
+  "crates/",
+  "Cargo.lock",
+  "nextest.toml",
+  "CHANGELOG.md",
+  "cliff.toml",
+  "release-plz.toml",
+  "rustfmt.toml",
+]
 keywords = ["game", "engine", "gravitron"]
 readme = "README.md"
 
@@ -41,9 +60,17 @@ gravitron_hierarchy = { workspace = true }
 gravitron_renderer = { workspace = true }
 gravitron_plugin = { workspace = true }
 gravitron_window = { workspace = true }
+gravitron_components = { workspace = true }
 
 [features]
 default = ["debug"]
-debug = ["gravitron_ecs/debug", "gravitron_renderer/debug", "gravitron_utils/debug", "gravitron_hierarchy/debug", "gravitron_plugin/debug", "gravitron_window/debug"]
+debug = [
+  "gravitron_ecs/debug",
+  "gravitron_renderer/debug",
+  "gravitron_utils/debug",
+  "gravitron_hierarchy/debug",
+  "gravitron_plugin/debug",
+  "gravitron_window/debug",
+]
 
 [lib]

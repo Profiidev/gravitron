@@ -1,7 +1,7 @@
 use gravitron_ecs::commands::Commands;
 use gravitron_hierarchy::propagation::UpdatePropagationQuery;
 
-use crate::ecs::components::transform::{GlobalTransform, Transform};
+use crate::components::transform::{GlobalTransform, Transform};
 
 pub fn transform_propagate(
   query: UpdatePropagationQuery<Transform, GlobalTransform>,

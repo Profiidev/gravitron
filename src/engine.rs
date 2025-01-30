@@ -1,3 +1,4 @@
+use gravitron_components::ComponentPlugin;
 use gravitron_plugin::{
   app::{App, Running},
   manager::PluginManager,
@@ -66,6 +67,7 @@ impl Default for GravitronBuilder {
     let mut plugin_manager = PluginManager::new();
 
     info!("Adding default plugins");
+    plugin_manager.add_plugin(ComponentPlugin);
     plugin_manager.add_plugin(WindowPlugin);
     plugin_manager.add_plugin(RendererPlugin);
 

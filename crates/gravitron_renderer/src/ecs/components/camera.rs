@@ -1,8 +1,7 @@
 use core::f32;
 
+use gravitron_components::components::transform::Transform;
 use gravitron_ecs::Component;
-
-use super::transform::Transform;
 
 pub struct CameraBuilder {
   fov: f32,

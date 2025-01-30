@@ -772,6 +772,7 @@ version = "0.4.0"
 dependencies = [
  "env_logger",
  "glam",
+ "gravitron_components",
  "gravitron_ecs",
  "gravitron_hierarchy",
  "gravitron_plugin",
@@ -779,6 +780,16 @@ dependencies = [
  "gravitron_utils",
  "gravitron_window",
  "log",
+]
+
+[[package]]
+name = "gravitron_components"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "gravitron_ecs",
+ "gravitron_hierarchy",
+ "gravitron_plugin",
 ]
 
 [[package]]
@@ -835,6 +846,7 @@ dependencies = [
  "ash-window",
  "glam",
  "gpu-allocator",
+ "gravitron_components",
  "gravitron_ecs",
  "gravitron_hierarchy",
  "gravitron_plugin",

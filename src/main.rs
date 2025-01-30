@@ -202,7 +202,6 @@ fn test3(input: Res<Input>, mut cmds: ResMut<EngineCommands>) {
 fn test4(query: Query<&mut Transform, With<Center>>, res: Res<EngineInfo>, mut b: ResMut<bool>) {
   for (_, mut t) in query {
     let pos = t.position();
-    dbg!(pos);
     let mut mov = math::Vec3::new(0.0, 0.2, 0.0) * res.delta_time();
 
     if pos.y > 2.0 {
