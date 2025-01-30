@@ -6,8 +6,6 @@ pub struct Transform {
   position: glam::Vec3,
   rotation: glam::Quat,
   scaling: glam::Vec3,
-  position_matrix: glam::Mat4,
-  inverse_position_matrix: glam::Mat4,
 }
 
 #[derive(Component, Clone)]
@@ -20,14 +18,6 @@ pub struct GlobalTransform {
 }
 
 impl Transform {
-  pub fn matrix(&self) -> glam::Mat4 {
-    self.position_matrix
-  }
-
-  pub fn inv_matrix(&self) -> glam::Mat4 {
-    self.inverse_position_matrix
-  }
-
   pub fn position(&self) -> glam::Vec3 {
     self.position
   }
@@ -42,23 +32,14 @@ impl Transform {
 
   pub fn set_position(&mut self, position: glam::Vec3) {
     self.position = position;
-    self.update_position_matrix();
   }
 
   pub fn set_scale(&mut self, scaling: glam::Vec3) {
     self.scaling = scaling;
-    self.update_position_matrix();
   }
 
   pub fn set_rotation(&mut self, x: f32, y: f32, z: f32) {
     self.rotation = glam::Quat::from_euler(glam::EulerRot::ZXYEx, z, x, y);
-    self.update_position_matrix();
-  }
-
-  fn update_position_matrix(&mut self) {
-    self.position_matrix =
-      glam::Mat4::from_scale_rotation_translation(self.scaling, self.rotation, self.position);
-    self.inverse_position_matrix = self.position_matrix.inverse();
   }
 }
 
@@ -68,8 +49,6 @@ impl Default for Transform {
       position: Default::default(),
       rotation: glam::Quat::IDENTITY,
       scaling: glam::Vec3::ONE,
-      position_matrix: glam::Mat4::IDENTITY,
-      inverse_position_matrix: glam::Mat4::IDENTITY.inverse(),
     }
   }
 }
@@ -106,6 +85,12 @@ impl GlobalTransform {
   pub fn scale(&self) -> glam::Vec3 {
     self.scaling
   }
+
+  fn update_position_matrix(&mut self) {
+    self.position_matrix =
+      glam::Mat4::from_scale_rotation_translation(self.scaling, self.rotation, self.position);
+    self.inverse_position_matrix = self.position_matrix.inverse();
+  }
 }
 
 impl PropagationUpdate for GlobalTransform {
@@ -119,7 +104,7 @@ impl PropagationUpdate for GlobalTransform {
     self.position += data.position;
     self.rotation *= data.rotation;
     self.scaling *= data.scaling;
-    self.position_matrix *= data.position_matrix;
-    self.inverse_position_matrix *= data.inverse_position_matrix;
+  
+    self.update_position_matrix();
   }
 }
