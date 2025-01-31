@@ -18,10 +18,10 @@ pub use vk_shader_macros::{glsl, include_glsl};
 mod debug;
 mod device;
 pub mod ecs;
-pub mod error;
-pub mod graphics;
+mod error;
+mod graphics;
 mod instance;
-pub mod memory;
+mod memory;
 mod pipeline;
 mod surface;
 

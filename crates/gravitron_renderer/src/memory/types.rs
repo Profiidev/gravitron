@@ -6,6 +6,8 @@ use super::{
   simple_buffer::SimpleBuffer,
 };
 
+pub use ash::vk::BufferCopy;
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BufferId {
   Advanced(u64),
@@ -40,7 +42,7 @@ pub enum ImageType {
 }
 
 impl BufferType {
-  pub fn cleanup(
+  pub(crate) fn cleanup(
     self,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
@@ -53,7 +55,7 @@ impl BufferType {
 }
 
 impl ImageType {
-  pub fn cleanup(
+  pub(crate) fn cleanup(
     self,
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
