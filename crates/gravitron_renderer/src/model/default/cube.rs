@@ -1,4 +1,4 @@
-use super::VertexData;
+use crate::model::VertexData;
 
 pub fn cube() -> (Vec<VertexData>, Vec<u32>) {
   let btl_t = VertexData {

@@ -6,7 +6,7 @@ use super::{
   allocator::{Allocator, BufferMemory},
   buffer::Buffer,
   error::MemoryError,
-  types::BufferId,
+  types::{BufferId, MemoryLocation},
 };
 
 pub struct SimpleBuffer {
@@ -24,14 +24,9 @@ impl SimpleBuffer {
     device: &ash::Device,
     usage: vk::BufferUsageFlags,
     block_size: usize,
+    location: MemoryLocation,
   ) -> Result<Self, Error> {
-    let buffer = Buffer::new(
-      allocator,
-      device,
-      block_size,
-      usage,
-      gpu_allocator::MemoryLocation::CpuToGpu,
-    )?;
+    let buffer = Buffer::new(allocator, device, block_size, usage, location.into())?;
 
     let allocator = Allocator::new(block_size);
 

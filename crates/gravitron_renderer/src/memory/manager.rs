@@ -19,8 +19,8 @@ use super::{
   sampler_image::SamplerImage,
   simple_buffer::SimpleBuffer,
   types::{
-    BufferBlockSize, BufferId, BufferType, ImageId, ImageType, BUFFER_BLOCK_SIZE_LARGE,
-    BUFFER_BLOCK_SIZE_MEDIUM, BUFFER_BLOCK_SIZE_SMALL,
+    BufferBlockSize, BufferId, BufferType, ImageId, ImageType, MemoryLocation,
+    BUFFER_BLOCK_SIZE_LARGE, BUFFER_BLOCK_SIZE_MEDIUM, BUFFER_BLOCK_SIZE_SMALL,
   },
 };
 
@@ -37,7 +37,11 @@ pub struct MemoryManager {
 }
 
 impl MemoryManager {
-  pub fn new(instance: &InstanceDevice, device: &Device, pools: &mut Pools) -> Result<Self, Error> {
+  pub(crate) fn new(
+    instance: &InstanceDevice,
+    device: &Device,
+    pools: &mut Pools,
+  ) -> Result<Self, Error> {
     let logical_device = device.get_device();
 
     let allocator = vulkan::Allocator::new(&vulkan::AllocatorCreateDesc {
@@ -111,6 +115,7 @@ impl MemoryManager {
     &mut self,
     usage: vk::BufferUsageFlags,
     block_size: BufferBlockSize,
+    location: MemoryLocation,
   ) -> Result<BufferId, Error> {
     let id = BufferId::Simple(self.last_buffer_id);
     let buffer = SimpleBuffer::new(
@@ -119,6 +124,7 @@ impl MemoryManager {
       &self.device,
       usage,
       block_size.into(),
+      location,
     )?;
 
     self.buffers.insert(id, BufferType::Simple(buffer));
@@ -128,7 +134,7 @@ impl MemoryManager {
 
   pub fn create_image(
     &mut self,
-    location: gpu_allocator::MemoryLocation,
+    location: MemoryLocation,
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
   ) -> Result<ImageId, Error> {
@@ -137,7 +143,7 @@ impl MemoryManager {
     let image = Image::new(
       &self.device,
       &mut self.allocator,
-      location,
+      location.into(),
       image_info,
       image_view_info,
     )?;
@@ -166,7 +172,7 @@ impl MemoryManager {
 
   pub fn create_sampler_image(
     &mut self,
-    location: gpu_allocator::MemoryLocation,
+    location: MemoryLocation,
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
     sampler_info: &vk::SamplerCreateInfo,
@@ -176,7 +182,7 @@ impl MemoryManager {
     let sampler_image = SamplerImage::new(
       &self.device,
       &mut self.allocator,
-      location,
+      location.into(),
       image_info,
       image_view_info,
       sampler_info,

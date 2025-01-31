@@ -1,4 +1,4 @@
-use super::VertexData;
+use crate::model::VertexData;
 
 pub fn plane() -> (Vec<VertexData>, Vec<u32>) {
   let tl = VertexData {

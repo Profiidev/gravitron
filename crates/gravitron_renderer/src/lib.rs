@@ -24,6 +24,7 @@ mod instance;
 mod memory;
 mod pipeline;
 mod surface;
+mod model;
 
 pub struct RendererPlugin;
 

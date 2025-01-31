@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 
-use crate::memory::{
-  manager::MemoryManager,
-  types::{BufferBlockSize, BufferId},
-  BufferMemory,
-};
 use anyhow::Error;
 use ash::vk;
-use cube::cube;
-use plane::plane;
 
-mod cube;
-mod plane;
+use crate::memory::{
+  types::{BufferBlockSize, BufferId},
+  MemoryManager,
+};
+
+use super::{
+  default::{cube::cube, plane::plane},
+  InstanceCount, InstanceData, Model, ModelId, VertexData,
+};
 
 pub struct ModelManager {
   models: HashMap<ModelId, Model>,
@@ -19,46 +19,6 @@ pub struct ModelManager {
   vertex_buffer: BufferId,
   index_buffer: BufferId,
   instance_buffer: BufferId,
-}
-
-pub const CUBE_MODEL: ModelId = ModelId(0);
-pub const PLANE_MODEL: ModelId = ModelId(1);
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Default)]
-pub struct ModelId(pub(crate) u64);
-
-pub struct Model {
-  vertices: BufferMemory,
-  indices: BufferMemory,
-  index_len: u32,
-  instance_alloc_size: usize,
-  instances: HashMap<String, (BufferMemory, Vec<InstanceData>)>,
-}
-
-#[derive(Debug)]
-#[repr(C)]
-pub struct VertexData {
-  position: glam::Vec3,
-  normal: glam::Vec3,
-  uv: glam::Vec2,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-#[repr(C, packed)]
-pub struct InstanceData {
-  model_matrix: glam::Mat4,
-  inv_model_matrix: glam::Mat4,
-  color: glam::Vec4,
-  metallic: f32,
-  roughness: f32,
-  texture_id: u32,
-}
-
-pub enum InstanceCount {
-  High,
-  Medium,
-  Low,
-  Exact(usize),
 }
 
 impl ModelManager {
@@ -107,12 +67,15 @@ impl ModelManager {
     vertex_data: Vec<VertexData>,
     index_data: Vec<u32>,
     instance_count: InstanceCount,
-  ) -> Option<(ModelId, bool)> {
+  ) -> Option<ModelId> {
     let vertices_slice = vertex_data.as_slice();
-    let (vertices, vert_resized) =
-      memory_manager.add_to_buffer(self.vertex_buffer, vertices_slice)?;
+    let vertices = memory_manager
+      .add_to_buffer(self.vertex_buffer, vertices_slice)
+      .ok()?;
     let index_slice = index_data.as_slice();
-    let (indices, index_resized) = memory_manager.add_to_buffer(self.index_buffer, index_slice)?;
+    let indices = memory_manager
+      .add_to_buffer(self.index_buffer, index_slice)
+      .ok()?;
 
     let id = ModelId(self.last_id);
     self.models.insert(
@@ -121,7 +84,7 @@ impl ModelManager {
     );
     self.last_id += 1;
 
-    Some((id, vert_resized || index_resized))
+    Some(id)
   }
 
   pub fn record_command_buffer(
@@ -146,10 +109,7 @@ impl ModelManager {
     commands: &mut HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
-  ) -> (
-    HashMap<String, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>>,
-    bool,
-  ) {
+  ) -> HashMap<String, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>> {
     let instance_size = std::mem::size_of::<InstanceData>();
     let mut copy_offset = 0;
     let mut instance_copies_info = Vec::new();
@@ -159,8 +119,6 @@ impl ModelManager {
     let mut cmd_copies_info = Vec::new();
     let mut cmd_copies = Vec::new();
     let mut cmd_new = HashMap::new();
-
-    let mut buffer_resized = false;
 
     for (model_id, shaders) in commands.iter_mut() {
       if !instances.contains_key(model_id) {
@@ -215,8 +173,7 @@ impl ModelManager {
                 as usize
                 * model.instance_alloc_size;
 
-              buffer_resized =
-                buffer_resized || memory_manager.resize_buffer_mem(mem, new_size).unwrap();
+              memory_manager.resize_buffer_mem(mem, new_size).unwrap();
               command.first_instance = (mem.offset() / instance_size) as u32;
             }
           }
@@ -265,13 +222,11 @@ impl ModelManager {
           let required_size = (instances_size as f32 / model.instance_alloc_size as f32).ceil()
             as usize
             * model.instance_alloc_size;
-          let Some((mem, buffer_resize_local)) =
+          let Some(mem) =
             memory_manager.reserve_buffer_mem(self.instance_buffer, required_size)
           else {
             continue;
           };
-
-          buffer_resized = buffer_resized || buffer_resize_local;
 
           let instances_slice = instances.as_slice();
           memory_manager.write_to_buffer(&mem, instances_slice);
@@ -305,70 +260,10 @@ impl ModelManager {
       memory_manager.write_to_buffer_direct(cmd_buffer, &cmd_copies, &cmd_copies_info);
     }
 
-    (cmd_new, buffer_resized)
+    cmd_new
   }
 
   pub fn model(&self, id: ModelId) -> Option<&Model> {
     self.models.get(&id)
-  }
-}
-
-impl Model {
-  fn new(
-    vertices: BufferMemory,
-    indices: BufferMemory,
-    index_len: u32,
-    instance_count: InstanceCount,
-  ) -> Self {
-    Self {
-      vertices,
-      index_len,
-      indices,
-      instance_alloc_size: usize::from(instance_count) * std::mem::size_of::<InstanceData>(),
-      instances: HashMap::new(),
-    }
-  }
-
-  pub fn index_len(&self) -> u32 {
-    self.index_len
-  }
-
-  pub fn vertex_offset(&self) -> i32 {
-    self.vertices.offset() as i32
-  }
-
-  pub fn index_offset(&self) -> u32 {
-    self.indices.offset() as u32
-  }
-}
-
-impl InstanceData {
-  pub fn new(
-    model_matrix: glam::Mat4,
-    inv_model_matrix: glam::Mat4,
-    color: glam::Vec4,
-    metallic: f32,
-    roughness: f32,
-    texture_id: u32,
-  ) -> Self {
-    Self {
-      model_matrix,
-      inv_model_matrix,
-      color,
-      metallic,
-      roughness,
-      texture_id,
-    }
-  }
-}
-
-impl From<InstanceCount> for usize {
-  fn from(value: InstanceCount) -> Self {
-    match value {
-      InstanceCount::High => 1000,
-      InstanceCount::Medium => 100,
-      InstanceCount::Low => 10,
-      InstanceCount::Exact(count) => count,
-    }
   }
 }

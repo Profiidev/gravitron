@@ -8,7 +8,6 @@ pub struct Vulkan {
   device: Device,
   renderer: Renderer,
   pools: Pools,
-  memory_manager: MemoryManager,
   pipeline_manager: PipelineManager,
 }
 

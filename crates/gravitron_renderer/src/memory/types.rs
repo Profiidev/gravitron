@@ -6,7 +6,8 @@ use super::{
   simple_buffer::SimpleBuffer,
 };
 
-pub use ash::vk::BufferCopy;
+pub use super::allocator::BufferMemory;
+pub use ash::vk::{BufferCopy, BufferUsageFlags};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BufferId {
@@ -63,6 +64,20 @@ impl ImageType {
     match self {
       ImageType::Sampler(sampler_image) => sampler_image.cleanup(device, allocator),
       ImageType::Simple(image) => image.cleanup(device, allocator),
+    }
+  }
+}
+
+pub enum MemoryLocation {
+  GpuToCpu,
+  CpuToGpu,
+}
+
+impl From<MemoryLocation> for gpu_allocator::MemoryLocation {
+  fn from(value: MemoryLocation) -> Self {
+    match value {
+      MemoryLocation::CpuToGpu => gpu_allocator::MemoryLocation::CpuToGpu,
+      MemoryLocation::GpuToCpu => gpu_allocator::MemoryLocation::GpuToCpu,
     }
   }
 }
