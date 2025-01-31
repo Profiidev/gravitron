@@ -22,9 +22,9 @@ mod error;
 mod graphics;
 mod instance;
 mod memory;
+mod model;
 mod pipeline;
 mod surface;
-mod model;
 
 pub struct RendererPlugin;
 

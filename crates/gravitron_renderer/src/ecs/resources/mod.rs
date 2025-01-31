@@ -103,7 +103,10 @@ impl Resources {
 
     renderer.record_command_buffer(&pipeline_manager, &mut memory_manager)?;
 
-    Ok(Resources { memory_manager, model_manager })
+    Ok(Resources {
+      memory_manager,
+      model_manager,
+    })
   }
 }
 
