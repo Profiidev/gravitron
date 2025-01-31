@@ -10,7 +10,7 @@ use crate::memory::{
 
 use super::{
   default::{cube::cube, plane::plane},
-  InstanceCount, InstanceData, Model, ModelId, VertexData,
+  model::{InstanceCount, InstanceData, Model, ModelId, VertexData},
 };
 
 pub struct ModelManager {
@@ -222,8 +222,7 @@ impl ModelManager {
           let required_size = (instances_size as f32 / model.instance_alloc_size as f32).ceil()
             as usize
             * model.instance_alloc_size;
-          let Some(mem) =
-            memory_manager.reserve_buffer_mem(self.instance_buffer, required_size)
+          let Some(mem) = memory_manager.reserve_buffer_mem(self.instance_buffer, required_size)
           else {
             continue;
           };

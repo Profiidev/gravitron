@@ -5,6 +5,7 @@ use gravitron_plugin::{
 };
 use gravitron_window::ecs::resources::handle::WindowHandle;
 use memory::MemoryManager;
+use model::ModelManager;
 
 #[cfg(feature = "debug")]
 use crate::debug::Debugger;
@@ -21,13 +22,19 @@ pub mod memory {
   pub use crate::memory::*;
 }
 
+pub mod model {
+  pub use crate::model::*;
+}
+
 pub(crate) struct Resources {
   memory_manager: MemoryManager,
+  model_manager: ModelManager,
 }
 
 impl Resources {
   pub fn add_resources(self, builder: &mut AppBuilder<Finalize>) {
     builder.add_resource(self.memory_manager);
+    builder.add_resource(self.model_manager);
   }
 
   pub(crate) fn create(
@@ -72,6 +79,7 @@ impl Resources {
     let mut pools = Pools::init(device.get_device(), device.get_queue_families())?;
 
     let mut memory_manager = MemoryManager::new(&instance, &device, &mut pools)?;
+    let model_manager = ModelManager::new(&mut memory_manager)?;
 
     let mut renderer = Renderer::init(
       &instance,
@@ -95,7 +103,7 @@ impl Resources {
 
     renderer.record_command_buffer(&pipeline_manager, &mut memory_manager)?;
 
-    Ok(Resources { memory_manager })
+    Ok(Resources { memory_manager, model_manager })
   }
 }
 

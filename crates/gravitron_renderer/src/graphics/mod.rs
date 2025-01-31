@@ -31,7 +31,6 @@ pub struct Renderer {
   render_pass: ash::vk::RenderPass,
   light_render_pass: vk::RenderPass,
   swapchain: SwapChain,
-  model_manager: ModelManager,
   logical_device: ash::Device,
   draw_commands: BufferId,
   draw_count: BufferId,
@@ -71,8 +70,6 @@ impl Renderer {
       light_render_pass,
     )?;
 
-    let model_manager = ModelManager::new(memory_manager)?;
-
     let draw_commands = memory_manager.create_advanced_buffer(
       vk::BufferUsageFlags::INDIRECT_BUFFER,
       BufferBlockSize::Medium,
@@ -105,7 +102,6 @@ impl Renderer {
       render_pass,
       light_render_pass,
       swapchain,
-      model_manager,
       logical_device: logical_device.clone(),
       draw_commands,
       shader_mem,
