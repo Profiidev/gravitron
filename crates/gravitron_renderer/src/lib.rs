@@ -1,5 +1,5 @@
 use ecs::{
-  resources::vulkan::Vulkan,
+  resources::{cleanup_resource, Resources},
   systems::renderer::{execute_renderer, init_renderer, renderer_recording},
 };
 use gravitron_components::ComponentPlugin;
@@ -45,24 +45,20 @@ impl Plugin for RendererPlugin {
       .get_resource::<EventLoop>()
       .expect("Error: Window Plugin must be initialized before the Renderer Plugin");
 
-    let vulkan = Vulkan::init(
+    Resources::create(
       config.vulkan.clone(),
       config,
       window,
       #[cfg(target_os = "linux")]
       event_loop.wayland(),
     )
-    .expect("Error: Failed to create Vulkan Instance");
-
-    builder.add_resource(vulkan);
+    .expect("Error: Failed to create Renderer resources")
+    .add_resources(builder);
   }
 
   fn cleanup(&self, app: &mut App<Cleanup>) {
-    debug!("Cleaning up Vulkan");
-    let vulkan = app
-      .get_resource_mut::<Vulkan>()
-      .expect("Failed to Cleanup Vulkan");
-    vulkan.destroy();
+    debug!("Cleaning up Renderer Resources");
+    cleanup_resource(app).expect("Failed to cleanup Renderer resources");
   }
 
   fn dependencies(&self) -> Vec<gravitron_plugin::PluginID> {
