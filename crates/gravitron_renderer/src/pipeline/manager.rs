@@ -6,7 +6,7 @@ use gravitron_plugin::config::vulkan::{DescriptorSet, DescriptorType, ImageConfi
 
 use crate::{
   ecs::components::camera::Camera,
-  graphics::{
+  renderer::{
     resources::lighting::{LightInfo, PointLight, SpotLight},
     swapchain::SwapChain,
   },

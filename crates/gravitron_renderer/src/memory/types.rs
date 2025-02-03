@@ -68,16 +68,16 @@ impl ImageType {
   }
 }
 
-pub enum MemoryLocation {
+pub enum BufferMemoryLocation {
   GpuToCpu,
   CpuToGpu,
 }
 
-impl From<MemoryLocation> for gpu_allocator::MemoryLocation {
-  fn from(value: MemoryLocation) -> Self {
+impl From<BufferMemoryLocation> for gpu_allocator::MemoryLocation {
+  fn from(value: BufferMemoryLocation) -> Self {
     match value {
-      MemoryLocation::CpuToGpu => gpu_allocator::MemoryLocation::CpuToGpu,
-      MemoryLocation::GpuToCpu => gpu_allocator::MemoryLocation::GpuToCpu,
+      BufferMemoryLocation::CpuToGpu => gpu_allocator::MemoryLocation::CpuToGpu,
+      BufferMemoryLocation::GpuToCpu => gpu_allocator::MemoryLocation::GpuToCpu,
     }
   }
 }

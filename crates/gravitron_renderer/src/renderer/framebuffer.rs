@@ -1,7 +1,7 @@
 use anyhow::Error;
 use ash::vk;
 
-use crate::memory::{manager::MemoryManager, types::ImageId};
+use crate::memory::{types::ImageId, MemoryManager};
 
 pub const IMAGES_PER_FRAME_BUFFER: u32 = 3;
 

@@ -3,11 +3,7 @@ use ash::{khr, vk};
 use gravitron_plugin::config::window::WindowConfig;
 
 use crate::{
-  device::Device,
-  instance::InstanceDevice,
-  memory::manager::MemoryManager,
-  pipeline::pools::{CommandBufferType, Pools},
-  surface::Surface,
+  device::Device, instance::InstanceDevice, memory::MemoryManager, pipeline::pools::{CommandBufferType, Pools}, surface::Surface
 };
 
 use super::framebuffer::Framebuffer;
@@ -117,7 +113,6 @@ impl SwapChain {
       .subresource_range(subresource_range);
 
     let depth_image = memory_manager.create_image(
-      gpu_allocator::MemoryLocation::GpuOnly,
       &depth_image_create_info,
       &depth_image_view_create_info,
     )?;
@@ -142,7 +137,6 @@ impl SwapChain {
     let mut images = Vec::new();
     for _ in 0..IMAGES_PER_FRAME_BUFFER {
       images.push(memory_manager.create_sampler_image(
-        gpu_allocator::MemoryLocation::GpuOnly,
         &image_info,
         &image_view_info,
         &sampler_info,

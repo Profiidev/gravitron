@@ -14,12 +14,11 @@ impl SamplerImage {
   pub fn new(
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
-    location: gpu_allocator::MemoryLocation,
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
     sampler_info: &vk::SamplerCreateInfo,
   ) -> Result<Self, Error> {
-    let image = Image::new(device, allocator, location, image_info, image_view_info)?;
+    let image = Image::new(device, allocator, image_info, image_view_info)?;
     let sampler = unsafe { device.create_sampler(sampler_info, None)? };
 
     Ok(Self { image, sampler })
@@ -69,7 +68,6 @@ impl SamplerImage {
     let sampler = Self::new(
       device,
       allocator,
-      gpu_allocator::MemoryLocation::GpuOnly,
       &image_info,
       &image_view_info,
       &sampler_info,

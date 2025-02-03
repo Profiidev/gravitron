@@ -6,7 +6,7 @@ use super::{
   allocator::{Allocator, BufferMemory},
   buffer::Buffer,
   error::MemoryError,
-  types::{BufferId, MemoryLocation},
+  types::{BufferId, BufferMemoryLocation},
 };
 
 pub struct SimpleBuffer {
@@ -24,7 +24,7 @@ impl SimpleBuffer {
     device: &ash::Device,
     usage: vk::BufferUsageFlags,
     block_size: usize,
-    location: MemoryLocation,
+    location: BufferMemoryLocation,
   ) -> Result<Self, Error> {
     let buffer = Buffer::new(allocator, device, block_size, usage, location.into())?;
 

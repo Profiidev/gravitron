@@ -7,7 +7,7 @@ use descriptors::{get_descriptor_set_layouts, get_light_framebuffer_descriptor_s
 use gravitron_plugin::config::vulkan::{ComputePipelineConfig, GraphicsPipelineConfig};
 
 use super::{
-  graphics::swapchain::SwapChain,
+  renderer::swapchain::SwapChain,
   memory::{manager::MemoryManager, BufferMemory},
 };
 

@@ -19,7 +19,7 @@ use super::{
   sampler_image::SamplerImage,
   simple_buffer::SimpleBuffer,
   types::{
-    BufferBlockSize, BufferId, BufferType, ImageId, ImageType, MemoryLocation,
+    BufferBlockSize, BufferId, BufferMemoryLocation, BufferType, ImageId, ImageType,
     BUFFER_BLOCK_SIZE_LARGE, BUFFER_BLOCK_SIZE_MEDIUM, BUFFER_BLOCK_SIZE_SMALL,
   },
 };
@@ -115,7 +115,7 @@ impl MemoryManager {
     &mut self,
     usage: vk::BufferUsageFlags,
     block_size: BufferBlockSize,
-    location: MemoryLocation,
+    location: BufferMemoryLocation,
   ) -> Result<BufferId, Error> {
     let id = BufferId::Simple(self.last_buffer_id);
     let buffer = SimpleBuffer::new(
@@ -134,7 +134,6 @@ impl MemoryManager {
 
   pub fn create_image(
     &mut self,
-    location: MemoryLocation,
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
   ) -> Result<ImageId, Error> {
@@ -143,7 +142,6 @@ impl MemoryManager {
     let image = Image::new(
       &self.device,
       &mut self.allocator,
-      location.into(),
       image_info,
       image_view_info,
     )?;
@@ -172,7 +170,6 @@ impl MemoryManager {
 
   pub fn create_sampler_image(
     &mut self,
-    location: MemoryLocation,
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
     sampler_info: &vk::SamplerCreateInfo,
@@ -182,7 +179,6 @@ impl MemoryManager {
     let sampler_image = SamplerImage::new(
       &self.device,
       &mut self.allocator,
-      location.into(),
       image_info,
       image_view_info,
       sampler_info,

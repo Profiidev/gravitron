@@ -19,11 +19,11 @@ mod debug;
 mod device;
 pub mod ecs;
 mod error;
-mod graphics;
 mod instance;
 mod memory;
 mod model;
 mod pipeline;
+mod renderer;
 mod surface;
 
 pub struct RendererPlugin;

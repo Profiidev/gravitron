@@ -12,7 +12,7 @@ use crate::debug::Debugger;
 
 use crate::{
   device::Device,
-  graphics::Renderer,
+  renderer::Renderer,
   instance::{InstanceDevice, InstanceDeviceConfig},
   pipeline::{manager::PipelineManager, pools::Pools},
   surface::Surface,

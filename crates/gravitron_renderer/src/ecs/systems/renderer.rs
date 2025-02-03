@@ -14,8 +14,8 @@ use crate::ecs::resources::vulkan::Vulkan;
 use gravitron_components::components::transform::GlobalTransform;
 use gravitron_ecs::{systems::query::Query, systems::resources::ResMut};
 
-use crate::graphics::resources::lighting::{DirectionalLight, LightInfo, PointLight, SpotLight};
-use crate::graphics::resources::model::{InstanceData, ModelId};
+use crate::renderer::resources::lighting::{DirectionalLight, LightInfo, PointLight, SpotLight};
+use crate::renderer::resources::model::{InstanceData, ModelId};
 
 pub fn init_renderer(vulkan: ResMut<Vulkan>) {
   #[cfg(feature = "debug")]

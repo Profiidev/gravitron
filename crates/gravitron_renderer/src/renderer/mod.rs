@@ -6,25 +6,30 @@ use gravitron_plugin::config::{
   vulkan::{PipelineType, VulkanConfig},
   window::WindowConfig,
 };
-use resources::model::{ModelId, ModelManager, VertexData, PLANE_MODEL};
 use swapchain::SwapChain;
+
+use crate::{
+  memory::{
+    types::{BufferMemory, BufferMemoryLocation},
+    MemoryManager,
+  },
+  model::{
+    model::{InstanceData, ModelId, VertexData, PLANE_MODEL},
+    ModelManager,
+  },
+};
 
 use super::{
   device::Device,
   error::RendererInitError,
   instance::InstanceDevice,
-  memory::{
-    manager::MemoryManager,
-    types::{BufferBlockSize, BufferId},
-    BufferMemory,
-  },
+  memory::types::{BufferBlockSize, BufferId},
   pipeline::{manager::PipelineManager, pools::Pools},
   surface::Surface,
 };
 
 mod framebuffer;
 mod render_pass;
-pub mod resources;
 pub mod swapchain;
 
 pub struct Renderer {
@@ -77,6 +82,7 @@ impl Renderer {
     let draw_count = memory_manager.create_simple_buffer(
       vk::BufferUsageFlags::INDIRECT_BUFFER,
       BufferBlockSize::Small,
+      BufferMemoryLocation::CpuToGpu,
     )?;
 
     let cmd_block_size = 10 * std::mem::size_of::<vk::DrawIndexedIndirectCommand>();
@@ -84,18 +90,18 @@ impl Renderer {
 
     for pipeline in &config.shaders {
       if let PipelineType::Graphics(shader) = pipeline {
-        let (cmd_mem, _) = memory_manager
+        let cmd_mem = memory_manager
           .reserve_buffer_mem(draw_commands, cmd_block_size)
           .unwrap();
-        let (count_mem, _) = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+        let count_mem = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
         shader_mem.insert(shader.name.clone(), (cmd_mem, count_mem, 0));
       }
     }
 
-    let (cmd_mem, _) = memory_manager
+    let cmd_mem = memory_manager
       .reserve_buffer_mem(draw_commands, cmd_block_size)
       .unwrap();
-    let (count_mem, _) = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
+    let count_mem = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
     shader_mem.insert("default".into(), (cmd_mem, count_mem, 0));
 
     Ok(Self {
@@ -132,6 +138,7 @@ impl Renderer {
     &mut self,
     pipeline_manager: &PipelineManager,
     memory_manager: &mut MemoryManager,
+    model_manager: &mut ModelManager,
   ) -> Result<(), vk::Result> {
     if self
       .buffers_updated
@@ -147,9 +154,7 @@ impl Renderer {
     let names = pipeline_manager.pipeline_names();
     let pipeline_count = names.len();
 
-    self
-      .model_manager
-      .record_command_buffer(memory_manager, buffer, &self.logical_device);
+    model_manager.record_command_buffer(memory_manager, buffer, &self.logical_device);
 
     for (i, pipeline) in names.into_iter().enumerate() {
       unsafe {
@@ -189,7 +194,7 @@ impl Renderer {
       self.light_render_pass,
     );
 
-    let plane = self.model_manager.model(PLANE_MODEL).unwrap();
+    let plane = model_manager.model(PLANE_MODEL).unwrap();
     unsafe {
       pipeline_manager
         .get_light_pipeline()
@@ -216,19 +221,15 @@ impl Renderer {
   pub fn update_draw_buffer(
     &mut self,
     memory_manager: &mut MemoryManager,
-    instances: HashMap<ModelId, HashMap<String, Vec<resources::model::InstanceData>>>,
-    other_buffer_resized: bool,
+    instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
+    model_manager: &mut ModelManager,
   ) {
-    let (cmd_new, buffer_resized) = self.model_manager.update_draw_buffer(
+    let cmd_new = model_manager.update_draw_buffer(
       self.draw_commands,
       &mut self.commands,
       memory_manager,
       instances,
     );
-
-    if buffer_resized || other_buffer_resized {
-      self.buffers_updated.clear();
-    }
 
     if cmd_new.is_empty() {
       return;
@@ -240,8 +241,6 @@ impl Renderer {
     let mut write_info = Vec::new();
     let mut write_data = Vec::new();
 
-    let mut buffer_resized = false;
-
     for (shader, cmd_new) in cmd_new {
       let (cmd_mem, count_mem, count) = self.shader_mem.get_mut(&shader).unwrap();
 
@@ -251,8 +250,7 @@ impl Renderer {
       if cmd_mem.size() < required_size {
         let new_size =
           (required_size as f32 / cmd_block_size as f32).ceil() as usize * cmd_block_size;
-        buffer_resized =
-          buffer_resized || memory_manager.resize_buffer_mem(cmd_mem, new_size).unwrap();
+        memory_manager.resize_buffer_mem(cmd_mem, new_size).unwrap();
         self.buffers_updated = Vec::new();
       }
 
@@ -276,10 +274,6 @@ impl Renderer {
 
       *count += cmd_new_len as u32;
       memory_manager.write_to_buffer(count_mem, &[*count]);
-    }
-
-    if buffer_resized {
-      self.buffers_updated.clear();
     }
 
     let write_data_slice = write_data.as_slice();
