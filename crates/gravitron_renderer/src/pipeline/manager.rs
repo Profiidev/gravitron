@@ -6,11 +6,8 @@ use gravitron_plugin::config::vulkan::{DescriptorSet, DescriptorType, ImageConfi
 
 use crate::{
   ecs::components::camera::Camera,
-  renderer::{
-    resources::lighting::{LightInfo, PointLight, SpotLight},
-    swapchain::SwapChain,
-  },
-  memory::{manager::MemoryManager, BufferMemory},
+  memory::{types::BufferMemory, MemoryManager},
+  renderer::{resources::lighting::{LightInfo, PointLight, SpotLight}, swapchain::SwapChain},
 };
 
 use super::{
@@ -239,8 +236,7 @@ impl PipelineManager {
     light_info: LightInfo,
     pls: &[PointLight],
     sls: &[SpotLight],
-  ) -> Option<bool> {
-    let mut resized = false;
+  ) -> Result<(), Error> {
     let pls_size = std::mem::size_of_val(pls);
     {
       let pls_mem = self
@@ -251,7 +247,7 @@ impl PipelineManager {
         .unwrap();
 
       if pls_mem.size() <= pls_size {
-        resized = memory_manager.resize_buffer_mem(pls_mem, pls_size)? || resized;
+        memory_manager.resize_buffer_mem(pls_mem, pls_size)?;
       }
     }
 
@@ -265,7 +261,7 @@ impl PipelineManager {
         .unwrap();
 
       if sls_mem.size() <= sls_size {
-        resized = memory_manager.resize_buffer_mem(sls_mem, sls_size)? || resized;
+        memory_manager.resize_buffer_mem(sls_mem, sls_size)?;
       }
     }
 
@@ -282,6 +278,6 @@ impl PipelineManager {
       memory_manager.write_to_buffer(sls_mem, sls);
     }
 
-    Some(resized)
+    Ok(())
   }
 }

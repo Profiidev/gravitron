@@ -6,10 +6,9 @@ use descriptors::{get_descriptor_set_layouts, get_light_framebuffer_descriptor_s
 
 use gravitron_plugin::config::vulkan::{ComputePipelineConfig, GraphicsPipelineConfig};
 
-use super::{
-  renderer::swapchain::SwapChain,
-  memory::{manager::MemoryManager, BufferMemory},
-};
+use crate::memory::types::BufferMemory;
+
+use super::{memory::MemoryManager, renderer::swapchain::SwapChain};
 
 mod descriptors;
 pub mod manager;

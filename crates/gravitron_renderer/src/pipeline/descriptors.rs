@@ -5,8 +5,7 @@ use ash::vk;
 use gravitron_plugin::config::vulkan::{DescriptorSet, DescriptorType};
 
 use crate::{
-  renderer::swapchain::{SwapChain, IMAGES_PER_FRAME_BUFFER},
-  memory::{manager::MemoryManager, types::BufferBlockSize, BufferMemory},
+  memory::{types::{BufferBlockSize, BufferMemory}, MemoryManager}, renderer::swapchain::{SwapChain, IMAGES_PER_FRAME_BUFFER}
 };
 
 #[allow(clippy::complexity)]
@@ -81,8 +80,7 @@ pub fn get_descriptor_set_layouts(
             .create_advanced_buffer(desc.buffer_usage, BufferBlockSize::Exact(desc.size))?;
           let mem = memory_manager
             .reserve_buffer_mem(buffer, desc.size)
-            .unwrap()
-            .0;
+            .unwrap();
 
           buffers.insert(i, mem);
 

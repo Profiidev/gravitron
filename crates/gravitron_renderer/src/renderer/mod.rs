@@ -30,6 +30,7 @@ use super::{
 
 mod framebuffer;
 mod render_pass;
+pub mod resources;
 pub mod swapchain;
 
 pub struct Renderer {
