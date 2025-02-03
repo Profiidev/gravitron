@@ -1,5 +1,7 @@
 pub mod ecs;
 pub mod engine;
+pub mod resources;
+pub mod components;
 
 pub use ecs::Id;
 

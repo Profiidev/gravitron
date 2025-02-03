@@ -1,14 +1,13 @@
 use gravitron::{
+  components::{
+    camera::CameraBuilder,
+    lighting::{DirectionalLight, PointLight, SpotLight},
+    renderer::MeshRenderer,
+    transform::Transform,
+  },
   ecs::{
     commands::Commands,
-    components::{
-      camera::CameraBuilder,
-      lighting::{DirectionalLight, PointLight, SpotLight},
-      renderer::MeshRenderer,
-      transform::Transform,
-    },
     hierarchy::command_ext::HierarchyCommandExt,
-    resources::{engine_commands::EngineCommands, engine_info::EngineInfo, input::Input},
     systems::{
       query::{filter::With, Query},
       resources::{Res, ResMut},
@@ -28,6 +27,7 @@ use gravitron::{
     graphics::resources::{material::Material, model::CUBE_MODEL},
     include_glsl,
   },
+  resources::{engine_commands::EngineCommands, engine_info::EngineInfo, input::Input},
   window::winit::keyboard::KeyCode,
   Id,
 };
