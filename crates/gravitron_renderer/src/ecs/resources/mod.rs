@@ -6,6 +6,7 @@ use gravitron_plugin::{
 use gravitron_window::ecs::resources::handle::WindowHandle;
 use memory::MemoryManager;
 use model::ModelManager;
+use pipeline::DescriptorManager;
 
 #[cfg(feature = "debug")]
 use crate::debug::Debugger;
@@ -30,15 +31,61 @@ pub mod pipeline {
   pub use crate::pipeline::*;
 }
 
+pub mod renderer {
+  pub use crate::renderer::*;
+}
+
+struct Vulkan {
+  #[allow(dead_code)]
+  entry: ash::Entry,
+  #[cfg(feature = "debug")]
+  debugger: Debugger,
+  instance: InstanceDevice,
+  surface: Surface,
+  device: Device,
+  pools: Pools,
+}
+
+impl Vulkan {
+  fn wait_for_idle(&self) {
+    unsafe {
+      self
+        .device
+        .get_device()
+        .device_wait_idle()
+        .expect("Unable to wait for device idle");
+    }
+  }
+
+  fn cleanup(&self) {
+    unsafe {
+      self.pools.cleanup();
+    }
+    self.device.cleanup();
+    self.surface.cleanup();
+    #[cfg(feature = "debug")]
+    self.debugger.cleanup();
+    self.instance.cleanup();
+  }
+}
+
 pub(crate) struct Resources {
   memory_manager: MemoryManager,
   model_manager: ModelManager,
+  descriptor_manager: DescriptorManager,
+  pipeline_manager: PipelineManager,
+  renderer: Renderer,
+  vulkan: Vulkan,
 }
 
 impl Resources {
   pub fn add_resources(self, builder: &mut AppBuilder<Finalize>) {
     builder.add_resource(self.memory_manager);
     builder.add_resource(self.model_manager);
+    builder.add_resource(self.descriptor_manager);
+    builder.add_resource(self.pipeline_manager);
+    builder.add_resource(self.renderer);
+    builder.add_resource(self.vulkan);
   }
 
   pub(crate) fn create(
@@ -84,41 +131,71 @@ impl Resources {
 
     let mut memory_manager = MemoryManager::new(&instance, &device, &mut pools)?;
     let model_manager = ModelManager::new(&mut memory_manager)?;
+    let mut descriptor_manager = DescriptorManager::new(device.get_device())?;
 
-    let mut renderer = Renderer::init(
+    let (mut renderer, pipeline_manager) = Renderer::init(
       &instance,
       &device,
       &mut memory_manager,
+      &mut descriptor_manager,
       &surface,
-      &mut config,
       &app_config.window,
       &mut pools,
     )?;
 
-    let pipeline_manager = PipelineManager::init(
-      device.get_device(),
-      renderer.render_pass(),
-      renderer.light_render_pass(),
-      renderer.swapchain(),
-      &mut config.shaders,
-      config.textures,
+    renderer.record_command_buffer(
+      &pipeline_manager,
+      &descriptor_manager,
       &mut memory_manager,
+      &model_manager,
     )?;
 
-    renderer.record_command_buffer(&pipeline_manager, &mut memory_manager)?;
+    let vulkan = Vulkan {
+      entry,
+      #[cfg(feature = "debug")]
+      debugger,
+      instance,
+      surface,
+      device,
+      pools,
+    };
 
     Ok(Resources {
       memory_manager,
       model_manager,
+      descriptor_manager,
+      pipeline_manager,
+      renderer,
+      vulkan,
     })
   }
 }
 
 pub(crate) fn cleanup_resource(app: &mut App<Cleanup>) -> Result<(), Error> {
   app
+    .get_resource_mut::<Vulkan>()
+    .expect("Failed get Vulkan")
+    .wait_for_idle();
+  app
+    .get_resource_mut::<Renderer>()
+    .expect("Failed get Renderer")
+    .cleanup();
+  app
+    .get_resource_mut::<PipelineManager>()
+    .expect("Failed get PipelineManager")
+    .cleanup();
+  app
+    .get_resource_mut::<DescriptorManager>()
+    .expect("Failed get DescriptorManager")
+    .cleanup();
+  app
     .get_resource_mut::<MemoryManager>()
     .expect("Failed get MemoryManager")
     .cleanup()?;
+  app
+    .get_resource_mut::<Vulkan>()
+    .expect("Failed get Vulkan")
+    .cleanup();
 
   Ok(())
 }

@@ -39,7 +39,7 @@ impl Device {
     &self.queues
   }
 
-  pub fn cleanup(&mut self) {
+  pub fn cleanup(&self) {
     unsafe {
       self.device.destroy_device(None);
     }

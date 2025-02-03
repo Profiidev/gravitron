@@ -62,11 +62,10 @@ impl Renderer {
     device: &Device,
     memory_manager: &mut MemoryManager,
     descriptor_manager: &mut DescriptorManager,
-    pipeline_manager: &mut PipelineManager,
     surface: &Surface,
     window_config: &WindowConfig,
     pools: &mut Pools,
-  ) -> Result<Self, Error> {
+  ) -> Result<(Self, PipelineManager), Error> {
     let logical_device = device.get_device();
 
     let format = surface
@@ -150,26 +149,31 @@ impl Renderer {
       .create_descriptor_set(descriptor, memory_manager)
       .expect("Failed to create default descriptor set");
 
+    let mut pipeline_manager = PipelineManager::init(logical_device, render_pass, &swapchain);
+
     let world = GraphicsPipelineBuilder::new();
     pipeline_manager.build_graphics_pipeline(world, descriptor_manager);
     let light = GraphicsPipelineBuilder::new().rendering_stage(RenderingStage::Light);
     pipeline_manager.build_graphics_pipeline(light, descriptor_manager);
 
-    Ok(Self {
-      render_pass,
-      swapchain,
-      logical_device: logical_device.clone(),
-      draw_commands,
-      draw_count,
-      commands: HashMap::new(),
-      buffers_updated: Vec::new(),
-      shader_mem: HashMap::new(),
-      default_descriptors: DefaultDescriptors {
-        buffer,
-        vertex_set,
-        fragment_set,
+    Ok((
+      Self {
+        render_pass,
+        swapchain,
+        logical_device: logical_device.clone(),
+        draw_commands,
+        draw_count,
+        commands: HashMap::new(),
+        buffers_updated: Vec::new(),
+        shader_mem: HashMap::new(),
+        default_descriptors: DefaultDescriptors {
+          buffer,
+          vertex_set,
+          fragment_set,
+        },
       },
-    })
+      pipeline_manager,
+    ))
   }
 
   pub fn cleanup(&self) {

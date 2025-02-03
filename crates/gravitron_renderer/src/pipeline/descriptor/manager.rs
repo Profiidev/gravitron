@@ -20,14 +20,14 @@ pub struct DescriptorManager {
 }
 
 impl DescriptorManager {
-  pub(crate) fn new(logical_device: ash::Device) -> Result<Self, Error> {
+  pub(crate) fn new(logical_device: &ash::Device) -> Result<Self, Error> {
     let id = DescriptorPoolId(0);
     let pool = DescriptorPool::new(Default::default(), id, &logical_device)?;
     let mut pools = HashMap::new();
     pools.insert(id, pool);
 
     Ok(DescriptorManager {
-      logical_device,
+      logical_device: logical_device.clone(),
       max_descriptor_id: 0,
       max_descriptor_set_id: 0,
       max_pool_id: 1,

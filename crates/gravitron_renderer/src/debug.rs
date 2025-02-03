@@ -64,7 +64,7 @@ impl Debugger {
     debugger_info
   }
 
-  pub fn cleanup(&mut self) {
+  pub fn cleanup(&self) {
     self.debug_utils.cleanup();
   }
 }
@@ -85,7 +85,7 @@ impl DebugUtils {
     Ok(Self { loader, messenger })
   }
 
-  pub fn cleanup(&mut self) {
+  pub fn cleanup(&self) {
     unsafe {
       self
         .loader
