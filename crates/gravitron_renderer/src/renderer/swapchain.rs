@@ -3,7 +3,11 @@ use ash::{khr, vk};
 use gravitron_plugin::config::window::WindowConfig;
 
 use crate::{
-  device::Device, instance::InstanceDevice, memory::MemoryManager, pipeline::pools::{CommandBufferType, Pools}, surface::Surface
+  device::Device,
+  instance::InstanceDevice,
+  memory::MemoryManager,
+  pipeline::pools::{CommandBufferType, Pools},
+  surface::Surface,
 };
 
 use super::framebuffer::Framebuffer;
@@ -112,10 +116,8 @@ impl SwapChain {
       .format(vk::Format::D32_SFLOAT)
       .subresource_range(subresource_range);
 
-    let depth_image = memory_manager.create_image(
-      &depth_image_create_info,
-      &depth_image_view_create_info,
-    )?;
+    let depth_image =
+      memory_manager.create_image(&depth_image_create_info, &depth_image_view_create_info)?;
 
     let command_buffer = pools.create_command_buffers(
       logical_device,

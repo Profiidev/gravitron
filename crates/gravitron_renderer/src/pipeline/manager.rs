@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ffi::CStr};
 
 use anyhow::Error;
 use ash::vk;
@@ -7,13 +7,33 @@ use gravitron_plugin::config::vulkan::{DescriptorSet, DescriptorType, ImageConfi
 use crate::{
   ecs::components::camera::Camera,
   memory::{types::BufferMemory, MemoryManager},
-  renderer::{resources::lighting::{LightInfo, PointLight, SpotLight}, swapchain::SwapChain},
+  renderer::{
+    resources::lighting::{LightInfo, PointLight, SpotLight},
+    swapchain::SwapChain,
+  },
 };
 
 use super::{
   descriptors::{add_descriptor, get_descriptor_set_layouts},
   Pipeline,
 };
+
+pub(crate) const MAIN_FN: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"main\0") };
+
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub struct PipelineId(u64);
+
+pub(crate) fn create_pipeline_cache(
+  logical_device: &ash::Device,
+  id: PipelineId,
+) -> Result<vk::PipelineCache, Error> {
+  let initial_data = std::fs::read(format!("cache/{}.bin", id.0)).unwrap_or_default();
+
+  let pipeline_cache_create_info =
+    vk::PipelineCacheCreateInfo::default().initial_data(&initial_data);
+
+  Ok(unsafe { logical_device.create_pipeline_cache(&pipeline_cache_create_info, None) }?)
+}
 
 pub struct PipelineManager {
   pipelines: Vec<(String, Pipeline)>,

@@ -22,7 +22,7 @@ pub struct ModelManager {
 }
 
 impl ModelManager {
-  pub fn new(memory_manager: &mut MemoryManager) -> Result<Self, Error> {
+  pub(crate) fn new(memory_manager: &mut MemoryManager) -> Result<Self, Error> {
     let vertex_buffer = memory_manager
       .create_advanced_buffer(vk::BufferUsageFlags::VERTEX_BUFFER, BufferBlockSize::Large)?;
     let index_buffer = memory_manager
@@ -87,7 +87,7 @@ impl ModelManager {
     Some(id)
   }
 
-  pub fn record_command_buffer(
+  pub(crate) fn record_command_buffer(
     &self,
     memory_manager: &MemoryManager,
     command_buffer: vk::CommandBuffer,
@@ -103,7 +103,7 @@ impl ModelManager {
     }
   }
 
-  pub fn update_draw_buffer(
+  pub(crate) fn update_draw_buffer(
     &mut self,
     cmd_buffer: BufferId,
     commands: &mut HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,

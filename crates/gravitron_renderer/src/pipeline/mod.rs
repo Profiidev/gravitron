@@ -10,7 +10,9 @@ use crate::memory::types::BufferMemory;
 
 use super::{memory::MemoryManager, renderer::swapchain::SwapChain};
 
+pub mod descriptor;
 mod descriptors;
+pub mod graphics;
 pub mod manager;
 pub mod pools;
 

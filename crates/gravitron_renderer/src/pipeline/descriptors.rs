@@ -5,7 +5,11 @@ use ash::vk;
 use gravitron_plugin::config::vulkan::{DescriptorSet, DescriptorType};
 
 use crate::{
-  memory::{types::{BufferBlockSize, BufferMemory}, MemoryManager}, renderer::swapchain::{SwapChain, IMAGES_PER_FRAME_BUFFER}
+  memory::{
+    types::{BufferBlockSize, BufferMemory},
+    MemoryManager,
+  },
+  renderer::swapchain::{SwapChain, IMAGES_PER_FRAME_BUFFER},
 };
 
 #[allow(clippy::complexity)]

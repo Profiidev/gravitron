@@ -12,9 +12,9 @@ use crate::debug::Debugger;
 
 use crate::{
   device::Device,
-  renderer::Renderer,
   instance::{InstanceDevice, InstanceDeviceConfig},
   pipeline::{manager::PipelineManager, pools::Pools},
+  renderer::Renderer,
   surface::Surface,
 };
 
@@ -24,6 +24,10 @@ pub mod memory {
 
 pub mod model {
   pub use crate::model::*;
+}
+
+pub mod pipeline {
+  pub use crate::pipeline::*;
 }
 
 pub(crate) struct Resources {
