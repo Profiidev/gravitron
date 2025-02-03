@@ -1,7 +1,7 @@
 use ash::vk;
 use RenderingStage::*;
 
-#[derive(Default)]
+#[derive(Default, PartialEq, PartialOrd)]
 pub enum RenderingStage {
   #[default]
   Light,
@@ -137,5 +137,23 @@ impl RenderingStage {
     depth: &'d vk::PipelineDepthStencilStateCreateInfo,
   ) -> vk::GraphicsPipelineCreateInfo<'d> {
     info.depth_stencil_state(depth)
+  }
+
+  pub(crate) fn render_pass(
+    &self,
+    world_render_pass: vk::RenderPass,
+    light_render_pass: vk::RenderPass,
+  ) -> vk::RenderPass {
+    match self {
+      Light => light_render_pass,
+      World => world_render_pass,
+    }
+  }
+
+  pub(crate) fn subpass(&self) -> u32 {
+    match self {
+      Light => 1,
+      World => 0,
+    }
   }
 }

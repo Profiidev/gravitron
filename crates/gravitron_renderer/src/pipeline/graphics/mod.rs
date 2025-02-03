@@ -4,11 +4,11 @@ use stage::RenderingStage;
 
 use crate::pipeline::manager::MAIN_FN;
 
-mod stage;
+pub mod stage;
 
 use super::{
   descriptor::{manager::DescriptorManager, DescriptorSetId},
-  manager::{create_pipeline_cache, PipelineId},
+  manager::{cleanup_pipeline_cache, create_pipeline_cache, GraphicsPipelineId},
 };
 
 #[derive(Default)]
@@ -61,7 +61,7 @@ impl<'s> GraphicsPipelineBuilder<'s> {
     descriptor_manager: &DescriptorManager,
     render_pass: vk::RenderPass,
     swapchain_extent: vk::Extent2D,
-    id: PipelineId,
+    id: GraphicsPipelineId,
     subpass: u32,
   ) -> Result<GraphicsPipeline, Error> {
     //Shader code
@@ -211,12 +211,43 @@ impl<'s> GraphicsPipelineBuilder<'s> {
   }
 }
 
-pub struct GraphicsPipeline {
-  id: PipelineId,
+pub(crate) struct GraphicsPipeline {
+  id: GraphicsPipelineId,
   pipeline: vk::Pipeline,
   layout: vk::PipelineLayout,
   descriptor_sets: Vec<DescriptorSetId>,
   cache: vk::PipelineCache,
 }
 
-impl GraphicsPipeline {}
+impl GraphicsPipeline {
+  pub fn cleanup(&self, logical_device: &ash::Device) {
+    unsafe {
+      logical_device.destroy_pipeline(self.pipeline, None);
+      logical_device.destroy_pipeline_layout(self.layout, None);
+      cleanup_pipeline_cache(logical_device, self.id, self.cache);
+    }
+  }
+
+  pub unsafe fn bind(
+    &self,
+    command_buffer: vk::CommandBuffer,
+    logical_device: &ash::Device,
+    descriptor_manager: &DescriptorManager,
+  ) {
+    logical_device.cmd_bind_pipeline(
+      command_buffer,
+      vk::PipelineBindPoint::GRAPHICS,
+      self.pipeline,
+    );
+
+    let sets = descriptor_manager.vk_sets(&self.descriptor_sets);
+    logical_device.cmd_bind_descriptor_sets(
+      command_buffer,
+      vk::PipelineBindPoint::GRAPHICS,
+      self.layout,
+      0,
+      &sets,
+      &[],
+    );
+  }
+}

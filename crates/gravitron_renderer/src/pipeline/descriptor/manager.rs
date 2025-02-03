@@ -190,4 +190,11 @@ impl DescriptorManager {
       .flat_map(|id| self.descriptor_sets.get(id).map(|set| set.layout()))
       .collect()
   }
+
+  pub(crate) fn vk_sets(&self, ids: &[DescriptorSetId]) -> Vec<vk::DescriptorSet> {
+    ids
+      .iter()
+      .flat_map(|id| self.descriptor_sets.get(id).map(|set| set.set()))
+      .collect()
+  }
 }

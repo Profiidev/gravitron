@@ -15,7 +15,7 @@ pub struct DescriptorId(u64);
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct DescriptorSetId(u64);
 
-pub struct DescriptorSet {
+pub(crate) struct DescriptorSet {
   id: DescriptorSetId,
   pool: DescriptorPoolId,
   set: vk::DescriptorSet,
@@ -24,16 +24,20 @@ pub struct DescriptorSet {
 }
 
 impl DescriptorSet {
-  pub(crate) fn layout(&self) -> vk::DescriptorSetLayout {
+  pub fn set(&self) -> vk::DescriptorSet {
+    self.set
+  }
+
+  pub fn layout(&self) -> vk::DescriptorSetLayout {
     self.layout
   }
 
-  pub(crate) fn cleanup(&self, logical_device: &ash::Device) {
+  pub fn cleanup(&self, logical_device: &ash::Device) {
     unsafe { logical_device.destroy_descriptor_set_layout(self.layout, None) };
   }
 }
 
-pub struct Descriptor {
+pub(crate) struct Descriptor {
   id: DescriptorId,
   r#type: DescriptorType,
 }
