@@ -1,2 +1,2 @@
-pub mod lighting;
+pub(crate) mod lighting;
 pub mod material;

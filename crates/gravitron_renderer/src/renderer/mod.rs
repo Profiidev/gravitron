@@ -2,10 +2,9 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use ash::vk;
-use gravitron_plugin::config::{
-  vulkan::{PipelineType, VulkanConfig},
-  window::WindowConfig,
-};
+use glam::Mat4;
+use gravitron_plugin::config::window::WindowConfig;
+use resources::lighting::{LightInfo, PointLight, SpotLight};
 use swapchain::SwapChain;
 
 use crate::{
@@ -14,8 +13,14 @@ use crate::{
     MemoryManager,
   },
   model::{
-    model::{InstanceData, ModelId, VertexData, PLANE_MODEL},
+    model::{InstanceData, ModelId},
     ModelManager,
+  },
+  pipeline::{
+    descriptor::{DescriptorInfo, DescriptorSetId, DescriptorType},
+    graphics::{stage::RenderingStage, GraphicsPipelineBuilder},
+    manager::GraphicsPipelineId,
+    DescriptorManager,
   },
 };
 
@@ -31,18 +36,24 @@ use super::{
 mod framebuffer;
 mod render_pass;
 pub mod resources;
-pub mod swapchain;
+pub(crate) mod swapchain;
 
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
-  light_render_pass: vk::RenderPass,
   swapchain: SwapChain,
   logical_device: ash::Device,
   draw_commands: BufferId,
   draw_count: BufferId,
-  shader_mem: HashMap<String, (BufferMemory, BufferMemory, u32)>,
-  commands: HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
+  commands: HashMap<ModelId, HashMap<GraphicsPipelineId, (vk::DrawIndexedIndirectCommand, u64)>>,
   buffers_updated: Vec<usize>,
+  shader_mem: HashMap<GraphicsPipelineId, (BufferMemory, BufferMemory, u32)>,
+  default_descriptors: DefaultDescriptors,
+}
+
+struct DefaultDescriptors {
+  buffer: BufferId,
+  vertex_set: DescriptorSetId,
+  fragment_set: DescriptorSetId,
 }
 
 impl Renderer {
@@ -50,8 +61,9 @@ impl Renderer {
     instance: &InstanceDevice,
     device: &Device,
     memory_manager: &mut MemoryManager,
+    descriptor_manager: &mut DescriptorManager,
+    pipeline_manager: &mut PipelineManager,
     surface: &Surface,
-    config: &mut VulkanConfig,
     window_config: &WindowConfig,
     pools: &mut Pools,
   ) -> Result<Self, Error> {
@@ -62,8 +74,7 @@ impl Renderer {
       .first()
       .ok_or(RendererInitError::FormatMissing)?
       .format;
-    let render_pass = render_pass::init_render_pass(logical_device, config.shaders.len() + 1)?;
-    let light_render_pass = render_pass::init_light_render_pass(logical_device, format)?;
+    let render_pass = render_pass::init_render_pass(logical_device, format)?;
 
     let swapchain = SwapChain::init(
       instance,
@@ -73,7 +84,6 @@ impl Renderer {
       window_config,
       pools,
       render_pass,
-      light_render_pass,
     )?;
 
     let draw_commands = memory_manager.create_advanced_buffer(
@@ -86,49 +96,89 @@ impl Renderer {
       BufferMemoryLocation::CpuToGpu,
     )?;
 
-    let cmd_block_size = 10 * std::mem::size_of::<vk::DrawIndexedIndirectCommand>();
-    let mut shader_mem = HashMap::new();
+    let buffer = memory_manager.create_simple_buffer(
+      vk::BufferUsageFlags::UNIFORM_BUFFER,
+      BufferBlockSize::Medium,
+      BufferMemoryLocation::CpuToGpu,
+    )?;
 
-    for pipeline in &config.shaders {
-      if let PipelineType::Graphics(shader) = pipeline {
-        let cmd_mem = memory_manager
-          .reserve_buffer_mem(draw_commands, cmd_block_size)
-          .unwrap();
-        let count_mem = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
-        shader_mem.insert(shader.name.clone(), (cmd_mem, count_mem, 0));
-      }
-    }
-
-    let cmd_mem = memory_manager
-      .reserve_buffer_mem(draw_commands, cmd_block_size)
+    let camera_mem = memory_manager
+      .reserve_buffer_mem(buffer, size_of::<Mat4>() * 2)
       .unwrap();
-    let count_mem = memory_manager.reserve_buffer_mem(draw_count, 4).unwrap();
-    shader_mem.insert("default".into(), (cmd_mem, count_mem, 0));
+    let vertex_set = descriptor_manager
+      .create_descriptor_set(
+        vec![DescriptorInfo {
+          stage: vk::ShaderStageFlags::VERTEX,
+          r#type: DescriptorType::UniformBuffer(camera_mem),
+        }],
+        memory_manager,
+      )
+      .expect("Failed to create default descriptor set");
+
+    let default_texture = memory_manager.create_texture_image(
+      vk::Filter::NEAREST,
+      include_bytes!("../../assets/default.png"),
+    )?;
+    let light_info_mem = memory_manager
+      .reserve_buffer_mem(buffer, size_of::<LightInfo>())
+      .unwrap();
+    let point_light_mem = memory_manager
+      .reserve_buffer_mem(buffer, size_of::<PointLight>() * 10)
+      .unwrap();
+    let spot_light_mem = memory_manager
+      .reserve_buffer_mem(buffer, size_of::<SpotLight>() * 10)
+      .unwrap();
+    let descriptor = vec![
+      DescriptorInfo {
+        stage: vk::ShaderStageFlags::FRAGMENT,
+        r#type: DescriptorType::Sampler(vec![default_texture]),
+      },
+      DescriptorInfo {
+        stage: vk::ShaderStageFlags::FRAGMENT,
+        r#type: DescriptorType::UniformBuffer(light_info_mem),
+      },
+      DescriptorInfo {
+        stage: vk::ShaderStageFlags::FRAGMENT,
+        r#type: DescriptorType::UniformBuffer(point_light_mem),
+      },
+      DescriptorInfo {
+        stage: vk::ShaderStageFlags::FRAGMENT,
+        r#type: DescriptorType::UniformBuffer(spot_light_mem),
+      },
+    ];
+    let fragment_set = descriptor_manager
+      .create_descriptor_set(descriptor, memory_manager)
+      .expect("Failed to create default descriptor set");
+
+    let world = GraphicsPipelineBuilder::new();
+    pipeline_manager.build_graphics_pipeline(world, descriptor_manager);
+    let light = GraphicsPipelineBuilder::new().rendering_stage(RenderingStage::Light);
+    pipeline_manager.build_graphics_pipeline(light, descriptor_manager);
 
     Ok(Self {
       render_pass,
-      light_render_pass,
       swapchain,
       logical_device: logical_device.clone(),
       draw_commands,
-      shader_mem,
       draw_count,
       commands: HashMap::new(),
       buffers_updated: Vec::new(),
+      shader_mem: HashMap::new(),
+      default_descriptors: DefaultDescriptors {
+        buffer,
+        vertex_set,
+        fragment_set,
+      },
     })
   }
 
-  pub fn destroy(&self) {
+  pub fn cleanup(&self) {
     unsafe {
       self
         .logical_device
         .destroy_render_pass(self.render_pass, None);
-
-      self
-        .logical_device
-        .destroy_render_pass(self.light_render_pass, None);
     }
-    self.swapchain.destroy(&self.logical_device);
+    self.swapchain.cleanup(&self.logical_device);
   }
 
   pub fn wait_for_draw_start(&self, logical_device: &ash::Device) {
@@ -138,8 +188,9 @@ impl Renderer {
   pub fn record_command_buffer(
     &mut self,
     pipeline_manager: &PipelineManager,
+    descriptor_manager: &DescriptorManager,
     memory_manager: &mut MemoryManager,
-    model_manager: &mut ModelManager,
+    model_manager: &ModelManager,
   ) -> Result<(), vk::Result> {
     if self
       .buffers_updated
@@ -152,21 +203,28 @@ impl Renderer {
       .swapchain
       .record_command_buffer_start(&self.logical_device, self.render_pass)?;
 
-    let names = pipeline_manager.pipeline_names();
-    let pipeline_count = names.len();
-
     model_manager.record_command_buffer(memory_manager, buffer, &self.logical_device);
 
-    for (i, pipeline) in names.into_iter().enumerate() {
+    for pipeline in pipeline_manager.graphics_pipelines() {
       unsafe {
-        pipeline_manager
-          .get_pipeline(pipeline)
-          .unwrap()
-          .record_command_buffer(buffer, &self.logical_device);
+        pipeline.bind(buffer, &self.logical_device, descriptor_manager);
 
         let draw_commands = memory_manager.get_vk_buffer(self.draw_commands).unwrap();
         let draw_count = memory_manager.get_vk_buffer(self.draw_count).unwrap();
-        let (cmd_mem, count_mem, _) = self.shader_mem.get(pipeline).unwrap();
+        let (cmd_mem, count_mem, _) = self.shader_mem.entry(pipeline.id()).or_insert_with(|| {
+          (
+            memory_manager
+              .reserve_buffer_mem(
+                self.draw_commands,
+                10 * std::mem::size_of::<vk::DrawIndexedIndirectCommand>(),
+              )
+              .expect("Failed to reserve draw cmd mem"),
+            memory_manager
+              .reserve_buffer_mem(self.draw_count, 4)
+              .expect("Failed to reserve draw cmd mem"),
+            0,
+          )
+        });
         let max_draw_count = cmd_mem.size() / 20;
 
         self.logical_device.cmd_draw_indexed_indirect_count(
@@ -179,36 +237,20 @@ impl Renderer {
           std::mem::size_of::<vk::DrawIndexedIndirectCommand>() as u32,
         );
       }
-
-      if i + 1 < pipeline_count {
-        unsafe {
-          self
-            .logical_device
-            .cmd_next_subpass(buffer, vk::SubpassContents::INLINE);
-        }
-      }
     }
 
-    self.swapchain.record_command_buffer_middle(
-      &self.logical_device,
-      buffer,
-      self.light_render_pass,
-    );
+    unsafe {
+      self
+        .logical_device
+        .cmd_next_subpass(buffer, vk::SubpassContents::INLINE);
+    }
 
-    let plane = model_manager.model(PLANE_MODEL).unwrap();
     unsafe {
       pipeline_manager
-        .get_light_pipeline()
-        .record_command_buffer(buffer, &self.logical_device);
+        .light_pipeline()
+        .bind(buffer, &self.logical_device, descriptor_manager);
 
-      self.logical_device.cmd_draw_indexed(
-        buffer,
-        plane.index_len(),
-        1,
-        plane.index_offset() / size_of::<u32>() as u32,
-        plane.vertex_offset() / size_of::<VertexData>() as i32,
-        0,
-      );
+      self.logical_device.cmd_draw(buffer, 3, 1, 0, 0);
     }
 
     self
@@ -222,7 +264,7 @@ impl Renderer {
   pub fn update_draw_buffer(
     &mut self,
     memory_manager: &mut MemoryManager,
-    instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
+    instances: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>>,
     model_manager: &mut ModelManager,
   ) {
     let cmd_new = model_manager.update_draw_buffer(
@@ -287,10 +329,6 @@ impl Renderer {
 
   pub fn render_pass(&self) -> vk::RenderPass {
     self.render_pass
-  }
-
-  pub fn light_render_pass(&self) -> vk::RenderPass {
-    self.light_render_pass
   }
 
   pub fn swapchain(&self) -> &SwapChain {

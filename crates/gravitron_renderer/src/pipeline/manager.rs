@@ -12,7 +12,7 @@ use super::{
 
 pub(crate) const MAIN_FN: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"main\0") };
 
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
 pub struct GraphicsPipelineId(u64);
 
 pub(crate) fn create_pipeline_cache(
@@ -42,16 +42,14 @@ pub struct PipelineManager {
   graphics_pipelines: HashMap<GraphicsPipelineId, GraphicsPipeline>,
   light_pipeline: Option<GraphicsPipeline>,
   logical_device: ash::Device,
-  world_render_pass: vk::RenderPass,
-  light_render_pass: vk::RenderPass,
+  render_pass: vk::RenderPass,
   swapchain_extent: vk::Extent2D,
 }
 
 impl PipelineManager {
   pub(crate) fn init(
     logical_device: &ash::Device,
-    world_render_pass: vk::RenderPass,
-    light_render_pass: vk::RenderPass,
+    render_pass: vk::RenderPass,
     swapchain: &SwapChain,
   ) -> Self {
     Self {
@@ -59,8 +57,7 @@ impl PipelineManager {
       graphics_pipelines: HashMap::new(),
       light_pipeline: None,
       logical_device: logical_device.clone(),
-      world_render_pass,
-      light_render_pass,
+      render_pass,
       swapchain_extent: swapchain.get_extent(),
     }
   }
@@ -73,9 +70,6 @@ impl PipelineManager {
     let id = GraphicsPipelineId(self.max_graphics_id);
     self.max_graphics_id += 1;
 
-    let render_pass = builder
-      .rendering_stage
-      .render_pass(self.world_render_pass, self.light_render_pass);
     let subpass = builder.rendering_stage.subpass();
     let is_light = builder.rendering_stage == RenderingStage::Light;
 
@@ -83,7 +77,7 @@ impl PipelineManager {
       .build(
         &self.logical_device,
         descriptor_manager,
-        render_pass,
+        self.render_pass,
         self.swapchain_extent,
         id,
         subpass,
@@ -117,5 +111,9 @@ impl PipelineManager {
 
   pub(crate) fn light_pipeline(&self) -> &GraphicsPipeline {
     &self.light_pipeline.as_ref().unwrap()
+  }
+
+  pub(crate) fn graphics_pipelines(&self) -> Vec<&GraphicsPipeline> {
+    self.graphics_pipelines.values().collect()
   }
 }

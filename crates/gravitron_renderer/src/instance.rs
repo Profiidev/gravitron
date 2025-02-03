@@ -116,7 +116,7 @@ impl InstanceDevice {
     Ok(physical_device.unwrap())
   }
 
-  pub fn destroy(&self) {
+  pub fn cleanup(&self) {
     unsafe {
       self.instance.destroy_instance(None);
     }

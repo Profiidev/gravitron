@@ -139,17 +139,6 @@ impl RenderingStage {
     info.depth_stencil_state(depth)
   }
 
-  pub(crate) fn render_pass(
-    &self,
-    world_render_pass: vk::RenderPass,
-    light_render_pass: vk::RenderPass,
-  ) -> vk::RenderPass {
-    match self {
-      Light => light_render_pass,
-      World => world_render_pass,
-    }
-  }
-
   pub(crate) fn subpass(&self) -> u32 {
     match self {
       Light => 1,

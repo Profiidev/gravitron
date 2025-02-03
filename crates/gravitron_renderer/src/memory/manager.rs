@@ -3,7 +3,6 @@ use std::{collections::HashMap, mem::ManuallyDrop};
 use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
-use gravitron_plugin::config::vulkan::ImageConfig;
 
 use crate::{
   device::Device,
@@ -152,11 +151,16 @@ impl MemoryManager {
     Ok(id)
   }
 
-  pub fn create_texture_image(&mut self, image_config: &ImageConfig) -> Result<ImageId, Error> {
+  pub fn create_texture_image(
+    &mut self,
+    interpolation: vk::Filter,
+    data: &[u8],
+  ) -> Result<ImageId, Error> {
     let id = ImageId::Sampler(self.last_image_id);
 
     let sampler_image = SamplerImage::new_texture(
-      image_config,
+      interpolation,
+      data,
       &self.device,
       &mut self.allocator,
       &self.graphics_transfer,

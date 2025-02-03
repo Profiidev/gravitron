@@ -1,7 +1,6 @@
 use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
-use gravitron_plugin::config::vulkan::{ImageConfig, ImageData};
 
 use super::{buffer::Buffer, image::Image, manager::Transfer};
 
@@ -25,15 +24,13 @@ impl SamplerImage {
   }
 
   pub fn new_texture(
-    image_config: &ImageConfig,
+    interpolation: vk::Filter,
+    data: &[u8],
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
   ) -> Result<Self, Error> {
-    let image_file = match &image_config.data {
-      ImageData::Path(path) => image::open(path)?.to_rgba8(),
-      ImageData::Bytes(bytes) => image::load_from_memory(bytes)?.to_rgba8(),
-    };
+    let image_file = image::load_from_memory(data)?.to_rgba8();
     let (width, height) = image_file.dimensions();
 
     let image_info = vk::ImageCreateInfo::default()
@@ -62,8 +59,8 @@ impl SamplerImage {
       .subresource_range(subresource_range);
 
     let sampler_info = vk::SamplerCreateInfo::default()
-      .mag_filter(image_config.interpolation)
-      .min_filter(image_config.interpolation);
+      .mag_filter(interpolation)
+      .min_filter(interpolation);
 
     let sampler = Self::new(
       device,

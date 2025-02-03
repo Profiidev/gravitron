@@ -1,6 +1,6 @@
 use gravitron_ecs::Component;
 
-use crate::model::model::ModelId;
+use crate::{model::model::ModelId, renderer::resources::material::Material};
 
 #[derive(Component)]
 pub struct MeshRenderer {

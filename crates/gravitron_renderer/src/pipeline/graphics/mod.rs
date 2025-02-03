@@ -250,4 +250,8 @@ impl GraphicsPipeline {
       &[],
     );
   }
+
+  pub fn id(&self) -> GraphicsPipelineId {
+    self.id
+  }
 }

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::memory::types::BufferMemory;
+use crate::{memory::types::BufferMemory, pipeline::manager::GraphicsPipelineId};
 
 pub const CUBE_MODEL: ModelId = ModelId(0);
 pub const PLANE_MODEL: ModelId = ModelId(1);
@@ -13,7 +13,7 @@ pub(crate) struct Model {
   pub(crate) indices: BufferMemory,
   pub(crate) index_len: u32,
   pub(crate) instance_alloc_size: usize,
-  pub(crate) instances: HashMap<String, (BufferMemory, Vec<InstanceData>)>,
+  pub(crate) instances: HashMap<GraphicsPipelineId, (BufferMemory, Vec<InstanceData>)>,
 }
 
 #[derive(Debug)]

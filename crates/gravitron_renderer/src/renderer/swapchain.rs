@@ -20,7 +20,6 @@ pub struct SwapChain {
   framebuffers: Vec<Framebuffer>,
   extent: vk::Extent2D,
   current_image: usize,
-  geometry_images: Vec<(vk::ImageView, vk::Sampler)>,
 }
 
 impl SwapChain {
@@ -33,7 +32,6 @@ impl SwapChain {
     window_config: &WindowConfig,
     pools: &mut Pools,
     render_pass: vk::RenderPass,
-    light_render_pass: vk::RenderPass,
   ) -> Result<Self, Error> {
     let physical_device = instance_device.get_physical_device();
     let logical_device = device.get_device();
@@ -153,26 +151,12 @@ impl SwapChain {
         surface_format.format,
         [images[0], images[1], images[2]],
         depth_image,
-        (render_pass, light_render_pass),
+        render_pass,
         memory_manager,
         extent,
         command_buffer,
       )?);
     }
-
-    let geometry_images = images
-      .into_iter()
-      .map(|i| {
-        (
-          memory_manager
-            .get_vk_image_view(i)
-            .expect("Failed to get image view"),
-          memory_manager
-            .get_vk_sampler(i)
-            .expect("Failed to get sampler"),
-        )
-      })
-      .collect();
 
     Ok(Self {
       loader: swapchain_loader,
@@ -180,7 +164,6 @@ impl SwapChain {
       framebuffers,
       extent,
       current_image: 0,
-      geometry_images,
     })
   }
 
@@ -188,9 +171,9 @@ impl SwapChain {
     self.extent
   }
 
-  pub fn destroy(&self, logical_device: &ash::Device) {
+  pub fn cleanup(&self, logical_device: &ash::Device) {
     for framebuffer in &self.framebuffers {
-      framebuffer.destroy(logical_device);
+      framebuffer.cleanup(logical_device);
     }
 
     unsafe {
@@ -220,15 +203,6 @@ impl SwapChain {
     render_pass: vk::RenderPass,
   ) -> Result<vk::CommandBuffer, vk::Result> {
     self.framebuffers[self.current_image].start_record(device, render_pass, self.extent)
-  }
-
-  pub fn record_command_buffer_middle(
-    &self,
-    device: &ash::Device,
-    buffer: vk::CommandBuffer,
-    render_pass: vk::RenderPass,
-  ) {
-    self.framebuffers[self.current_image].middle_record(device, buffer, render_pass, self.extent)
   }
 
   pub fn record_command_buffer_end(
@@ -301,9 +275,5 @@ impl SwapChain {
 
   pub fn framebuffer_count(&self) -> usize {
     self.framebuffers.len()
-  }
-
-  pub fn framebuffer_image_handles(&self) -> &[(vk::ImageView, vk::Sampler)] {
-    &self.geometry_images
   }
 }

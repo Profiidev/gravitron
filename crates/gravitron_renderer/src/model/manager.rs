@@ -3,9 +3,12 @@ use std::collections::HashMap;
 use anyhow::Error;
 use ash::vk;
 
-use crate::memory::{
-  types::{BufferBlockSize, BufferId},
-  MemoryManager,
+use crate::{
+  memory::{
+    types::{BufferBlockSize, BufferId},
+    MemoryManager,
+  },
+  pipeline::manager::GraphicsPipelineId,
 };
 
 use super::{
@@ -106,10 +109,13 @@ impl ModelManager {
   pub(crate) fn update_draw_buffer(
     &mut self,
     cmd_buffer: BufferId,
-    commands: &mut HashMap<ModelId, HashMap<String, (vk::DrawIndexedIndirectCommand, u64)>>,
+    commands: &mut HashMap<
+      ModelId,
+      HashMap<GraphicsPipelineId, (vk::DrawIndexedIndirectCommand, u64)>,
+    >,
     memory_manager: &mut MemoryManager,
-    instances: HashMap<ModelId, HashMap<String, Vec<InstanceData>>>,
-  ) -> HashMap<String, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>> {
+    instances: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>>,
+  ) -> HashMap<GraphicsPipelineId, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>> {
     let instance_size = std::mem::size_of::<InstanceData>();
     let mut copy_offset = 0;
     let mut instance_copies_info = Vec::new();
