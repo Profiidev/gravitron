@@ -22,7 +22,7 @@ pub struct DescriptorManager {
 impl DescriptorManager {
   pub(crate) fn new(logical_device: &ash::Device) -> Result<Self, Error> {
     let id = DescriptorPoolId(0);
-    let pool = DescriptorPool::new(Default::default(), id, &logical_device)?;
+    let pool = DescriptorPool::new(Default::default(), id, logical_device)?;
     let mut pools = HashMap::new();
     pools.insert(id, pool);
 

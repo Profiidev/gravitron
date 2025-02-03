@@ -20,6 +20,7 @@ pub struct SwapChain {
   framebuffers: Vec<Framebuffer>,
   extent: vk::Extent2D,
   current_image: usize,
+  graphics_queue: vk::Queue,
 }
 
 impl SwapChain {
@@ -164,6 +165,7 @@ impl SwapChain {
       framebuffers,
       extent,
       current_image: 0,
+      graphics_queue: device.get_queues().graphics(),
     })
   }
 
@@ -216,10 +218,7 @@ impl SwapChain {
     }
   }
 
-  pub fn draw_frame(&mut self, device: &Device) {
-    let logical_device = device.get_device();
-    let graphics_queue = device.get_queues().graphics();
-
+  pub fn draw_frame(&mut self, logical_device: &ash::Device) {
     let (image_index, _) = unsafe {
       self
         .loader
@@ -246,7 +245,7 @@ impl SwapChain {
     unsafe {
       logical_device
         .queue_submit(
-          graphics_queue,
+          self.graphics_queue,
           &submit_info,
           self.framebuffers[self.current_image].begin_drawing(),
         )
@@ -262,7 +261,7 @@ impl SwapChain {
     unsafe {
       self
         .loader
-        .queue_present(graphics_queue, &present_info)
+        .queue_present(self.graphics_queue, &present_info)
         .expect("Unable to queue present");
     }
 

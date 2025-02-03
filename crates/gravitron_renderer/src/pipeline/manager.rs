@@ -10,7 +10,7 @@ use super::{
   DescriptorManager,
 };
 
-pub(crate) const MAIN_FN: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"main\0") };
+pub(crate) const MAIN_FN: &CStr = c"main";
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
 pub struct GraphicsPipelineId(u64);
@@ -105,12 +105,8 @@ impl PipelineManager {
       .cleanup(&self.logical_device);
   }
 
-  pub(crate) fn graphics_pipeline(&self, id: GraphicsPipelineId) -> Option<&GraphicsPipeline> {
-    self.graphics_pipelines.get(&id)
-  }
-
   pub(crate) fn light_pipeline(&self) -> &GraphicsPipeline {
-    &self.light_pipeline.as_ref().unwrap()
+    self.light_pipeline.as_ref().unwrap()
   }
 
   pub(crate) fn graphics_pipelines(&self) -> Vec<&GraphicsPipeline> {

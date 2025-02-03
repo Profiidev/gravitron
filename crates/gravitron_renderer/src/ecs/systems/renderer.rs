@@ -1,6 +1,8 @@
 use std::collections::HashMap;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
+use gravitron_ecs::systems::query::filter::Changed;
+use gravitron_ecs::systems::resources::Res;
 #[allow(unused_imports)]
 use log::{trace, warn};
 
@@ -10,52 +12,33 @@ use crate::ecs::components::lighting::{
   SpotLight as SpotLightComp,
 };
 use crate::ecs::components::renderer::MeshRenderer;
-use crate::ecs::resources::vulkan::Vulkan;
-use gravitron_components::components::transform::GlobalTransform;
+use crate::memory::MemoryManager;
+use crate::model::model::{InstanceData, ModelId};
+use crate::model::ModelManager;
+use crate::pipeline::manager::GraphicsPipelineId;
+use crate::pipeline::DescriptorManager;
+use crate::renderer::Renderer;
+use gravitron_components::components::transform::{GlobalTransform, Transform};
 use gravitron_ecs::{systems::query::Query, systems::resources::ResMut};
 
 use crate::renderer::resources::lighting::{DirectionalLight, LightInfo, PointLight, SpotLight};
-use crate::renderer::resources::model::{InstanceData, ModelId};
 
-pub fn init_renderer(vulkan: ResMut<Vulkan>) {
+pub fn init_renderer(renderer: Res<Renderer>) {
   #[cfg(feature = "debug")]
   trace!("Initializing Renderer");
-  vulkan.wait_for_draw_start();
+  renderer.wait_for_draw_start();
 }
 
-pub fn renderer_recording(
-  mut vulkan: ResMut<Vulkan>,
-  to_render: Query<(&MeshRenderer, &GlobalTransform)>,
+pub fn update_descriptors(
+  mut descriptor_manager: ResMut<DescriptorManager>,
+  camera: Query<(&mut Camera, &Transform), Changed<Transform>>,
   dl_query: Query<(&DirectionalLightComp, &GlobalTransform)>,
   pls_query: Query<(&PointLightComp, &GlobalTransform)>,
   sls_query: Query<(&SpotLightComp, &GlobalTransform)>,
-  camera: Query<&Camera>,
 ) {
-  #[cfg(feature = "debug")]
-  trace!("Recording Render Instructions");
-
-  if let Some((_, camera)) = camera.into_iter().next() {
-    vulkan.update_camera(camera.deref());
-  } else {
-    warn!("No camera found. Can't render anything");
-    return;
-  };
-
-  let mut models: HashMap<ModelId, HashMap<String, Vec<InstanceData>>> = HashMap::new();
-  for (_, mesh_render, transform) in to_render {
-    let shader = models.entry(mesh_render.model_id).or_default();
-    let instances = shader
-      .entry(mesh_render.material.shader.clone())
-      .or_default();
-    let material = &mesh_render.material;
-    instances.push(InstanceData::new(
-      transform.matrix(),
-      transform.inv_matrix(),
-      material.color,
-      material.metallic,
-      material.roughness,
-      material.texture_id,
-    ));
+  if let Some((_, mut camera, transform)) = camera.into_iter().next() {
+    camera.update_view_matrix(transform.deref());
+    // TODO update camera
   }
 
   let mut pls = Vec::new();
@@ -97,11 +80,42 @@ pub fn renderer_recording(
     directional_light: dl,
   };
 
-  vulkan.update_draw_info(models, light_info, &pls, &sls);
+  //TODO update lights
 }
 
-pub fn execute_renderer(mut vulkan: ResMut<Vulkan>) {
+pub fn renderer_recording(
+  mut renderer: ResMut<Renderer>,
+  mut memory_manager: ResMut<MemoryManager>,
+  mut model_manager: ResMut<ModelManager>,
+  to_render: Query<(&MeshRenderer, &GlobalTransform)>,
+) {
+  #[cfg(feature = "debug")]
+  trace!("Recording Render Instructions");
+
+  let mut models: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>> = HashMap::new();
+  for (_, mesh_render, transform) in to_render {
+    let shader = models.entry(mesh_render.model_id).or_default();
+    let instances = shader.entry(mesh_render.material.shader).or_default();
+    let material = &mesh_render.material;
+    instances.push(InstanceData::new(
+      transform.matrix(),
+      transform.inv_matrix(),
+      material.color,
+      material.metallic,
+      material.roughness,
+      material.texture_id,
+    ));
+  }
+
+  renderer.update_draw_buffer(
+    memory_manager.deref_mut(),
+    models,
+    model_manager.deref_mut(),
+  );
+}
+
+pub fn execute_renderer(mut renderer: ResMut<Renderer>) {
   #[cfg(feature = "debug")]
   trace!("Drawing Frame");
-  vulkan.draw_frame();
+  renderer.draw_frame();
 }

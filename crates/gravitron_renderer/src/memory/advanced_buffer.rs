@@ -89,7 +89,7 @@ impl AdvancedBuffer {
     let size = std::mem::size_of_val(data);
     let mem = self
       .reserve_buffer_mem(size, device, allocator, transfer)
-      .ok_or_else(|| MemoryError::Reallocate)?;
+      .ok_or(MemoryError::Reallocate)?;
 
     self.write_to_buffer(&mem, data, device, allocator, transfer)?;
 
@@ -195,7 +195,7 @@ impl AdvancedBuffer {
     assert!(mem.size() < size);
     let new_mem = self
       .reserve_buffer_mem(size, device, allocator, transfer)
-      .ok_or_else(|| MemoryError::Reallocate)?;
+      .ok_or(MemoryError::Reallocate)?;
 
     transfer.reset(device)?;
 

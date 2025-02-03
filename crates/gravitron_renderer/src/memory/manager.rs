@@ -217,7 +217,7 @@ impl MemoryManager {
     match self
       .buffers
       .get_mut(&buffer_id)
-      .ok_or_else(|| MemoryError::NotFound)?
+      .ok_or(MemoryError::NotFound)?
     {
       BufferType::Advanced(buffer) => {
         let mem = buffer.add_to_buffer(data, &self.device, &mut self.allocator, &transfer);
@@ -236,7 +236,7 @@ impl MemoryManager {
     match self
       .buffers
       .get_mut(&mem.buffer())
-      .ok_or_else(|| MemoryError::NotFound)?
+      .ok_or(MemoryError::NotFound)?
     {
       BufferType::Advanced(buffer) => {
         buffer.write_to_buffer(mem, data, &self.device, &mut self.allocator, &transfer)?;
@@ -259,7 +259,7 @@ impl MemoryManager {
     match self
       .buffers
       .get_mut(&buffer_id)
-      .ok_or_else(|| MemoryError::NotFound)?
+      .ok_or(MemoryError::NotFound)?
     {
       BufferType::Advanced(buffer) => {
         buffer.write_to_buffer_direct(
@@ -283,7 +283,7 @@ impl MemoryManager {
     match self
       .buffers
       .get_mut(&mem.buffer())
-      .ok_or_else(|| MemoryError::NotFound)?
+      .ok_or(MemoryError::NotFound)?
     {
       BufferType::Advanced(buffer) => {
         buffer.resize_buffer_mem(mem, size, &self.device, &mut self.allocator, &transfer)

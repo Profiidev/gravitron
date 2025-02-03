@@ -1,6 +1,6 @@
 use ecs::{
   resources::{cleanup_resource, Resources},
-  systems::renderer::{execute_renderer, init_renderer, renderer_recording},
+  systems::renderer::{execute_renderer, init_renderer, renderer_recording, update_descriptors},
 };
 use gravitron_components::ComponentPlugin;
 use gravitron_plugin::{
@@ -31,6 +31,7 @@ pub struct RendererPlugin;
 impl Plugin for RendererPlugin {
   fn build(&self, builder: &mut AppBuilder<Build>) {
     builder.add_main_system_at_stage(init_renderer, MainSystemStage::RenderInit);
+    builder.add_main_system_at_stage(update_descriptors, MainSystemStage::RenderInit);
     builder.add_main_system_at_stage(renderer_recording, MainSystemStage::RenderRecording);
     builder.add_main_system_at_stage(execute_renderer, MainSystemStage::RenderExecute);
   }

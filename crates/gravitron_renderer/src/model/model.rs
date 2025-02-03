@@ -57,18 +57,6 @@ impl Model {
       instances: HashMap::new(),
     }
   }
-
-  pub fn index_len(&self) -> u32 {
-    self.index_len
-  }
-
-  pub fn vertex_offset(&self) -> i32 {
-    self.vertices.offset() as i32
-  }
-
-  pub fn index_offset(&self) -> u32 {
-    self.indices.offset() as u32
-  }
 }
 
 impl InstanceData {

@@ -70,7 +70,7 @@ impl<'s> GraphicsPipelineBuilder<'s> {
     let shader_create_info = vk::ShaderModuleCreateInfo::default().code(
       self
         .vertex_shader
-        .unwrap_or(&self.rendering_stage.vertex_shader()),
+        .unwrap_or(self.rendering_stage.vertex_shader()),
     );
     let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
     modules.push((shader_module, vk::ShaderStageFlags::VERTEX));
@@ -85,7 +85,7 @@ impl<'s> GraphicsPipelineBuilder<'s> {
     let shader_create_info = vk::ShaderModuleCreateInfo::default().code(
       self
         .fragment_shader
-        .unwrap_or(&self.rendering_stage.fragment_shader()),
+        .unwrap_or(self.rendering_stage.fragment_shader()),
     );
     let shader_module = unsafe { logical_device.create_shader_module(&shader_create_info, None) }?;
     modules.push((shader_module, vk::ShaderStageFlags::FRAGMENT));

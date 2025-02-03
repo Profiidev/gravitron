@@ -38,6 +38,9 @@ mod render_pass;
 pub mod resources;
 pub(crate) mod swapchain;
 
+pub const CAMERA_DESCRIPTOR: DescriptorSetId = DescriptorSetId(0);
+pub const LIGHTS_DESCRIPTOR: DescriptorSetId = DescriptorSetId(1);
+
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
   swapchain: SwapChain,
@@ -47,13 +50,7 @@ pub struct Renderer {
   commands: HashMap<ModelId, HashMap<GraphicsPipelineId, (vk::DrawIndexedIndirectCommand, u64)>>,
   buffers_updated: Vec<usize>,
   shader_mem: HashMap<GraphicsPipelineId, (BufferMemory, BufferMemory, u32)>,
-  default_descriptors: DefaultDescriptors,
-}
-
-struct DefaultDescriptors {
-  buffer: BufferId,
-  vertex_set: DescriptorSetId,
-  fragment_set: DescriptorSetId,
+  descriptor_buffer: BufferId,
 }
 
 impl Renderer {
@@ -151,9 +148,11 @@ impl Renderer {
 
     let mut pipeline_manager = PipelineManager::init(logical_device, render_pass, &swapchain);
 
-    let world = GraphicsPipelineBuilder::new();
+    let world = GraphicsPipelineBuilder::new().add_descriptor_sets(vec![vertex_set, fragment_set]);
     pipeline_manager.build_graphics_pipeline(world, descriptor_manager);
-    let light = GraphicsPipelineBuilder::new().rendering_stage(RenderingStage::Light);
+    let light = GraphicsPipelineBuilder::new()
+      .rendering_stage(RenderingStage::Light)
+      .add_descriptor_sets(vec![vertex_set, fragment_set]);
     pipeline_manager.build_graphics_pipeline(light, descriptor_manager);
 
     Ok((
@@ -166,11 +165,7 @@ impl Renderer {
         commands: HashMap::new(),
         buffers_updated: Vec::new(),
         shader_mem: HashMap::new(),
-        default_descriptors: DefaultDescriptors {
-          buffer,
-          vertex_set,
-          fragment_set,
-        },
+        descriptor_buffer: buffer,
       },
       pipeline_manager,
     ))
@@ -185,8 +180,8 @@ impl Renderer {
     self.swapchain.cleanup(&self.logical_device);
   }
 
-  pub fn wait_for_draw_start(&self, logical_device: &ash::Device) {
-    self.swapchain.wait_for_draw_start(logical_device);
+  pub fn wait_for_draw_start(&self) {
+    self.swapchain.wait_for_draw_start(&self.logical_device);
   }
 
   pub fn record_command_buffer(
@@ -271,12 +266,14 @@ impl Renderer {
     instances: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>>,
     model_manager: &mut ModelManager,
   ) {
-    let cmd_new = model_manager.update_draw_buffer(
-      self.draw_commands,
-      &mut self.commands,
-      memory_manager,
-      instances,
-    );
+    let cmd_new = model_manager
+      .update_draw_buffer(
+        self.draw_commands,
+        &mut self.commands,
+        memory_manager,
+        instances,
+      )
+      .unwrap_or_default();
 
     if cmd_new.is_empty() {
       return;
@@ -310,7 +307,7 @@ impl Renderer {
       for (i, (model_id, cmd)) in cmd_new.into_iter().enumerate() {
         let model = self.commands.entry(model_id).or_default();
         model.insert(
-          shader.clone(),
+          shader,
           (
             cmd,
             (cmd_mem.offset() + (*count as usize + i) * cmd_size) as u64,
@@ -320,15 +317,16 @@ impl Renderer {
       }
 
       *count += cmd_new_len as u32;
-      memory_manager.write_to_buffer(count_mem, &[*count]);
+      let _ = memory_manager.write_to_buffer(count_mem, &[*count]);
     }
 
     let write_data_slice = write_data.as_slice();
-    memory_manager.write_to_buffer_direct(self.draw_commands, write_data_slice, &write_info);
+    let _ =
+      memory_manager.write_to_buffer_direct(self.draw_commands, write_data_slice, &write_info);
   }
 
-  pub fn draw_frame(&mut self, device: &Device) {
-    self.swapchain.draw_frame(device);
+  pub fn draw_frame(&mut self) {
+    self.swapchain.draw_frame(&self.logical_device);
   }
 
   pub fn render_pass(&self) -> vk::RenderPass {

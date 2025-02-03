@@ -80,7 +80,7 @@ impl SimpleBuffer {
     let size = std::mem::size_of_val(data);
     let mem = self
       .reserve_buffer_mem(size, device, allocator)
-      .ok_or_else(|| MemoryError::Reallocate)?;
+      .ok_or(MemoryError::Reallocate)?;
 
     self.write_to_buffer(&mem, data)?;
 
@@ -143,7 +143,7 @@ impl SimpleBuffer {
   ) -> Result<(), Error> {
     let new_mem = self
       .reserve_buffer_mem(size, device, allocator)
-      .ok_or_else(|| MemoryError::Reallocate)?;
+      .ok_or(MemoryError::Reallocate)?;
 
     let ptr = unsafe { self.buffer.ptr().unwrap().byte_add(mem.offset()) };
     self.buffer.write(ptr, mem.size(), new_mem.offset())?;

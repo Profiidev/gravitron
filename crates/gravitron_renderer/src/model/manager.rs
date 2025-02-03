@@ -115,7 +115,7 @@ impl ModelManager {
     >,
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>>,
-  ) -> HashMap<GraphicsPipelineId, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>> {
+  ) -> Option<HashMap<GraphicsPipelineId, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>>> {
     let instance_size = std::mem::size_of::<InstanceData>();
     let mut copy_offset = 0;
     let mut instance_copies_info = Vec::new();
@@ -234,7 +234,7 @@ impl ModelManager {
           };
 
           let instances_slice = instances.as_slice();
-          memory_manager.write_to_buffer(&mem, instances_slice);
+          memory_manager.write_to_buffer(&mem, instances_slice).ok()?;
 
           let cmd = vk::DrawIndexedIndirectCommand {
             index_count: model.index_len,
@@ -245,7 +245,7 @@ impl ModelManager {
           };
 
           let shader_cmd: &mut Vec<(ModelId, vk::DrawIndexedIndirectCommand)> =
-            cmd_new.entry(shader.clone()).or_default();
+            cmd_new.entry(shader).or_default();
           shader_cmd.push((model_id, cmd));
 
           model.instances.insert(shader, (mem, instances));
@@ -254,21 +254,21 @@ impl ModelManager {
     }
 
     if !instance_copies.is_empty() {
-      memory_manager.write_to_buffer_direct(
-        self.instance_buffer,
-        &instance_copies,
-        &instance_copies_info,
-      );
+      memory_manager
+        .write_to_buffer_direct(
+          self.instance_buffer,
+          &instance_copies,
+          &instance_copies_info,
+        )
+        .ok()?;
     }
 
     if !cmd_copies.is_empty() {
-      memory_manager.write_to_buffer_direct(cmd_buffer, &cmd_copies, &cmd_copies_info);
+      memory_manager
+        .write_to_buffer_direct(cmd_buffer, &cmd_copies, &cmd_copies_info)
+        .ok()?;
     }
 
-    cmd_new
-  }
-
-  pub fn model(&self, id: ModelId) -> Option<&Model> {
-    self.models.get(&id)
+    Some(cmd_new)
   }
 }

@@ -23,14 +23,14 @@ use gravitron::{
     },
     Plugin,
   },
-  renderer::{
-    graphics::resources::{material::Material, model::CUBE_MODEL},
-    include_glsl,
+  resources::{
+    engine_commands::EngineCommands, engine_info::EngineInfo, input::Input,
+    model::model::CUBE_MODEL, renderer::resources::material::Material,
   },
-  resources::{engine_commands::EngineCommands, engine_info::EngineInfo, input::Input},
   window::winit::keyboard::KeyCode,
   Id,
 };
+use gravitron_renderer::include_glsl;
 
 fn main() {
   let mut builder = Gravitron::builder();
@@ -120,10 +120,7 @@ fn init(cmds: &mut Commands, mut id: ResMut<Id>) {
     -std::f32::consts::FRAC_PI_4,
   );
   camera_transform.set_position(math::Vec3::new(10.0, 10.0, 10.0));
-  cmds.create_entity((
-    CameraBuilder::new().build(&camera_transform),
-    camera_transform,
-  ));
+  cmds.create_entity((CameraBuilder::new().build(), camera_transform));
 
   let mut dl_t = Transform::default();
   dl_t.set_rotation(0.0, std::f32::consts::FRAC_PI_4 * 3.0, 0.0);

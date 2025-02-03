@@ -13,7 +13,7 @@ mod pool;
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct DescriptorId(u64);
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct DescriptorSetId(u64);
+pub struct DescriptorSetId(pub(crate) u64);
 
 pub(crate) struct DescriptorSet {
   id: DescriptorSetId,
