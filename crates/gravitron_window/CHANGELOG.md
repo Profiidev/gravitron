@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2025-02-03
+
+### 🚀 Features
+
+- Added global transform
+
+### ⚙️ Miscellaneous Tasks
+
+- Added some more logging
+
+
 ## [0.1.0] - 2025-01-21
 
 ### 🚀 Features
