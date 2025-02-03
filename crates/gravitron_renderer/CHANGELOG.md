@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-02-03
+
+### 🚀 Features
+
+- Added global transform
+- Added plugin dependencies
+
+### 🐛 Bug Fixes
+
+- Plugin cleanup not being called
+
+### 🚜 Refactor
+
+- Removed matrix from transform
+- Moved general components to own crate
+
+### 🎨 Styling
+
+- Fixed format
+
+
 ## [0.1.0] - 2025-01-21
 
 ### 🚀 Features
