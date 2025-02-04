@@ -19,7 +19,9 @@ pub struct DescriptorId(pub(crate) u64);
 pub struct DescriptorSetId(pub(crate) u64);
 
 pub(crate) struct DescriptorSet {
+  #[allow(unused)]
   id: DescriptorSetId,
+  #[allow(unused)]
   pool: DescriptorPoolId,
   set: vk::DescriptorSet,
   layout: vk::DescriptorSetLayout,
@@ -43,6 +45,7 @@ impl DescriptorSet {
 }
 
 pub struct Descriptor {
+  #[allow(unused)]
   id: DescriptorId,
   changed: bool,
   binding: u32,

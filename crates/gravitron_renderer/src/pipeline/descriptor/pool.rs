@@ -15,6 +15,7 @@ const TYPES: [vk::DescriptorType; 4] = [
 pub struct DescriptorPoolId(pub(crate) u64);
 
 pub struct DescriptorPool {
+  #[allow(unused)]
   id: DescriptorPoolId,
   pool: vk::DescriptorPool,
   size_left: HashMap<vk::DescriptorType, u32>,
