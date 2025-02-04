@@ -271,4 +271,19 @@ impl ModelManager {
 
     Some(cmd_new)
   }
+
+  #[inline]
+  pub(crate) fn vertex_buffer_id(&self) -> BufferId {
+    self.vertex_buffer
+  }
+
+  #[inline]
+  pub(crate) fn index_buffer_id(&self) -> BufferId {
+    self.index_buffer
+  }
+
+  #[inline]
+  pub(crate) fn instance_buffer_id(&self) -> BufferId {
+    self.instance_buffer
+  }
 }

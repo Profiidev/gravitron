@@ -305,6 +305,21 @@ impl MemoryManager {
     }
   }
 
+  pub(crate) fn buffer_reallocated(&self, ids: &[BufferId]) -> bool {
+    ids.iter().any(|id| match self.buffers.get(id) {
+      Some(BufferType::Simple(buffer)) => buffer.reallocated(),
+      Some(BufferType::Advanced(buffer)) => buffer.reallocated(),
+      None => false,
+    })
+  }
+
+  pub(crate) fn reset_reallocated(&mut self) {
+    self.buffers.values_mut().for_each(|r#type| match r#type {
+      BufferType::Simple(buffer) => buffer.reset_reallocated(),
+      BufferType::Advanced(buffer) => buffer.reset_reallocated(),
+    });
+  }
+
   pub(crate) fn get_vk_buffer(&self, buffer_id: BufferId) -> Option<vk::Buffer> {
     match self.buffers.get(&buffer_id)? {
       BufferType::Advanced(buffer) => Some(buffer.vk_buffer()),

@@ -1,6 +1,10 @@
 use ecs::{
   resources::{cleanup_resource, Resources},
-  systems::renderer::{execute_renderer, init_renderer, renderer_recording, update_descriptors},
+  systems::{
+    descriptor::update_descriptors,
+    memory::reset_buffer_reallocated,
+    renderer::{execute_renderer, init_renderer, renderer_recording},
+  },
 };
 use gravitron_components::ComponentPlugin;
 use gravitron_plugin::{
@@ -34,6 +38,7 @@ impl Plugin for RendererPlugin {
     builder.add_main_system_at_stage(update_descriptors, MainSystemStage::RenderInit);
     builder.add_main_system_at_stage(renderer_recording, MainSystemStage::RenderRecording);
     builder.add_main_system_at_stage(execute_renderer, MainSystemStage::RenderExecute);
+    builder.add_main_system_at_stage(reset_buffer_reallocated, MainSystemStage::PostRender);
   }
 
   fn finalize(&self, builder: &mut AppBuilder<Finalize>) {

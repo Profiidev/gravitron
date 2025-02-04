@@ -58,7 +58,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-  pub fn init(
+  pub(crate) fn init(
     instance: &InstanceDevice,
     device: &Device,
     memory_manager: &mut MemoryManager,
@@ -169,7 +169,7 @@ impl Renderer {
     ))
   }
 
-  pub fn cleanup(&self) {
+  pub(crate) fn cleanup(&self) {
     unsafe {
       self
         .logical_device
@@ -179,17 +179,30 @@ impl Renderer {
   }
 
   #[inline]
-  pub fn wait_for_draw_start(&self) {
+  pub(crate) fn wait_for_draw_start(&self) {
     self.swapchain.wait_for_draw_start(&self.logical_device);
   }
 
-  pub fn record_command_buffer(
+  pub(crate) fn record_command_buffer(
     &mut self,
     pipeline_manager: &PipelineManager,
     descriptor_manager: &DescriptorManager,
     memory_manager: &mut MemoryManager,
     model_manager: &ModelManager,
   ) -> Result<(), vk::Result> {
+    //check for invalidations
+    let buffer_ids = [
+      self.descriptor_buffer,
+      self.draw_commands,
+      self.draw_count,
+      model_manager.index_buffer_id(),
+      model_manager.vertex_buffer_id(),
+      model_manager.instance_buffer_id(),
+    ];
+    if memory_manager.buffer_reallocated(&buffer_ids) {
+      self.buffers_updated.clear();
+    }
+
     if self
       .buffers_updated
       .contains(&self.swapchain.current_frame())
@@ -259,7 +272,7 @@ impl Renderer {
     Ok(())
   }
 
-  pub fn update_draw_buffer(
+  pub(crate) fn update_draw_buffer(
     &mut self,
     memory_manager: &mut MemoryManager,
     instances: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>>,
@@ -325,17 +338,7 @@ impl Renderer {
   }
 
   #[inline]
-  pub fn draw_frame(&mut self) {
+  pub(crate) fn draw_frame(&mut self) {
     self.swapchain.draw_frame(&self.logical_device);
-  }
-
-  #[inline]
-  pub fn render_pass(&self) -> vk::RenderPass {
-    self.render_pass
-  }
-
-  #[inline]
-  pub fn swapchain(&self) -> &SwapChain {
-    &self.swapchain
   }
 }

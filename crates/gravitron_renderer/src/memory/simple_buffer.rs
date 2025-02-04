@@ -154,15 +154,28 @@ impl SimpleBuffer {
     Ok(())
   }
 
+  #[inline]
   pub fn free_buffer_mem(&mut self, mem: BufferMemory) {
     self.allocator.free(mem.offset(), mem.size());
   }
 
+  #[inline]
   pub fn size(&self) -> usize {
     self.buffer.size()
   }
 
+  #[inline]
   pub fn vk_buffer(&self) -> ash::vk::Buffer {
     self.buffer.buffer()
+  }
+
+  #[inline]
+  pub fn reallocated(&self) -> bool {
+    self.reallocated
+  }
+
+  #[inline]
+  pub fn reset_reallocated(&mut self) {
+    self.reallocated = false;
   }
 }

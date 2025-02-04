@@ -276,9 +276,4 @@ impl SwapChain {
   pub fn current_frame(&self) -> usize {
     self.current_image
   }
-
-  #[inline]
-  pub fn framebuffer_count(&self) -> usize {
-    self.framebuffers.len()
-  }
 }

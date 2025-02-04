@@ -221,15 +221,28 @@ impl AdvancedBuffer {
     Ok(())
   }
 
+  #[inline]
   pub fn free_buffer_mem(&mut self, mem: BufferMemory) {
     self.allocator.free(mem.offset(), mem.size());
   }
 
+  #[inline]
   pub fn vk_buffer(&self) -> vk::Buffer {
     self.gpu.buffer()
   }
 
+  #[inline]
   pub fn size(&self) -> usize {
     self.gpu.size()
+  }
+
+  #[inline]
+  pub fn reallocated(&self) -> bool {
+    self.reallocated
+  }
+
+  #[inline]
+  pub fn reset_reallocated(&mut self) {
+    self.reallocated = false;
   }
 }
