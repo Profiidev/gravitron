@@ -7,7 +7,8 @@ use crate::memory::MemoryManager;
 
 use super::{
   pool::{DescriptorPool, DescriptorPoolId},
-  Descriptor, DescriptorId, DescriptorInfo, DescriptorSet, DescriptorSetId, DescriptorType,
+  Descriptor, DescriptorId, DescriptorInfo, DescriptorMut, DescriptorRef, DescriptorSet,
+  DescriptorSetId, DescriptorType,
 };
 
 pub struct DescriptorManager {
@@ -154,6 +155,8 @@ impl DescriptorManager {
         id,
         Descriptor {
           id,
+          binding: i as u32,
+          changed: false,
           r#type: info.r#type,
         },
       );
@@ -196,5 +199,15 @@ impl DescriptorManager {
       .iter()
       .flat_map(|id| self.descriptor_sets.get(id).map(|set| set.set()))
       .collect()
+  }
+
+  #[inline]
+  pub fn descriptor(&self) -> DescriptorRef<'_> {
+    unimplemented!()
+  }
+
+  #[inline]
+  pub fn descriptor_mut(&self) -> DescriptorMut<'_> {
+    unimplemented!()
   }
 }

@@ -10,6 +10,7 @@ pub struct Material {
 }
 
 impl Material {
+  #[inline]
   pub fn new() -> Self {
     Self::default()
   }

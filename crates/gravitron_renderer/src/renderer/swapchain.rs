@@ -169,10 +169,12 @@ impl SwapChain {
     })
   }
 
+  #[inline]
   pub fn get_extent(&self) -> vk::Extent2D {
     self.extent
   }
 
+  #[inline]
   pub fn cleanup(&self, logical_device: &ash::Device) {
     for framebuffer in &self.framebuffers {
       framebuffer.cleanup(logical_device);
@@ -183,6 +185,7 @@ impl SwapChain {
     }
   }
 
+  #[inline]
   pub fn wait_for_draw_start(&self, device: &ash::Device) {
     unsafe {
       device
@@ -199,6 +202,7 @@ impl SwapChain {
     }
   }
 
+  #[inline]
   pub fn record_command_buffer_start(
     &self,
     device: &ash::Device,
@@ -207,6 +211,7 @@ impl SwapChain {
     self.framebuffers[self.current_image].start_record(device, render_pass, self.extent)
   }
 
+  #[inline]
   pub fn record_command_buffer_end(
     &self,
     device: &ash::Device,
@@ -268,10 +273,12 @@ impl SwapChain {
     self.current_image = (self.current_image + 1) % self.framebuffers.len();
   }
 
+  #[inline]
   pub fn current_frame(&self) -> usize {
     self.current_image
   }
 
+  #[inline]
   pub fn framebuffer_count(&self) -> usize {
     self.framebuffers.len()
   }

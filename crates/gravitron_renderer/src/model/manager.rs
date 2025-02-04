@@ -64,6 +64,7 @@ impl ModelManager {
     Ok(manager)
   }
 
+  #[allow(dead_code)]
   pub fn add_model(
     &mut self,
     memory_manager: &mut MemoryManager,
@@ -90,6 +91,7 @@ impl ModelManager {
     Some(id)
   }
 
+  #[allow(dead_code)]
   pub(crate) fn record_command_buffer(
     &self,
     memory_manager: &MemoryManager,

@@ -15,6 +15,7 @@ pub(crate) const MAIN_FN: &CStr = c"main";
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
 pub struct GraphicsPipelineId(u64);
 
+#[inline]
 pub(crate) fn create_pipeline_cache(
   logical_device: &ash::Device,
   id: GraphicsPipelineId,
@@ -27,6 +28,7 @@ pub(crate) fn create_pipeline_cache(
   Ok(unsafe { logical_device.create_pipeline_cache(&pipeline_cache_create_info, None) }?)
 }
 
+#[inline]
 pub(crate) unsafe fn cleanup_pipeline_cache(
   logical_device: &ash::Device,
   id: GraphicsPipelineId,
@@ -47,6 +49,7 @@ pub struct PipelineManager {
 }
 
 impl PipelineManager {
+  #[inline]
   pub(crate) fn init(
     logical_device: &ash::Device,
     render_pass: vk::RenderPass,
@@ -105,10 +108,12 @@ impl PipelineManager {
       .cleanup(&self.logical_device);
   }
 
+  #[inline]
   pub(crate) fn light_pipeline(&self) -> &GraphicsPipeline {
     self.light_pipeline.as_ref().unwrap()
   }
 
+  #[inline]
   pub(crate) fn graphics_pipelines(&self) -> Vec<&GraphicsPipeline> {
     self.graphics_pipelines.values().collect()
   }

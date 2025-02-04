@@ -51,6 +51,7 @@ impl DescriptorPool {
     })
   }
 
+  #[inline]
   pub fn has_space(&self, needed: &HashMap<vk::DescriptorType, u32>) -> bool {
     needed
       .iter()
@@ -58,6 +59,7 @@ impl DescriptorPool {
       && self.set_left > 0
   }
 
+  #[inline]
   pub fn add_set(&mut self, needed: &HashMap<vk::DescriptorType, u32>) -> vk::DescriptorPool {
     for (r#type, size) in needed {
       *self.size_left.entry(*r#type).or_default() -= size;

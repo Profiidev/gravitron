@@ -27,18 +27,22 @@ impl Device {
     })
   }
 
+  #[inline]
   pub fn get_device(&self) -> &ash::Device {
     &self.device
   }
 
+  #[inline]
   pub fn get_queue_families(&self) -> &QueueFamilies {
     &self.queue_families
   }
 
+  #[inline]
   pub fn get_queues(&self) -> &Queues {
     &self.queues
   }
 
+  #[inline]
   pub fn cleanup(&self) {
     unsafe {
       self.device.destroy_device(None);
@@ -106,14 +110,17 @@ impl QueueFamilies {
     })
   }
 
+  #[inline]
   pub fn get_graphics_q_index(&self) -> u32 {
     self.graphics_q_index
   }
 
+  #[inline]
   pub fn get_transfer_q_index(&self) -> u32 {
     self.transfer_q_index
   }
 
+  #[inline]
   pub fn get_compute_q_index(&self) -> u32 {
     self.compute_q_index
   }
@@ -190,16 +197,18 @@ impl Queues {
     ))
   }
 
+  #[inline]
   pub fn graphics(&self) -> vk::Queue {
     self.graphics
   }
 
+  #[inline]
   #[allow(dead_code)]
   pub fn compute(&self) -> vk::Queue {
     self.compute
   }
 
-  #[allow(dead_code)]
+  #[inline]
   pub fn transfer(&self) -> vk::Queue {
     self.transfer
   }

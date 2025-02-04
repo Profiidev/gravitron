@@ -174,6 +174,7 @@ impl Renderer {
     self.swapchain.cleanup(&self.logical_device);
   }
 
+  #[inline]
   pub fn wait_for_draw_start(&self) {
     self.swapchain.wait_for_draw_start(&self.logical_device);
   }
@@ -319,14 +320,17 @@ impl Renderer {
       memory_manager.write_to_buffer_direct(self.draw_commands, write_data_slice, &write_info);
   }
 
+  #[inline]
   pub fn draw_frame(&mut self) {
     self.swapchain.draw_frame(&self.logical_device);
   }
 
+  #[inline]
   pub fn render_pass(&self) -> vk::RenderPass {
     self.render_pass
   }
 
+  #[inline]
   pub fn swapchain(&self) -> &SwapChain {
     &self.swapchain
   }

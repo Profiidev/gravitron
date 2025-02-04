@@ -74,6 +74,7 @@ pub enum BufferMemoryLocation {
 }
 
 impl From<BufferMemoryLocation> for gpu_allocator::MemoryLocation {
+  #[allow(dead_code)]
   fn from(value: BufferMemoryLocation) -> Self {
     match value {
       BufferMemoryLocation::CpuToGpu => gpu_allocator::MemoryLocation::CpuToGpu,

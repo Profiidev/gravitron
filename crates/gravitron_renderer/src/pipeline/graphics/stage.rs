@@ -9,6 +9,7 @@ pub enum RenderingStage {
 }
 
 impl RenderingStage {
+  #[inline]
   pub(crate) fn vertex_shader(&self) -> &'static [u32] {
     match self {
       Light => vk_shader_macros::include_glsl!("./assets/light.vert"),
@@ -16,6 +17,7 @@ impl RenderingStage {
     }
   }
 
+  #[inline]
   pub(crate) fn fragment_shader(&self) -> &'static [u32] {
     match self {
       Light => vk_shader_macros::include_glsl!("./assets/light.frag"),
@@ -23,6 +25,7 @@ impl RenderingStage {
     }
   }
 
+  #[inline]
   pub(crate) fn inputs(
     &self,
   ) -> (
@@ -121,6 +124,7 @@ impl RenderingStage {
     }
   }
 
+  #[inline]
   pub(crate) fn output(
     &self,
     color: vk::PipelineColorBlendAttachmentState,
@@ -131,6 +135,7 @@ impl RenderingStage {
     }
   }
 
+  #[inline]
   pub(crate) fn depth_buffer<'d>(
     &self,
     info: vk::GraphicsPipelineCreateInfo<'d>,
@@ -139,6 +144,7 @@ impl RenderingStage {
     info.depth_stencil_state(depth)
   }
 
+  #[inline]
   pub(crate) fn subpass(&self) -> u32 {
     match self {
       Light => 1,

@@ -14,20 +14,24 @@ pub struct Allocator {
 }
 
 impl BufferMemory {
+  #[allow(dead_code)]
   pub fn offset(&self) -> usize {
     self.offset
   }
 
+  #[allow(dead_code)]
   pub fn size(&self) -> usize {
     self.size
   }
 
+  #[allow(dead_code)]
   pub fn buffer(&self) -> BufferId {
     self.buffer
   }
 }
 
 impl Allocator {
+  #[allow(dead_code)]
   pub fn new(size: usize) -> Self {
     let mut free = BTreeMap::new();
     free.insert(0, size);

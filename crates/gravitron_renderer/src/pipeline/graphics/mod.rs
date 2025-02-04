@@ -21,35 +21,42 @@ pub struct GraphicsPipelineBuilder<'s> {
 }
 
 impl<'s> GraphicsPipelineBuilder<'s> {
+  #[inline]
   pub fn new() -> Self {
     Self::default()
   }
 
+  #[inline]
   pub fn vertex_shader(mut self, shader: &'s [u32]) -> Self {
     self.vertex_shader = Some(shader);
     self
   }
 
+  #[inline]
   pub fn geometry_shader(mut self, shader: &'s [u32]) -> Self {
     self.geometry_shader = Some(shader);
     self
   }
 
+  #[inline]
   pub fn fragment_shader(mut self, shader: &'s [u32]) -> Self {
     self.fragment_shader = Some(shader);
     self
   }
 
+  #[inline]
   pub fn add_descriptor_sets(mut self, sets: Vec<DescriptorSetId>) -> Self {
     self.descriptor_sets.extend(sets);
     self
   }
 
+  #[inline]
   pub fn add_descriptor_set(mut self, set: DescriptorSetId) -> Self {
     self.descriptor_sets.push(set);
     self
   }
 
+  #[inline]
   pub fn rendering_stage(mut self, stage: RenderingStage) -> Self {
     self.rendering_stage = stage;
     self
@@ -228,6 +235,7 @@ impl GraphicsPipeline {
     }
   }
 
+  #[inline]
   pub unsafe fn bind(
     &self,
     command_buffer: vk::CommandBuffer,
@@ -251,6 +259,7 @@ impl GraphicsPipeline {
     );
   }
 
+  #[inline]
   pub fn id(&self) -> GraphicsPipelineId {
     self.id
   }

@@ -92,18 +92,22 @@ impl Framebuffer {
     }
   }
 
+  #[inline]
   pub fn begin_drawing(&self) -> vk::Fence {
     self.begin_drawing
   }
 
+  #[inline]
   pub fn available(&self) -> vk::Semaphore {
     self.available
   }
 
+  #[inline]
   pub fn finished(&self) -> vk::Semaphore {
     self.finished
   }
 
+  #[inline]
   pub fn command_buffer(&self) -> vk::CommandBuffer {
     self.command_buffer
   }

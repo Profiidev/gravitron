@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  ops::{Deref, DerefMut},
+};
 
 use ash::vk;
 
@@ -24,10 +27,12 @@ pub(crate) struct DescriptorSet {
 }
 
 impl DescriptorSet {
+  #[inline]
   pub fn set(&self) -> vk::DescriptorSet {
     self.set
   }
 
+  #[inline]
   pub fn layout(&self) -> vk::DescriptorSetLayout {
     self.layout
   }
@@ -37,12 +42,15 @@ impl DescriptorSet {
   }
 }
 
-pub(crate) struct Descriptor {
+pub struct Descriptor {
   id: DescriptorId,
+  changed: bool,
+  binding: u32,
   r#type: DescriptorType,
 }
 
 impl Descriptor {
+  #[inline]
   pub fn get_type(&self) -> &DescriptorType {
     &self.r#type
   }
@@ -61,6 +69,7 @@ pub enum DescriptorType {
 }
 
 impl DescriptorType {
+  #[inline]
   fn vk_type(&self) -> vk::DescriptorType {
     match self {
       DescriptorType::Image(_) => vk::DescriptorType::STORAGE_IMAGE,
@@ -70,10 +79,40 @@ impl DescriptorType {
     }
   }
 
+  #[inline]
   fn count(&self) -> u32 {
     match self {
       DescriptorType::StorageBuffer(_) | DescriptorType::UniformBuffer(_) => 1,
       DescriptorType::Image(images) | DescriptorType::Sampler(images) => images.len() as u32,
     }
+  }
+}
+
+pub struct DescriptorRef<'d>(&'d Descriptor);
+
+impl Deref for DescriptorRef<'_> {
+  type Target = DescriptorType;
+
+  #[inline]
+  fn deref(&self) -> &Self::Target {
+    &self.0.r#type
+  }
+}
+
+pub struct DescriptorMut<'d>(&'d mut Descriptor);
+
+impl Deref for DescriptorMut<'_> {
+  type Target = DescriptorType;
+
+  #[inline]
+  fn deref(&self) -> &Self::Target {
+    &self.0.r#type
+  }
+}
+
+impl DerefMut for DescriptorMut<'_> {
+  #[inline]
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.0.r#type
   }
 }

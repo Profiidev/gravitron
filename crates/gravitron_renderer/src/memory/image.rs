@@ -54,10 +54,12 @@ impl Image {
     Ok(())
   }
 
+  #[allow(dead_code)]
   pub fn image_view(&self) -> vk::ImageView {
     self.image_view
   }
 
+  #[allow(dead_code)]
   pub fn image(&self) -> vk::Image {
     self.image
   }
