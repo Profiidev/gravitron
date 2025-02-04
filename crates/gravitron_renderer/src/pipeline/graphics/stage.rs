@@ -3,8 +3,8 @@ use RenderingStage::*;
 
 #[derive(Default, PartialEq, PartialOrd)]
 pub enum RenderingStage {
-  #[default]
   Light,
+  #[default]
   World,
 }
 

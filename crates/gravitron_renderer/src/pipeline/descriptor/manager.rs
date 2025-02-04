@@ -251,5 +251,24 @@ fn write_descriptor(
         logical_device.update_descriptor_sets(&[write], &[]);
       }
     }
+    DescriptorType::InputAttachment(image) => {
+      let image_info = [vk::DescriptorImageInfo::default()
+        .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+        .image_view(
+          memory_manager
+            .get_vk_image_view(*image)
+            .expect("Failed to get ImageView"),
+        )];
+
+      let write = vk::WriteDescriptorSet::default()
+        .dst_set(set)
+        .dst_binding(binding)
+        .descriptor_type(r#type.vk_type())
+        .image_info(&image_info);
+
+      unsafe {
+        logical_device.update_descriptor_sets(&[write], &[]);
+      }
+    }
   }
 }

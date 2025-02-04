@@ -69,6 +69,7 @@ pub enum DescriptorType {
   UniformBuffer(BufferMemory),
   Sampler(Vec<ImageId>),
   Image(Vec<ImageId>),
+  InputAttachment(ImageId),
 }
 
 impl DescriptorType {
@@ -79,27 +80,22 @@ impl DescriptorType {
       DescriptorType::Sampler(_) => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
       DescriptorType::StorageBuffer(_) => vk::DescriptorType::STORAGE_BUFFER,
       DescriptorType::UniformBuffer(_) => vk::DescriptorType::UNIFORM_BUFFER,
+      DescriptorType::InputAttachment(_) => vk::DescriptorType::INPUT_ATTACHMENT,
     }
   }
 
   #[inline]
   fn count(&self) -> u32 {
     match self {
-      DescriptorType::StorageBuffer(_) | DescriptorType::UniformBuffer(_) => 1,
+      DescriptorType::StorageBuffer(_)
+      | DescriptorType::UniformBuffer(_)
+      | DescriptorType::InputAttachment(_) => 1,
       DescriptorType::Image(images) | DescriptorType::Sampler(images) => images.len() as u32,
     }
   }
 
   #[inline]
   pub fn image(&self) -> Option<&[ImageId]> {
-    match self {
-      DescriptorType::Image(images) => Some(images),
-      _ => None,
-    }
-  }
-
-  #[inline]
-  pub fn image_mut(&mut self) -> Option<&mut Vec<ImageId>> {
     match self {
       DescriptorType::Image(images) => Some(images),
       _ => None,
@@ -115,9 +111,9 @@ impl DescriptorType {
   }
 
   #[inline]
-  pub fn sampler_mut(&mut self) -> Option<&mut Vec<ImageId>> {
+  pub fn attachment(&self) -> Option<&ImageId> {
     match self {
-      DescriptorType::Sampler(images) => Some(images),
+      DescriptorType::InputAttachment(image) => Some(image),
       _ => None,
     }
   }

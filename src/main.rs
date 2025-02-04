@@ -33,7 +33,7 @@ use gravitron::{
       graphics::GraphicsPipelineBuilder,
       include_glsl, DescriptorManager, PipelineManager,
     },
-    renderer::resources::material::Material,
+    renderer::{resources::material::Material, DEFAULT_DESCRIPTOR_SET},
   },
   window::winit::keyboard::KeyCode,
   Id,
@@ -97,6 +97,7 @@ fn init(
     .0;
 
   let testing = GraphicsPipelineBuilder::new()
+    .add_descriptor_set(DEFAULT_DESCRIPTOR_SET)
     .add_descriptor_set(set)
     .fragment_shader(include_glsl!("./testing/shader.frag"));
   let testing = pipeline_manager

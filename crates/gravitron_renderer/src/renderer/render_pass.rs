@@ -32,7 +32,7 @@ pub fn init_render_pass(
 
   let attachment = [color, normal, pos, depth, output];
 
-  let color = [
+  let color_out = [
     vk::AttachmentReference::default()
       .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
       .attachment(0),
@@ -43,6 +43,18 @@ pub fn init_render_pass(
       .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
       .attachment(2),
   ];
+  let color_in = [
+    vk::AttachmentReference::default()
+      .layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+      .attachment(0),
+    vk::AttachmentReference::default()
+      .layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+      .attachment(1),
+    vk::AttachmentReference::default()
+      .layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+      .attachment(2),
+  ];
+
   let output = [vk::AttachmentReference::default()
     .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
     .attachment(4)];
@@ -54,10 +66,11 @@ pub fn init_render_pass(
     vk::SubpassDescription::default()
       .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
       .depth_stencil_attachment(&depth)
-      .color_attachments(&color),
+      .color_attachments(&color_out),
     vk::SubpassDescription::default()
       .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-      .color_attachments(&output),
+      .color_attachments(&output)
+      .input_attachments(&color_in),
   ];
 
   /*

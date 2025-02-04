@@ -5,14 +5,12 @@ use gravitron_plugin::config::window::WindowConfig;
 use crate::{
   device::Device,
   instance::InstanceDevice,
-  memory::MemoryManager,
+  memory::{types::ImageId, MemoryManager},
   pipeline::pools::{CommandBufferType, Pools},
   surface::Surface,
 };
 
-use super::framebuffer::Framebuffer;
-
-pub const IMAGES_PER_FRAME_BUFFER: u32 = 4;
+use super::framebuffer::{Framebuffer, IMAGES_PER_FRAME_BUFFER};
 
 pub struct SwapChain {
   loader: khr::swapchain::Device,
@@ -21,6 +19,7 @@ pub struct SwapChain {
   extent: vk::Extent2D,
   current_image: usize,
   graphics_queue: vk::Queue,
+  attachments: [ImageId; IMAGES_PER_FRAME_BUFFER as usize],
 }
 
 impl SwapChain {
@@ -124,7 +123,7 @@ impl SwapChain {
     )?;
 
     let image_info = depth_image_create_info
-      .usage(vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::COLOR_ATTACHMENT)
+      .usage(vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT)
       .format(vk::Format::R32G32B32A32_SFLOAT);
 
     let subresource_range = subresource_range.aspect_mask(vk::ImageAspectFlags::COLOR);
@@ -132,16 +131,11 @@ impl SwapChain {
       .format(vk::Format::R32G32B32A32_SFLOAT)
       .subresource_range(subresource_range);
 
-    let sampler_info = vk::SamplerCreateInfo::default();
-
     let mut images = Vec::new();
     for _ in 0..IMAGES_PER_FRAME_BUFFER {
-      images.push(memory_manager.create_sampler_image(
-        &image_info,
-        &image_view_info,
-        &sampler_info,
-      )?);
+      images.push(memory_manager.create_image(&image_info, &image_view_info)?);
     }
+    let images = [images[0], images[1], images[2]];
 
     let mut framebuffers = Vec::new();
     for (swapchain_image, command_buffer) in swapchain_images.into_iter().zip(command_buffer) {
@@ -149,7 +143,7 @@ impl SwapChain {
         swapchain_image,
         logical_device,
         surface_format.format,
-        [images[0], images[1], images[2]],
+        images,
         depth_image,
         render_pass,
         memory_manager,
@@ -165,6 +159,7 @@ impl SwapChain {
       extent,
       current_image: 0,
       graphics_queue: device.get_queues().graphics(),
+      attachments: images,
     })
   }
 
@@ -275,5 +270,10 @@ impl SwapChain {
   #[inline]
   pub fn current_frame(&self) -> usize {
     self.current_image
+  }
+
+  #[inline]
+  pub fn attachments(&self) -> &[ImageId] {
+    &self.attachments
   }
 }

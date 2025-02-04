@@ -39,6 +39,7 @@ pub mod resources;
 pub(crate) mod swapchain;
 
 pub const DEFAULT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(0);
+pub const ATTACHMENT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(1);
 
 pub const CAMERA_DESCRIPTOR: DescriptorId = DescriptorId(0);
 pub const LIGHT_INFO_DESCRIPTOR: DescriptorId = DescriptorId(1);
@@ -97,7 +98,7 @@ impl Renderer {
     )?;
 
     let buffer = memory_manager.create_simple_buffer(
-      vk::BufferUsageFlags::UNIFORM_BUFFER,
+      vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::STORAGE_BUFFER,
       BufferBlockSize::Medium,
       BufferMemoryLocation::CpuToGpu,
     )?;
@@ -144,13 +145,32 @@ impl Renderer {
       .create_descriptor_set(descriptor, memory_manager)
       .expect("Failed to create default descriptor set");
 
+    let images = swapchain.attachments();
+    let descriptor = vec![
+      DescriptorInfo {
+        stage: vk::ShaderStageFlags::FRAGMENT,
+        r#type: DescriptorType::InputAttachment(images[0]),
+      },
+      DescriptorInfo {
+        stage: vk::ShaderStageFlags::FRAGMENT,
+        r#type: DescriptorType::InputAttachment(images[1]),
+      },
+      DescriptorInfo {
+        stage: vk::ShaderStageFlags::FRAGMENT,
+        r#type: DescriptorType::InputAttachment(images[2]),
+      },
+    ];
+    descriptor_manager
+      .create_descriptor_set(descriptor, memory_manager)
+      .expect("Failed to create attachment descriptor set");
+
     let mut pipeline_manager = PipelineManager::init(logical_device, render_pass, &swapchain);
 
     let world = GraphicsPipelineBuilder::new().add_descriptor_sets(vec![DEFAULT_DESCRIPTOR_SET]);
     pipeline_manager.build_graphics_pipeline(world, descriptor_manager);
     let light = GraphicsPipelineBuilder::new()
       .rendering_stage(RenderingStage::Light)
-      .add_descriptor_sets(vec![DEFAULT_DESCRIPTOR_SET]);
+      .add_descriptor_sets(vec![DEFAULT_DESCRIPTOR_SET, ATTACHMENT_DESCRIPTOR_SET]);
     pipeline_manager.build_graphics_pipeline(light, descriptor_manager);
 
     Ok((
