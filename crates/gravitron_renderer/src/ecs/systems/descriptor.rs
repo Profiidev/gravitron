@@ -2,7 +2,10 @@ use std::ops::Deref;
 
 use gravitron_components::components::transform::GlobalTransform;
 use gravitron_ecs::systems::query::filter::Changed;
-use gravitron_ecs::systems::{query::Query, resources::ResMut};
+use gravitron_ecs::systems::{
+  query::Query,
+  resources::{Res, ResMut},
+};
 
 use crate::ecs::components::lighting::{
   DirectionalLight as DirectionalLightComp, PointLight as PointLightComp,
@@ -14,7 +17,7 @@ use crate::renderer::{
 };
 use crate::{ecs::components::camera::Camera, memory::MemoryManager, pipeline::DescriptorManager};
 
-pub fn update_descriptors(
+pub fn update_default_descriptors(
   mut descriptor_manager: ResMut<DescriptorManager>,
   mut memory_manager: ResMut<MemoryManager>,
   camera: Query<(&mut Camera, &GlobalTransform), Changed<GlobalTransform>>,
@@ -114,4 +117,11 @@ pub fn update_descriptors(
   memory_manager
     .write_to_buffer(info_mem, &[light_info])
     .expect("Failed to update LightInfo");
+}
+
+pub fn update_descriptors(
+  descriptor_manager: Res<DescriptorManager>,
+  memory_manager: Res<MemoryManager>,
+) {
+  descriptor_manager.update_changed(memory_manager.deref());
 }

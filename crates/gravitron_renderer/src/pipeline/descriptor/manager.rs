@@ -174,19 +174,17 @@ impl DescriptorManager {
       .map(DescriptorMut)
   }
 
-  pub(crate) fn update_changed(&mut self, ids: &[DescriptorSetId], memory_manager: &MemoryManager) {
-    for id in ids {
-      if let Some(set) = self.descriptor_sets.get(id) {
-        for descriptor in set.descriptors.values() {
-          if descriptor.changed {
-            write_descriptor(
-              &self.logical_device,
-              &descriptor.r#type,
-              descriptor.binding,
-              set.set,
-              memory_manager,
-            );
-          }
+  pub(crate) fn update_changed(&self, memory_manager: &MemoryManager) {
+    for set in self.descriptor_sets.values() {
+      for descriptor in set.descriptors.values() {
+        if descriptor.changed {
+          write_descriptor(
+            &self.logical_device,
+            &descriptor.r#type,
+            descriptor.binding,
+            set.set,
+            memory_manager,
+          );
         }
       }
     }
