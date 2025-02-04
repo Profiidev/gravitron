@@ -111,3 +111,15 @@ impl<C: Component> QueryFilterParam for Removed<C> {
     entity.removed.get(&C::sid()) == Some(&tick.last())
   }
 }
+
+pub struct Or<F1: QueryFilter, F2: QueryFilter>(PhantomData<(F1, F2)>);
+
+impl<F1: QueryFilter, F2: QueryFilter> QueryFilterParam for Or<F1, F2> {
+  fn filter_archetype(r#type: &[ComponentId]) -> bool {
+    F1::filter_archetype(r#type) || F2::filter_archetype(r#type)
+  }
+
+  fn filter_entity(entity: &Row, tick: Tick) -> bool {
+    F1::filter_entity(entity, tick) || F2::filter_entity(entity, tick)
+  }
+}
