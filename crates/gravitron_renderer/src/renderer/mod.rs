@@ -101,16 +101,6 @@ impl Renderer {
     let camera_mem = memory_manager
       .reserve_buffer_mem(buffer, size_of::<Mat4>() * 2)
       .unwrap();
-    let vertex_set = descriptor_manager
-      .create_descriptor_set(
-        vec![DescriptorInfo {
-          stage: vk::ShaderStageFlags::VERTEX,
-          r#type: DescriptorType::UniformBuffer(camera_mem),
-        }],
-        memory_manager,
-      )
-      .expect("Failed to create default descriptor set");
-
     let default_texture = memory_manager.create_texture_image(
       vk::Filter::NEAREST,
       include_bytes!("../../assets/default.png"),
@@ -125,6 +115,10 @@ impl Renderer {
       .reserve_buffer_mem(buffer, size_of::<SpotLight>() * 10)
       .unwrap();
     let descriptor = vec![
+      DescriptorInfo {
+        stage: vk::ShaderStageFlags::VERTEX,
+        r#type: DescriptorType::UniformBuffer(camera_mem),
+      },
       DescriptorInfo {
         stage: vk::ShaderStageFlags::FRAGMENT,
         r#type: DescriptorType::Sampler(vec![default_texture]),
@@ -142,17 +136,17 @@ impl Renderer {
         r#type: DescriptorType::UniformBuffer(spot_light_mem),
       },
     ];
-    let fragment_set = descriptor_manager
+    let default_set = descriptor_manager
       .create_descriptor_set(descriptor, memory_manager)
       .expect("Failed to create default descriptor set");
 
     let mut pipeline_manager = PipelineManager::init(logical_device, render_pass, &swapchain);
 
-    let world = GraphicsPipelineBuilder::new().add_descriptor_sets(vec![vertex_set, fragment_set]);
+    let world = GraphicsPipelineBuilder::new().add_descriptor_sets(vec![default_set]);
     pipeline_manager.build_graphics_pipeline(world, descriptor_manager);
     let light = GraphicsPipelineBuilder::new()
       .rendering_stage(RenderingStage::Light)
-      .add_descriptor_sets(vec![vertex_set, fragment_set]);
+      .add_descriptor_sets(vec![default_set]);
     pipeline_manager.build_graphics_pipeline(light, descriptor_manager);
 
     Ok((
