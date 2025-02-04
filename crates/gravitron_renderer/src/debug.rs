@@ -64,8 +64,9 @@ impl Debugger {
     debugger_info
   }
 
-  pub fn destroy(&mut self) {
-    self.debug_utils.destroy();
+  #[inline]
+  pub fn cleanup(&self) {
+    self.debug_utils.cleanup();
   }
 }
 
@@ -75,6 +76,7 @@ pub struct DebugUtils {
 }
 
 impl DebugUtils {
+  #[inline]
   pub fn init(
     entry: &ash::Entry,
     instance: &ash::Instance,
@@ -85,7 +87,8 @@ impl DebugUtils {
     Ok(Self { loader, messenger })
   }
 
-  pub fn destroy(&mut self) {
+  #[inline]
+  pub fn cleanup(&self) {
     unsafe {
       self
         .loader
@@ -100,6 +103,7 @@ pub struct DebuggerInfo {
 }
 
 impl DebuggerInfo {
+  #[inline]
   pub fn instance_next(&mut self) -> Vec<Box<dyn ExtendsInstanceCreateInfo + Send>> {
     vec![Box::new(self.debug_utils)]
   }

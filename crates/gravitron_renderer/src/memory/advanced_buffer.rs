@@ -2,6 +2,8 @@ use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
 
+use crate::memory::error::MemoryError;
+
 use super::{
   allocator::{Allocator, BufferMemory},
   buffer::{buffer_copy, buffer_copy_info, Buffer},
@@ -15,6 +17,7 @@ pub struct AdvancedBuffer {
   gpu: Buffer,
   allocator: Allocator,
   block_size: usize,
+  reallocated: bool,
 }
 
 impl AdvancedBuffer {
@@ -49,6 +52,7 @@ impl AdvancedBuffer {
       gpu,
       allocator,
       block_size,
+      reallocated: false,
     })
   }
 
@@ -81,13 +85,15 @@ impl AdvancedBuffer {
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
-  ) -> Option<(BufferMemory, bool)> {
+  ) -> Result<BufferMemory, Error> {
     let size = std::mem::size_of_val(data);
-    let (mem, buffer_resized) = self.reserve_buffer_mem(size, device, allocator, transfer)?;
+    let mem = self
+      .reserve_buffer_mem(size, device, allocator, transfer)
+      .ok_or(MemoryError::Reallocate)?;
 
     self.write_to_buffer(&mem, data, device, allocator, transfer)?;
 
-    Some((mem, buffer_resized))
+    Ok(mem)
   }
 
   pub fn write_to_buffer<T: Sized>(
@@ -97,7 +103,7 @@ impl AdvancedBuffer {
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
-  ) -> Option<()> {
+  ) -> Result<(), Error> {
     let size = std::mem::size_of_val(data);
     assert!(size <= mem.size());
     let regions = buffer_copy_info(mem.offset(), size);
@@ -111,12 +117,12 @@ impl AdvancedBuffer {
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
-  ) -> Option<()> {
+  ) -> Result<(), Error> {
     let size = std::mem::size_of_val(data);
     self.resize_transfer_buffer(size, device, allocator);
-    self.transfer.fill(data).ok()?;
+    self.transfer.fill(data)?;
 
-    transfer.reset(device).ok()?;
+    transfer.reset(device)?;
 
     buffer_copy(
       &self.transfer,
@@ -125,10 +131,9 @@ impl AdvancedBuffer {
       transfer.queue(),
       transfer,
       regions,
-    )
-    .ok()?;
+    )?;
 
-    Some(())
+    Ok(())
   }
 
   pub fn reserve_buffer_mem(
@@ -137,9 +142,9 @@ impl AdvancedBuffer {
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
-  ) -> Option<(BufferMemory, bool)> {
+  ) -> Option<BufferMemory> {
     if let Some(mem) = self.allocator.alloc(size, self.id) {
-      Some((mem, false))
+      Some(mem)
     } else {
       let additional_size =
         (size as f32 / self.block_size as f32).ceil() as usize * self.block_size;
@@ -166,6 +171,7 @@ impl AdvancedBuffer {
       .ok()?;
 
       transfer.wait(device).ok()?;
+      self.reallocated = true;
 
       let old_gpu = std::mem::replace(&mut self.gpu, new_gpu);
       unsafe { old_gpu.cleanup(device, allocator).ok()? };
@@ -174,7 +180,7 @@ impl AdvancedBuffer {
 
       let mem = self.allocator.alloc(size, self.id).unwrap();
 
-      Some((mem, true))
+      Some(mem)
     }
   }
 
@@ -185,11 +191,13 @@ impl AdvancedBuffer {
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
     transfer: &Transfer,
-  ) -> Option<bool> {
+  ) -> Result<(), Error> {
     assert!(mem.size() < size);
-    let (new_mem, buffer_resized) = self.reserve_buffer_mem(size, device, allocator, transfer)?;
+    let new_mem = self
+      .reserve_buffer_mem(size, device, allocator, transfer)
+      .ok_or(MemoryError::Reallocate)?;
 
-    transfer.reset(device).ok()?;
+    transfer.reset(device)?;
 
     let regions = [vk::BufferCopy {
       src_offset: mem.offset() as u64,
@@ -203,26 +211,38 @@ impl AdvancedBuffer {
       transfer.queue(),
       transfer,
       &regions,
-    )
-    .ok()?;
+    )?;
 
     let old_mem = std::mem::replace(mem, new_mem);
     self.free_buffer_mem(old_mem);
 
-    transfer.wait(device).ok()?;
+    transfer.wait(device)?;
 
-    Some(buffer_resized)
+    Ok(())
   }
 
+  #[inline]
   pub fn free_buffer_mem(&mut self, mem: BufferMemory) {
     self.allocator.free(mem.offset(), mem.size());
   }
 
+  #[inline]
   pub fn vk_buffer(&self) -> vk::Buffer {
     self.gpu.buffer()
   }
 
+  #[inline]
   pub fn size(&self) -> usize {
     self.gpu.size()
+  }
+
+  #[inline]
+  pub fn reallocated(&self) -> bool {
+    self.reallocated
+  }
+
+  #[inline]
+  pub fn reset_reallocated(&mut self) {
+    self.reallocated = false;
   }
 }

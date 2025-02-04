@@ -75,7 +75,7 @@ impl Surface {
     self.surface
   }
 
-  pub fn destroy(&self) {
+  pub fn cleanup(&self) {
     unsafe {
       self.surface_loader.destroy_surface(self.surface, None);
     }

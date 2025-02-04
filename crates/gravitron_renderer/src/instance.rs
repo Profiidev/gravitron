@@ -116,7 +116,7 @@ impl InstanceDevice {
     Ok(physical_device.unwrap())
   }
 
-  pub fn destroy(&self) {
+  pub fn cleanup(&self) {
     unsafe {
       self.instance.destroy_instance(None);
     }
@@ -131,6 +131,7 @@ pub struct InstanceDeviceConfig<'a> {
 }
 
 impl<'a> InstanceDeviceConfig<'a> {
+  #[allow(dead_code)]
   pub fn add_layers(mut self, layers: Vec<&'a std::ffi::CStr>) -> Self {
     for layer in layers {
       self.layer_names.push(layer);
@@ -138,6 +139,7 @@ impl<'a> InstanceDeviceConfig<'a> {
     self
   }
 
+  #[allow(dead_code)]
   pub fn add_extensions(mut self, extensions: Vec<&'a std::ffi::CStr>) -> Self {
     for extension in extensions {
       self.extension_names.push(extension);
@@ -145,6 +147,7 @@ impl<'a> InstanceDeviceConfig<'a> {
     self
   }
 
+  #[allow(dead_code)]
   pub fn add_instance_nexts(
     mut self,
     nexts: Vec<Box<dyn vk::ExtendsInstanceCreateInfo + Send>>,

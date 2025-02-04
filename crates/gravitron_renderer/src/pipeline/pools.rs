@@ -104,7 +104,6 @@ impl Pools {
 
 pub enum CommandBufferType {
   Graphics,
-  #[allow(dead_code)]
   Transfer,
   #[allow(dead_code)]
   Compute,

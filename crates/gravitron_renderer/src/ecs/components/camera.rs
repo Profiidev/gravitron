@@ -1,6 +1,6 @@
 use core::f32;
 
-use gravitron_components::components::transform::Transform;
+use gravitron_components::components::transform::GlobalTransform;
 use gravitron_ecs::Component;
 
 pub struct CameraBuilder {
@@ -40,7 +40,7 @@ impl CameraBuilder {
     self
   }
 
-  pub fn build(self, transform: &Transform) -> Camera {
+  pub fn build(self) -> Camera {
     let mut cam = Camera {
       view_matrix: glam::Mat4::IDENTITY,
       fov: self.fov,
@@ -51,7 +51,6 @@ impl CameraBuilder {
     };
 
     cam.update_projection_matrix();
-    cam.update_view_matrix(transform);
     cam
   }
 }
@@ -84,7 +83,7 @@ impl Camera {
   }
 
   #[inline]
-  fn update_view_matrix(&mut self, transform: &Transform) {
+  pub(crate) fn update_view_matrix(&mut self, transform: &GlobalTransform) {
     self.view_matrix = glam::Mat4::look_at_rh(
       transform.position(),
       transform.position() + transform.rotation() * glam::Vec3::X,

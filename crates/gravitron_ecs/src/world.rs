@@ -5,8 +5,9 @@ use std::{
   ptr,
 };
 
-#[allow(unused_imports)]
-use log::{debug, trace};
+use log::debug;
+#[cfg(feature = "debug")]
+use log::trace;
 
 use crate::{
   commands::Commands, entity::IntoEntity, storage::Storage, tick::Tick, EntityId, SystemId,

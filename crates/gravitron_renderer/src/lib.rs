@@ -1,6 +1,11 @@
 use ecs::{
-  resources::vulkan::Vulkan,
-  systems::renderer::{execute_renderer, init_renderer, renderer_recording},
+  resources::{cleanup_resource, Resources},
+  systems::{
+    descriptor::{update_default_descriptors, update_descriptors},
+    memory::reset_buffer_reallocated,
+    pipeline::pipeline_changed_reset,
+    renderer::{execute_renderer, init_renderer, renderer_recording},
+  },
 };
 use gravitron_components::ComponentPlugin;
 use gravitron_plugin::{
@@ -18,11 +23,12 @@ pub use vk_shader_macros::{glsl, include_glsl};
 mod debug;
 mod device;
 pub mod ecs;
-pub mod error;
-pub mod graphics;
+mod error;
 mod instance;
-pub mod memory;
+mod memory;
+mod model;
 mod pipeline;
+mod renderer;
 mod surface;
 
 pub struct RendererPlugin;
@@ -30,8 +36,12 @@ pub struct RendererPlugin;
 impl Plugin for RendererPlugin {
   fn build(&self, builder: &mut AppBuilder<Build>) {
     builder.add_main_system_at_stage(init_renderer, MainSystemStage::RenderInit);
+    builder.add_main_system_at_stage(update_default_descriptors, MainSystemStage::RenderInit);
     builder.add_main_system_at_stage(renderer_recording, MainSystemStage::RenderRecording);
+    builder.add_main_system_at_stage(update_descriptors, MainSystemStage::RenderRecording);
     builder.add_main_system_at_stage(execute_renderer, MainSystemStage::RenderExecute);
+    builder.add_main_system_at_stage(reset_buffer_reallocated, MainSystemStage::PostRender);
+    builder.add_main_system_at_stage(pipeline_changed_reset, MainSystemStage::PostRender);
   }
 
   fn finalize(&self, builder: &mut AppBuilder<Finalize>) {
@@ -45,24 +55,20 @@ impl Plugin for RendererPlugin {
       .get_resource::<EventLoop>()
       .expect("Error: Window Plugin must be initialized before the Renderer Plugin");
 
-    let vulkan = Vulkan::init(
+    Resources::create(
       config.vulkan.clone(),
       config,
       window,
       #[cfg(target_os = "linux")]
       event_loop.wayland(),
     )
-    .expect("Error: Failed to create Vulkan Instance");
-
-    builder.add_resource(vulkan);
+    .expect("Error: Failed to create Renderer resources")
+    .add_resources(builder);
   }
 
   fn cleanup(&self, app: &mut App<Cleanup>) {
-    debug!("Cleaning up Vulkan");
-    let vulkan = app
-      .get_resource_mut::<Vulkan>()
-      .expect("Failed to Cleanup Vulkan");
-    vulkan.destroy();
+    debug!("Cleaning up Renderer Resources");
+    cleanup_resource(app).expect("Failed to cleanup Renderer resources");
   }
 
   fn dependencies(&self) -> Vec<gravitron_plugin::PluginID> {

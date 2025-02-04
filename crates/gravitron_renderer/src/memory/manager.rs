@@ -3,7 +3,6 @@ use std::{collections::HashMap, mem::ManuallyDrop};
 use anyhow::Error;
 use ash::vk;
 use gpu_allocator::vulkan;
-use gravitron_plugin::config::vulkan::ImageConfig;
 
 use crate::{
   device::Device,
@@ -14,12 +13,13 @@ use crate::{
 use super::{
   advanced_buffer::AdvancedBuffer,
   allocator::BufferMemory,
+  error::MemoryError,
   image::Image,
   sampler_image::SamplerImage,
   simple_buffer::SimpleBuffer,
   types::{
-    BufferBlockSize, BufferId, BufferType, ImageId, ImageType, BUFFER_BLOCK_SIZE_LARGE,
-    BUFFER_BLOCK_SIZE_MEDIUM, BUFFER_BLOCK_SIZE_SMALL,
+    BufferBlockSize, BufferId, BufferMemoryLocation, BufferType, ImageId, ImageType,
+    BUFFER_BLOCK_SIZE_LARGE, BUFFER_BLOCK_SIZE_MEDIUM, BUFFER_BLOCK_SIZE_SMALL,
   },
 };
 
@@ -36,7 +36,11 @@ pub struct MemoryManager {
 }
 
 impl MemoryManager {
-  pub fn new(instance: &InstanceDevice, device: &Device, pools: &mut Pools) -> Result<Self, Error> {
+  pub(crate) fn new(
+    instance: &InstanceDevice,
+    device: &Device,
+    pools: &mut Pools,
+  ) -> Result<Self, Error> {
     let logical_device = device.get_device();
 
     let allocator = vulkan::Allocator::new(&vulkan::AllocatorCreateDesc {
@@ -110,6 +114,7 @@ impl MemoryManager {
     &mut self,
     usage: vk::BufferUsageFlags,
     block_size: BufferBlockSize,
+    location: BufferMemoryLocation,
   ) -> Result<BufferId, Error> {
     let id = BufferId::Simple(self.last_buffer_id);
     let buffer = SimpleBuffer::new(
@@ -118,6 +123,7 @@ impl MemoryManager {
       &self.device,
       usage,
       block_size.into(),
+      location,
     )?;
 
     self.buffers.insert(id, BufferType::Simple(buffer));
@@ -127,7 +133,6 @@ impl MemoryManager {
 
   pub fn create_image(
     &mut self,
-    location: gpu_allocator::MemoryLocation,
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
   ) -> Result<ImageId, Error> {
@@ -136,7 +141,6 @@ impl MemoryManager {
     let image = Image::new(
       &self.device,
       &mut self.allocator,
-      location,
       image_info,
       image_view_info,
     )?;
@@ -147,11 +151,16 @@ impl MemoryManager {
     Ok(id)
   }
 
-  pub fn create_texture_image(&mut self, image_config: &ImageConfig) -> Result<ImageId, Error> {
+  pub fn create_texture_image(
+    &mut self,
+    interpolation: vk::Filter,
+    data: &[u8],
+  ) -> Result<ImageId, Error> {
     let id = ImageId::Sampler(self.last_image_id);
 
     let sampler_image = SamplerImage::new_texture(
-      image_config,
+      interpolation,
+      data,
       &self.device,
       &mut self.allocator,
       &self.graphics_transfer,
@@ -165,7 +174,6 @@ impl MemoryManager {
 
   pub fn create_sampler_image(
     &mut self,
-    location: gpu_allocator::MemoryLocation,
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
     sampler_info: &vk::SamplerCreateInfo,
@@ -175,7 +183,6 @@ impl MemoryManager {
     let sampler_image = SamplerImage::new(
       &self.device,
       &mut self.allocator,
-      location,
       image_info,
       image_view_info,
       sampler_info,
@@ -187,11 +194,7 @@ impl MemoryManager {
     Ok(id)
   }
 
-  pub fn reserve_buffer_mem(
-    &mut self,
-    buffer_id: BufferId,
-    size: usize,
-  ) -> Option<(BufferMemory, bool)> {
+  pub fn reserve_buffer_mem(&mut self, buffer_id: BufferId, size: usize) -> Option<BufferMemory> {
     let transfer = self.reserve_transfer(buffer_id).ok()?;
 
     match self.buffers.get_mut(&buffer_id)? {
@@ -208,10 +211,14 @@ impl MemoryManager {
     &mut self,
     buffer_id: BufferId,
     data: &[T],
-  ) -> Option<(BufferMemory, bool)> {
-    let transfer = self.reserve_transfer(buffer_id).ok()?;
+  ) -> Result<BufferMemory, Error> {
+    let transfer = self.reserve_transfer(buffer_id)?;
 
-    match self.buffers.get_mut(&buffer_id)? {
+    match self
+      .buffers
+      .get_mut(&buffer_id)
+      .ok_or(MemoryError::NotFound)?
+    {
       BufferType::Advanced(buffer) => {
         let mem = buffer.add_to_buffer(data, &self.device, &mut self.allocator, &transfer);
 
@@ -222,16 +229,20 @@ impl MemoryManager {
     }
   }
 
-  pub fn write_to_buffer<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Option<()> {
+  pub fn write_to_buffer<T: Sized>(&mut self, mem: &BufferMemory, data: &[T]) -> Result<(), Error> {
     let id = mem.buffer();
-    let transfer = self.reserve_transfer(id).ok()?;
+    let transfer = self.reserve_transfer(id)?;
 
-    match self.buffers.get_mut(&mem.buffer())? {
+    match self
+      .buffers
+      .get_mut(&mem.buffer())
+      .ok_or(MemoryError::NotFound)?
+    {
       BufferType::Advanced(buffer) => {
         buffer.write_to_buffer(mem, data, &self.device, &mut self.allocator, &transfer)?;
 
         self.buffer_used.insert(id, transfer.fence);
-        Some(())
+        Ok(())
       }
       BufferType::Simple(buffer) => buffer.write_to_buffer(mem, data),
     }
@@ -242,10 +253,14 @@ impl MemoryManager {
     buffer_id: BufferId,
     data: &[T],
     regions: &[vk::BufferCopy],
-  ) -> Option<()> {
-    let transfer = self.reserve_transfer(buffer_id).ok()?;
+  ) -> Result<(), Error> {
+    let transfer = self.reserve_transfer(buffer_id)?;
 
-    match self.buffers.get_mut(&buffer_id)? {
+    match self
+      .buffers
+      .get_mut(&buffer_id)
+      .ok_or(MemoryError::NotFound)?
+    {
       BufferType::Advanced(buffer) => {
         buffer.write_to_buffer_direct(
           data,
@@ -256,16 +271,20 @@ impl MemoryManager {
         )?;
 
         self.buffer_used.insert(buffer_id, transfer.fence);
-        Some(())
+        Ok(())
       }
       BufferType::Simple(buffer) => buffer.write_to_buffer_direct(data, regions),
     }
   }
 
-  pub fn resize_buffer_mem(&mut self, mem: &mut BufferMemory, size: usize) -> Option<bool> {
-    let transfer = self.reserve_transfer(mem.buffer()).ok()?;
+  pub fn resize_buffer_mem(&mut self, mem: &mut BufferMemory, size: usize) -> Result<(), Error> {
+    let transfer = self.reserve_transfer(mem.buffer())?;
 
-    match self.buffers.get_mut(&mem.buffer())? {
+    match self
+      .buffers
+      .get_mut(&mem.buffer())
+      .ok_or(MemoryError::NotFound)?
+    {
       BufferType::Advanced(buffer) => {
         buffer.resize_buffer_mem(mem, size, &self.device, &mut self.allocator, &transfer)
       }
@@ -286,21 +305,36 @@ impl MemoryManager {
     }
   }
 
-  pub fn get_vk_buffer(&self, buffer_id: BufferId) -> Option<vk::Buffer> {
+  pub(crate) fn buffer_reallocated(&self, ids: &[BufferId]) -> bool {
+    ids.iter().any(|id| match self.buffers.get(id) {
+      Some(BufferType::Simple(buffer)) => buffer.reallocated(),
+      Some(BufferType::Advanced(buffer)) => buffer.reallocated(),
+      None => false,
+    })
+  }
+
+  pub(crate) fn reset_reallocated(&mut self) {
+    self.buffers.values_mut().for_each(|r#type| match r#type {
+      BufferType::Simple(buffer) => buffer.reset_reallocated(),
+      BufferType::Advanced(buffer) => buffer.reset_reallocated(),
+    });
+  }
+
+  pub(crate) fn get_vk_buffer(&self, buffer_id: BufferId) -> Option<vk::Buffer> {
     match self.buffers.get(&buffer_id)? {
       BufferType::Advanced(buffer) => Some(buffer.vk_buffer()),
       BufferType::Simple(buffer) => Some(buffer.vk_buffer()),
     }
   }
 
-  pub fn get_vk_image_view(&self, image_id: ImageId) -> Option<vk::ImageView> {
+  pub(crate) fn get_vk_image_view(&self, image_id: ImageId) -> Option<vk::ImageView> {
     match self.images.get(&image_id)? {
       ImageType::Simple(image) => Some(image.image_view()),
       ImageType::Sampler(image) => Some(image.image_view()),
     }
   }
 
-  pub fn get_vk_sampler(&self, image_id: ImageId) -> Option<vk::Sampler> {
+  pub(crate) fn get_vk_sampler(&self, image_id: ImageId) -> Option<vk::Sampler> {
     match self.images.get(&image_id)? {
       ImageType::Sampler(id) => Some(id.sampler()),
       _ => None,
@@ -343,7 +377,7 @@ impl MemoryManager {
     Ok(transfer)
   }
 
-  pub fn cleanup(&mut self) -> Result<(), Error> {
+  pub(crate) fn cleanup(&mut self) -> Result<(), Error> {
     for transfer in &self.transfers {
       unsafe {
         self.device.destroy_fence(transfer.fence(), None);
