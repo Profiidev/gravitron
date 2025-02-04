@@ -46,6 +46,7 @@ pub struct PipelineManager {
   logical_device: ash::Device,
   render_pass: vk::RenderPass,
   swapchain_extent: vk::Extent2D,
+  graphics_changed: bool,
 }
 
 impl PipelineManager {
@@ -62,6 +63,7 @@ impl PipelineManager {
       logical_device: logical_device.clone(),
       render_pass,
       swapchain_extent: swapchain.get_extent(),
+      graphics_changed: false,
     }
   }
 
@@ -92,6 +94,7 @@ impl PipelineManager {
     } else {
       self.graphics_pipelines.insert(id, pipeline);
     }
+    self.graphics_changed = true;
 
     Some(id)
   }
@@ -116,5 +119,15 @@ impl PipelineManager {
   #[inline]
   pub(crate) fn graphics_pipelines(&self) -> Vec<&GraphicsPipeline> {
     self.graphics_pipelines.values().collect()
+  }
+
+  #[inline]
+  pub(crate) fn graphics_changed(&self) -> bool {
+    self.graphics_changed
+  }
+
+  #[inline]
+  pub(crate) fn graphics_changed_reset(&mut self) {
+    self.graphics_changed = false;
   }
 }

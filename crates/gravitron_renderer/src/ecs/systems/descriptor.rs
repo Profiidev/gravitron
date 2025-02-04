@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use gravitron_components::components::transform::GlobalTransform;
-use gravitron_ecs::systems::query::filter::Changed;
+use gravitron_ecs::systems::query::filter::{Added, Changed, Or};
 use gravitron_ecs::systems::{
   query::Query,
   resources::{Res, ResMut},
@@ -17,10 +17,14 @@ use crate::renderer::{
 };
 use crate::{ecs::components::camera::Camera, memory::MemoryManager, pipeline::DescriptorManager};
 
+#[allow(clippy::complexity)]
 pub fn update_default_descriptors(
   mut descriptor_manager: ResMut<DescriptorManager>,
   mut memory_manager: ResMut<MemoryManager>,
-  camera: Query<(&mut Camera, &GlobalTransform), Changed<GlobalTransform>>,
+  camera: Query<
+    (&mut Camera, &GlobalTransform),
+    Or<Changed<GlobalTransform>, Added<GlobalTransform>>,
+  >,
   dl_query: Query<(&DirectionalLightComp, &GlobalTransform)>,
   pls_query: Query<(&PointLightComp, &GlobalTransform)>,
   sls_query: Query<(&SpotLightComp, &GlobalTransform)>,

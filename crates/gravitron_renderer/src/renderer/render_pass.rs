@@ -73,19 +73,45 @@ pub fn init_render_pass(
       .input_attachments(&color_in),
   ];
 
-  /*
-  let subpass_dependency = [vk::SubpassDependency::default()
-    .src_subpass(vk::SUBPASS_EXTERNAL)
-    .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-    .dst_subpass(0)
-    .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-    .dst_access_mask(
-      vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-    )];*/
+  let subpass_dependency = [
+    vk::SubpassDependency::default()
+      .src_subpass(vk::SUBPASS_EXTERNAL)
+      .dst_subpass(0)
+      .src_stage_mask(vk::PipelineStageFlags::BOTTOM_OF_PIPE)
+      .dst_stage_mask(
+        vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+          | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+      )
+      .src_access_mask(vk::AccessFlags::MEMORY_READ)
+      .dst_access_mask(
+        vk::AccessFlags::COLOR_ATTACHMENT_READ
+          | vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+          | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+      )
+      .dependency_flags(vk::DependencyFlags::BY_REGION),
+    vk::SubpassDependency::default()
+      .src_subpass(0)
+      .dst_subpass(1)
+      .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+      .dst_stage_mask(vk::PipelineStageFlags::FRAGMENT_SHADER)
+      .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+      .dst_access_mask(vk::AccessFlags::SHADER_READ)
+      .dependency_flags(vk::DependencyFlags::BY_REGION),
+    vk::SubpassDependency::default()
+      .src_subpass(0)
+      .dst_subpass(vk::SUBPASS_EXTERNAL)
+      .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+      .dst_stage_mask(vk::PipelineStageFlags::BOTTOM_OF_PIPE)
+      .src_access_mask(
+        vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::COLOR_ATTACHMENT_READ,
+      )
+      .dst_access_mask(vk::AccessFlags::MEMORY_READ)
+      .dependency_flags(vk::DependencyFlags::BY_REGION),
+  ];
 
   let render_pass_create_info = vk::RenderPassCreateInfo::default()
     .attachments(&attachment)
-    .subpasses(&subpass);
-  //.dependencies(&subpass_dependency);
+    .subpasses(&subpass)
+    .dependencies(&subpass_dependency);
   unsafe { logical_device.create_render_pass(&render_pass_create_info, None) }
 }

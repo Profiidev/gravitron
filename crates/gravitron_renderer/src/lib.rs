@@ -3,6 +3,7 @@ use ecs::{
   systems::{
     descriptor::{update_default_descriptors, update_descriptors},
     memory::reset_buffer_reallocated,
+    pipeline::pipeline_changed_reset,
     renderer::{execute_renderer, init_renderer, renderer_recording},
   },
 };
@@ -40,6 +41,7 @@ impl Plugin for RendererPlugin {
     builder.add_main_system_at_stage(update_descriptors, MainSystemStage::RenderRecording);
     builder.add_main_system_at_stage(execute_renderer, MainSystemStage::RenderExecute);
     builder.add_main_system_at_stage(reset_buffer_reallocated, MainSystemStage::PostRender);
+    builder.add_main_system_at_stage(pipeline_changed_reset, MainSystemStage::PostRender);
   }
 
   fn finalize(&self, builder: &mut AppBuilder<Finalize>) {

@@ -42,9 +42,10 @@ pub const DEFAULT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(0);
 pub const ATTACHMENT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(1);
 
 pub const CAMERA_DESCRIPTOR: DescriptorId = DescriptorId(0);
-pub const LIGHT_INFO_DESCRIPTOR: DescriptorId = DescriptorId(1);
-pub const POINT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(2);
-pub const SPOT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(3);
+pub const TEXTURE_DESCRIPTOR: DescriptorId = DescriptorId(1);
+pub const LIGHT_INFO_DESCRIPTOR: DescriptorId = DescriptorId(2);
+pub const POINT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(3);
+pub const SPOT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(4);
 
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
@@ -219,7 +220,7 @@ impl Renderer {
       model_manager.vertex_buffer_id(),
       model_manager.instance_buffer_id(),
     ];
-    if memory_manager.buffer_reallocated(&buffer_ids) {
+    if memory_manager.buffer_reallocated(&buffer_ids) || pipeline_manager.graphics_changed() {
       self.buffers_updated.clear();
     }
 
