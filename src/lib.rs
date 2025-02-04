@@ -11,7 +11,10 @@ pub use log;
 pub use gravitron_utils as utils;
 
 pub mod plugin {
+  pub use gravitron_components::ComponentPlugin;
   pub use gravitron_plugin::{app, config, Plugin};
+  pub use gravitron_renderer::RendererPlugin;
+  pub use gravitron_window::WindowPlugin;
 }
 
 pub mod window {

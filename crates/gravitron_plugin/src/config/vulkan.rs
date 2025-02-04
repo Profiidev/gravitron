@@ -1,7 +1,5 @@
 use ash::vk;
 
-pub use vk::{Filter, ShaderStageFlags};
-
 #[derive(Default, Clone)]
 pub struct VulkanConfig {
   pub renderer: RendererConfig<'static>,

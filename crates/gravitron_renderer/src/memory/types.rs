@@ -7,7 +7,7 @@ use super::{
 };
 
 pub use super::allocator::BufferMemory;
-pub use ash::vk::{BufferCopy, BufferUsageFlags};
+pub use ash::vk::{BufferCopy, BufferUsageFlags, Filter};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BufferId {
