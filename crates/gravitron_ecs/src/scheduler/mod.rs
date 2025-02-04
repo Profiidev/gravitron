@@ -6,8 +6,9 @@ use std::{
 
 use graph::Graph;
 use gravitron_utils::thread::ThreadPool;
-#[allow(unused_imports)]
-use log::{debug, trace};
+use log::debug;
+#[cfg(feature = "debug")]
+use log::trace;
 
 use crate::{
   systems::{IntoSystem, StoredSystem, System},

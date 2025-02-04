@@ -305,7 +305,6 @@ impl MemoryManager {
     }
   }
 
-  #[allow(dead_code)]
   pub(crate) fn get_vk_buffer(&self, buffer_id: BufferId) -> Option<vk::Buffer> {
     match self.buffers.get(&buffer_id)? {
       BufferType::Advanced(buffer) => Some(buffer.vk_buffer()),
@@ -313,7 +312,6 @@ impl MemoryManager {
     }
   }
 
-  #[allow(dead_code)]
   pub(crate) fn get_vk_image_view(&self, image_id: ImageId) -> Option<vk::ImageView> {
     match self.images.get(&image_id)? {
       ImageType::Simple(image) => Some(image.image_view()),
@@ -321,7 +319,6 @@ impl MemoryManager {
     }
   }
 
-  #[allow(dead_code)]
   pub(crate) fn get_vk_sampler(&self, image_id: ImageId) -> Option<vk::Sampler> {
     match self.images.get(&image_id)? {
       ImageType::Sampler(id) => Some(id.sampler()),
@@ -329,7 +326,6 @@ impl MemoryManager {
     }
   }
 
-  #[allow(dead_code)]
   pub fn get_buffer_size(&self, buffer_id: BufferId) -> Option<usize> {
     match self.buffers.get(&buffer_id)? {
       BufferType::Advanced(buffer) => Some(buffer.size()),
@@ -391,7 +387,6 @@ impl MemoryManager {
 }
 
 impl From<BufferBlockSize> for usize {
-  #[allow(dead_code)]
   fn from(value: BufferBlockSize) -> Self {
     match value {
       BufferBlockSize::Large => BUFFER_BLOCK_SIZE_LARGE,
@@ -410,27 +405,22 @@ pub struct Transfer {
 }
 
 impl Transfer {
-  #[allow(dead_code)]
   pub fn buffer(&self) -> vk::CommandBuffer {
     self.buffer
   }
 
-  #[allow(dead_code)]
   pub fn fence(&self) -> vk::Fence {
     self.fence
   }
 
-  #[allow(dead_code)]
   pub fn queue(&self) -> vk::Queue {
     self.queue
   }
 
-  #[allow(dead_code)]
   pub fn wait(&self, device: &ash::Device) -> Result<(), vk::Result> {
     unsafe { device.wait_for_fences(&[self.fence], true, u64::MAX) }
   }
 
-  #[allow(dead_code)]
   pub fn reset(&self, device: &ash::Device) -> Result<(), vk::Result> {
     unsafe { device.reset_fences(&[self.fence]) }
   }

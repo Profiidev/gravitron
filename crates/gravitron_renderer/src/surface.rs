@@ -8,7 +8,6 @@ pub struct Surface {
 }
 
 impl Surface {
-  #[allow(dead_code)]
   pub fn init(
     entry: &ash::Entry,
     instance: &ash::Instance,
@@ -25,7 +24,6 @@ impl Surface {
     })
   }
 
-  #[allow(dead_code)]
   pub fn get_capabilities(
     &self,
     physical_device: vk::PhysicalDevice,
@@ -37,7 +35,6 @@ impl Surface {
     }
   }
 
-  #[allow(dead_code)]
   pub fn get_present_modes(
     &self,
     physical_device: vk::PhysicalDevice,
@@ -49,7 +46,6 @@ impl Surface {
     }
   }
 
-  #[allow(dead_code)]
   pub fn get_formats(
     &self,
     physical_device: vk::PhysicalDevice,
@@ -61,7 +57,6 @@ impl Surface {
     }
   }
 
-  #[allow(dead_code)]
   pub fn get_support(
     &self,
     physical_device: vk::PhysicalDevice,
@@ -76,12 +71,10 @@ impl Surface {
     }
   }
 
-  #[allow(dead_code)]
   pub fn get_surface(&self) -> vk::SurfaceKHR {
     self.surface
   }
 
-  #[allow(dead_code)]
   pub fn cleanup(&self) {
     unsafe {
       self.surface_loader.destroy_surface(self.surface, None);

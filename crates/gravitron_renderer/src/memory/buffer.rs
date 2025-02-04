@@ -85,7 +85,6 @@ impl Buffer {
     Ok(())
   }
 
-  #[allow(dead_code)]
   pub unsafe fn cleanup(
     self,
     device: &ash::Device,
@@ -96,27 +95,22 @@ impl Buffer {
     Ok(())
   }
 
-  #[allow(dead_code)]
   pub fn buffer(&self) -> vk::Buffer {
     self.buffer
   }
 
-  #[allow(dead_code)]
   pub fn size(&self) -> usize {
     self.size
   }
 
-  #[allow(dead_code)]
   pub fn usage(&self) -> vk::BufferUsageFlags {
     self.usage
   }
 
-  #[allow(dead_code)]
   pub fn location(&self) -> gpu_allocator::MemoryLocation {
     self.location
   }
 
-  #[allow(dead_code)]
   pub unsafe fn ptr(&self) -> Option<*const u8> {
     Some(self.allocation.mapped_ptr()?.as_ptr() as *const u8)
   }
@@ -149,7 +143,6 @@ fn create_buffer(
   Ok((buffer, allocation))
 }
 
-#[allow(dead_code)]
 pub fn buffer_copy_info(dst_offset: usize, size: usize) -> Vec<vk::BufferCopy> {
   vec![vk::BufferCopy::default()
     .dst_offset(dst_offset as u64)

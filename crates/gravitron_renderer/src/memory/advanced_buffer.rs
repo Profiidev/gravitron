@@ -221,17 +221,14 @@ impl AdvancedBuffer {
     Ok(())
   }
 
-  #[allow(dead_code)]
   pub fn free_buffer_mem(&mut self, mem: BufferMemory) {
     self.allocator.free(mem.offset(), mem.size());
   }
 
-  #[allow(dead_code)]
   pub fn vk_buffer(&self) -> vk::Buffer {
     self.gpu.buffer()
   }
 
-  #[allow(dead_code)]
   pub fn size(&self) -> usize {
     self.gpu.size()
   }

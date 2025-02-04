@@ -113,6 +113,7 @@ impl Deref for DescriptorMut<'_> {
 impl DerefMut for DescriptorMut<'_> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
+    self.0.changed = true;
     &mut self.0.r#type
   }
 }

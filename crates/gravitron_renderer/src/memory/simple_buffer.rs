@@ -154,17 +154,14 @@ impl SimpleBuffer {
     Ok(())
   }
 
-  #[allow(dead_code)]
   pub fn free_buffer_mem(&mut self, mem: BufferMemory) {
     self.allocator.free(mem.offset(), mem.size());
   }
 
-  #[allow(dead_code)]
   pub fn size(&self) -> usize {
     self.buffer.size()
   }
 
-  #[allow(dead_code)]
   pub fn vk_buffer(&self) -> ash::vk::Buffer {
     self.buffer.buffer()
   }

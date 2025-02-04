@@ -24,7 +24,6 @@ pub struct SwapChain {
 }
 
 impl SwapChain {
-  #[allow(clippy::too_many_arguments)]
   pub fn init(
     instance_device: &InstanceDevice,
     device: &Device,

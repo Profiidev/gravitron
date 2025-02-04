@@ -43,7 +43,6 @@ pub enum InstanceCount {
 }
 
 impl Model {
-  #[allow(dead_code)]
   pub fn new(
     vertices: BufferMemory,
     indices: BufferMemory,
@@ -61,7 +60,6 @@ impl Model {
 }
 
 impl InstanceData {
-  #[allow(dead_code)]
   pub fn new(
     model_matrix: glam::Mat4,
     inv_model_matrix: glam::Mat4,
@@ -82,7 +80,6 @@ impl InstanceData {
 }
 
 impl From<InstanceCount> for usize {
-  #[allow(dead_code)]
   fn from(value: InstanceCount) -> Self {
     match value {
       InstanceCount::High => 1000,

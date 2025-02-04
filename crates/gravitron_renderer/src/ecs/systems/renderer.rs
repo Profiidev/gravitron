@@ -3,8 +3,8 @@ use std::ops::{Deref, DerefMut};
 
 use gravitron_ecs::systems::query::filter::Changed;
 use gravitron_ecs::systems::resources::Res;
-#[allow(unused_imports)]
-use log::{trace, warn};
+#[cfg(feature = "debug")]
+use log::trace;
 
 use crate::ecs::components::camera::Camera;
 use crate::ecs::components::lighting::{

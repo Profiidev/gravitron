@@ -40,12 +40,10 @@ impl InstanceDevice {
     })
   }
 
-  #[allow(dead_code)]
   pub fn get_instance(&self) -> &ash::Instance {
     &self.instance
   }
 
-  #[allow(dead_code)]
   pub fn get_physical_device(&self) -> vk::PhysicalDevice {
     self.physical_device
   }
@@ -118,7 +116,6 @@ impl InstanceDevice {
     Ok(physical_device.unwrap())
   }
 
-  #[allow(dead_code)]
   pub fn cleanup(&self) {
     unsafe {
       self.instance.destroy_instance(None);
