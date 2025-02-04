@@ -41,7 +41,7 @@ impl DescriptorManager {
     &mut self,
     descriptor: Vec<DescriptorInfo>,
     memory_manager: &MemoryManager,
-  ) -> Option<DescriptorSetId> {
+  ) -> Option<(DescriptorSetId, Vec<DescriptorId>)> {
     let mut descriptors = HashMap::new();
     let mut bind_desc = Vec::new();
     let mut size_needed = HashMap::new();
@@ -94,6 +94,7 @@ impl DescriptorManager {
         .ok()?
     }[0];
 
+    let mut descriptor_ids = Vec::new();
     for (i, info) in descriptor.into_iter().enumerate() {
       write_descriptor(
         &self.logical_device,
@@ -104,6 +105,7 @@ impl DescriptorManager {
       );
 
       let id = DescriptorId(self.max_descriptor_id);
+      descriptor_ids.push(id);
       descriptors.insert(
         id,
         Descriptor {
@@ -128,7 +130,7 @@ impl DescriptorManager {
 
     self.descriptor_sets.insert(id, descriptor_set);
 
-    Some(id)
+    Some((id, descriptor_ids))
   }
 
   pub(crate) fn cleanup(&self) {

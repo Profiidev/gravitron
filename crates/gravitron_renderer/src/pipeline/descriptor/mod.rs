@@ -14,7 +14,7 @@ pub(crate) mod manager;
 mod pool;
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct DescriptorId(u64);
+pub struct DescriptorId(pub(crate) u64);
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct DescriptorSetId(pub(crate) u64);
 
@@ -84,6 +84,70 @@ impl DescriptorType {
     match self {
       DescriptorType::StorageBuffer(_) | DescriptorType::UniformBuffer(_) => 1,
       DescriptorType::Image(images) | DescriptorType::Sampler(images) => images.len() as u32,
+    }
+  }
+
+  #[inline]
+  pub fn image(&self) -> Option<&[ImageId]> {
+    match self {
+      DescriptorType::Image(images) => Some(images),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub fn image_mut(&mut self) -> Option<&mut Vec<ImageId>> {
+    match self {
+      DescriptorType::Image(images) => Some(images),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub fn sampler(&self) -> Option<&[ImageId]> {
+    match self {
+      DescriptorType::Sampler(images) => Some(images),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub fn sampler_mut(&mut self) -> Option<&mut Vec<ImageId>> {
+    match self {
+      DescriptorType::Sampler(images) => Some(images),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub fn storage(&self) -> Option<&BufferMemory> {
+    match self {
+      DescriptorType::StorageBuffer(buffer) => Some(buffer),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub fn storage_mut(&mut self) -> Option<&mut BufferMemory> {
+    match self {
+      DescriptorType::StorageBuffer(buffer) => Some(buffer),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub fn uniform(&self) -> Option<&BufferMemory> {
+    match self {
+      DescriptorType::UniformBuffer(buffer) => Some(buffer),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub fn uniform_mut(&mut self) -> Option<&mut BufferMemory> {
+    match self {
+      DescriptorType::UniformBuffer(buffer) => Some(buffer),
+      _ => None,
     }
   }
 }

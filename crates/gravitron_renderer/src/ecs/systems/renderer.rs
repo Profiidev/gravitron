@@ -17,7 +17,7 @@ use crate::model::model::{InstanceData, ModelId};
 use crate::model::ModelManager;
 use crate::pipeline::manager::GraphicsPipelineId;
 use crate::pipeline::DescriptorManager;
-use crate::renderer::Renderer;
+use crate::renderer::{Renderer, CAMERA_DESCRIPTOR};
 use gravitron_components::components::transform::{GlobalTransform, Transform};
 use gravitron_ecs::{systems::query::Query, systems::resources::ResMut};
 
@@ -31,6 +31,7 @@ pub fn init_renderer(renderer: Res<Renderer>) {
 
 pub fn update_descriptors(
   mut descriptor_manager: ResMut<DescriptorManager>,
+  mut memory_manager: ResMut<MemoryManager>,
   camera: Query<(&mut Camera, &Transform), Changed<Transform>>,
   dl_query: Query<(&DirectionalLightComp, &GlobalTransform)>,
   pls_query: Query<(&PointLightComp, &GlobalTransform)>,
@@ -38,7 +39,18 @@ pub fn update_descriptors(
 ) {
   if let Some((_, mut camera, transform)) = camera.into_iter().next() {
     camera.update_view_matrix(transform.deref());
-    // TODO update camera
+
+    let camera_desc = descriptor_manager
+      .descriptor(CAMERA_DESCRIPTOR)
+      .expect("Failed to get Camera Descriptor");
+
+    let camera_mem = camera_desc.uniform().expect("Camera not uniform");
+    memory_manager
+      .write_to_buffer(
+        camera_mem,
+        &[camera.projection_matrix(), camera.view_matrix()],
+      )
+      .expect("Failed to update Camera");
   }
 
   let mut pls = Vec::new();
@@ -50,6 +62,21 @@ pub fn update_descriptors(
       range: pl.range,
     });
   }
+
+  let mut pls_desc = descriptor_manager
+    .descriptor_mut(CAMERA_DESCRIPTOR)
+    .expect("Failed to get PointLight Descriptor");
+
+  let pls_mem = pls_desc.storage_mut().expect("PointLights not storage");
+  if pls_mem.size() < size_of_val(&pls) {
+    memory_manager
+      .resize_buffer_mem(pls_mem, size_of_val(&pls))
+      .expect("Failed to resize PointLights Mem");
+  }
+  memory_manager
+    .write_to_buffer(pls_mem, &pls)
+    .expect("Failed to write PointLights");
+
   let mut sls = Vec::new();
   for (_, sl, t) in sls_query {
     sls.push(SpotLight {
@@ -61,6 +88,20 @@ pub fn update_descriptors(
       angle: sl.angle,
     });
   }
+
+  let mut sls_desc = descriptor_manager
+    .descriptor_mut(CAMERA_DESCRIPTOR)
+    .expect("Failed to get SpotLight Descriptor");
+
+  let sls_mem = sls_desc.storage_mut().expect("SpotLights not storage");
+  if sls_mem.size() < size_of_val(&sls) {
+    memory_manager
+      .resize_buffer_mem(sls_mem, size_of_val(&sls))
+      .expect("Failed to resize SpotLights Mem");
+  }
+  memory_manager
+    .write_to_buffer(sls_mem, &sls)
+    .expect("Failed to write SpotLights");
 
   let dl = if let Some((_, dl, t)) = dl_query.into_iter().next() {
     DirectionalLight {
@@ -80,7 +121,14 @@ pub fn update_descriptors(
     directional_light: dl,
   };
 
-  //TODO update lights
+  let info_desc = descriptor_manager
+    .descriptor(CAMERA_DESCRIPTOR)
+    .expect("Failed to get LightInfo Descriptor");
+
+  let info_mem = info_desc.uniform().expect("LightInfo not uniform");
+  memory_manager
+    .write_to_buffer(info_mem, &[light_info])
+    .expect("Failed to update LightInfo");
 }
 
 pub fn renderer_recording(
