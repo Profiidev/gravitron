@@ -33,32 +33,7 @@ impl RenderingStage {
     Vec<vk::VertexInputAttributeDescription>,
   ) {
     match self {
-      Light => {
-        let vertex_binding = vec![vk::VertexInputBindingDescription::default()
-          .binding(0)
-          .stride(32)
-          .input_rate(vk::VertexInputRate::VERTEX)];
-
-        let vertex_attrib = vec![
-          vk::VertexInputAttributeDescription::default()
-            .binding(0)
-            .location(0)
-            .offset(0)
-            .format(vk::Format::R32G32B32_SFLOAT),
-          vk::VertexInputAttributeDescription::default()
-            .binding(0)
-            .location(1)
-            .offset(12)
-            .format(vk::Format::R32G32B32_SFLOAT),
-          vk::VertexInputAttributeDescription::default()
-            .binding(0)
-            .location(2)
-            .offset(24)
-            .format(vk::Format::R32G32_SFLOAT),
-        ];
-
-        (vertex_binding, vertex_attrib)
-      }
+      Light => (vec![], vec![]),
       World => {
         let vertex_binding = vec![
           vk::VertexInputBindingDescription::default()
@@ -141,7 +116,10 @@ impl RenderingStage {
     info: vk::GraphicsPipelineCreateInfo<'d>,
     depth: &'d vk::PipelineDepthStencilStateCreateInfo,
   ) -> vk::GraphicsPipelineCreateInfo<'d> {
-    info.depth_stencil_state(depth)
+    match self {
+      World => info.depth_stencil_state(depth),
+      Light => info,
+    }
   }
 
   #[inline]
@@ -149,6 +127,14 @@ impl RenderingStage {
     match self {
       Light => 1,
       World => 0,
+    }
+  }
+
+  #[inline]
+  pub(crate) fn cull_mode(&self) -> vk::CullModeFlags {
+    match self {
+      Light => vk::CullModeFlags::NONE,
+      World => vk::CullModeFlags::BACK,
     }
   }
 }

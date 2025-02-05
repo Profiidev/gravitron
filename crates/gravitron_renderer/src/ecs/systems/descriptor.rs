@@ -40,7 +40,7 @@ pub fn update_default_descriptors(
     memory_manager
       .write_to_buffer(
         camera_mem,
-        &[camera.projection_matrix(), camera.view_matrix()],
+        &[camera.view_matrix(), camera.projection_matrix()],
       )
       .expect("Failed to update Camera");
   }

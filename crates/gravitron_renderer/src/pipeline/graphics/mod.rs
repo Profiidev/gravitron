@@ -139,7 +139,7 @@ impl<'s> GraphicsPipelineBuilder<'s> {
     let rasterizer_info = vk::PipelineRasterizationStateCreateInfo::default()
       .line_width(1.0)
       .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
-      .cull_mode(vk::CullModeFlags::BACK)
+      .cull_mode(self.rendering_stage.cull_mode())
       .polygon_mode(vk::PolygonMode::FILL);
 
     let multisample_info = vk::PipelineMultisampleStateCreateInfo::default()
