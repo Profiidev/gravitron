@@ -47,7 +47,7 @@ impl DescriptorSet {
 pub struct Descriptor {
   #[allow(unused)]
   id: DescriptorId,
-  changed: bool,
+  previous: Option<DescriptorType>,
   binding: u32,
   r#type: DescriptorType,
 }
@@ -64,6 +64,7 @@ pub struct DescriptorInfo {
   pub r#type: DescriptorType,
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub enum DescriptorType {
   StorageBuffer(BufferMemory),
   UniformBuffer(BufferMemory),
@@ -176,7 +177,15 @@ impl Deref for DescriptorMut<'_> {
 impl DerefMut for DescriptorMut<'_> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
-    self.0.changed = true;
+    match &self.0.r#type {
+      DescriptorType::StorageBuffer(mem) => {
+        self.0.previous = Some(DescriptorType::StorageBuffer(unsafe { mem.copy() }))
+      }
+      DescriptorType::UniformBuffer(mem) => {
+        self.0.previous = Some(DescriptorType::UniformBuffer(unsafe { mem.copy() }))
+      }
+      _ => (),
+    }
     &mut self.0.r#type
   }
 }

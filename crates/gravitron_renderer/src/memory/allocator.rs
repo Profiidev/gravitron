@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use super::types::BufferId;
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct BufferMemory {
   offset: usize,
   size: usize,
@@ -14,16 +15,28 @@ pub struct Allocator {
 }
 
 impl BufferMemory {
+  #[inline]
   pub fn offset(&self) -> usize {
     self.offset
   }
 
+  #[inline]
   pub fn size(&self) -> usize {
     self.size
   }
 
+  #[inline]
   pub fn buffer(&self) -> BufferId {
     self.buffer
+  }
+
+  #[inline]
+  pub(crate) unsafe fn copy(&self) -> BufferMemory {
+    BufferMemory {
+      offset: self.offset,
+      size: self.size,
+      buffer: self.buffer,
+    }
   }
 }
 

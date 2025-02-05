@@ -165,8 +165,10 @@ impl Queues {
     ];
     device_extension_name_ptrs.extend(config.device_extensions.iter().map(|ext| ext.as_ptr()));
 
-    let mut indexing =
-      vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::default().runtime_descriptor_array(true);
+    let mut indexing = vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::default()
+      .runtime_descriptor_array(true)
+      .descriptor_binding_storage_buffer_update_after_bind(true)
+      .descriptor_binding_uniform_buffer_update_after_bind(true);
 
     let features = config.device_features.fill_mode_non_solid(true);
     let mut features2 = vk::PhysicalDeviceFeatures2::default()

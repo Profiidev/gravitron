@@ -199,7 +199,19 @@ fn test(
       ..Default::default()
     },
   };
-  cmd.create_child(*id, (Transform::default(), Marker::default(), renderer));
+  cmd.create_child(
+    *id,
+    (
+      Transform::default(),
+      Marker::default(),
+      renderer,
+      PointLight {
+        color: Default::default(),
+        intensity: Default::default(),
+        range: Default::default(),
+      },
+    ),
+  );
 }
 
 fn test2(info: Res<EngineInfo>, q: Query<(&mut Transform, &DirectionalLight, &mut Marker)>) {

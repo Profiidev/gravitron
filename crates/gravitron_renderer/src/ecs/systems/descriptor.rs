@@ -60,9 +60,10 @@ pub fn update_default_descriptors(
     .expect("Failed to get PointLight Descriptor");
 
   let pls_mem = pls_desc.storage_mut().expect("PointLights not storage");
-  if pls_mem.size() < size_of_val(&pls) {
+  let size = size_of_val(pls.as_slice());
+  if pls_mem.size() < size {
     memory_manager
-      .resize_buffer_mem(pls_mem, size_of_val(&pls))
+      .resize_buffer_mem(pls_mem, size)
       .expect("Failed to resize PointLights Mem");
   }
   memory_manager
@@ -86,9 +87,10 @@ pub fn update_default_descriptors(
     .expect("Failed to get SpotLight Descriptor");
 
   let sls_mem = sls_desc.storage_mut().expect("SpotLights not storage");
-  if sls_mem.size() < size_of_val(&sls) {
+  let size = size_of_val(sls.as_slice());
+  if sls_mem.size() < size {
     memory_manager
-      .resize_buffer_mem(sls_mem, size_of_val(&sls))
+      .resize_buffer_mem(sls_mem, size)
       .expect("Failed to resize SpotLights Mem");
   }
   memory_manager

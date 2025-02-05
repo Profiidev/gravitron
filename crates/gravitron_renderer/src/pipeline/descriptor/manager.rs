@@ -125,7 +125,7 @@ impl DescriptorManager {
         Descriptor {
           id,
           binding: i as u32,
-          changed: false,
+          previous: None,
           r#type: info.r#type,
         },
       );
@@ -191,16 +191,18 @@ impl DescriptorManager {
   pub(crate) fn update_changed(&mut self, memory_manager: &MemoryManager) {
     for set in self.descriptor_sets.values() {
       for descriptor in set.descriptors.values() {
-        if descriptor.changed {
-          self.changed = true;
+        if let Some(prev) = &descriptor.previous {
+          if *prev != descriptor.r#type {
+            self.changed = true;
 
-          write_descriptor(
-            &self.logical_device,
-            &descriptor.r#type,
-            descriptor.binding,
-            set.set,
-            memory_manager,
-          );
+            write_descriptor(
+              &self.logical_device,
+              &descriptor.r#type,
+              descriptor.binding,
+              set.set,
+              memory_manager,
+            );
+          }
         }
       }
     }
@@ -214,6 +216,11 @@ impl DescriptorManager {
   #[inline]
   pub(crate) fn reset_changed(&mut self) {
     self.changed = false;
+    for set in self.descriptor_sets.values_mut() {
+      for descriptor in set.descriptors.values_mut() {
+        descriptor.previous = None;
+      }
+    }
   }
 }
 
