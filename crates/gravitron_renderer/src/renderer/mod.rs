@@ -39,13 +39,14 @@ pub mod resources;
 pub(crate) mod swapchain;
 
 pub const DEFAULT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(0);
-pub const ATTACHMENT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(1);
+pub const TEXTURE_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(1);
+pub const ATTACHMENT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(2);
 
 pub const CAMERA_DESCRIPTOR: DescriptorId = DescriptorId(0);
-pub const TEXTURE_DESCRIPTOR: DescriptorId = DescriptorId(1);
-pub const LIGHT_INFO_DESCRIPTOR: DescriptorId = DescriptorId(2);
-pub const POINT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(3);
-pub const SPOT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(4);
+pub const LIGHT_INFO_DESCRIPTOR: DescriptorId = DescriptorId(1);
+pub const POINT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(2);
+pub const SPOT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(3);
+pub const TEXTURE_DESCRIPTOR: DescriptorId = DescriptorId(4);
 
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
@@ -127,10 +128,6 @@ impl Renderer {
       },
       DescriptorInfo {
         stage: vk::ShaderStageFlags::FRAGMENT,
-        r#type: DescriptorType::Sampler(vec![default_texture]),
-      },
-      DescriptorInfo {
-        stage: vk::ShaderStageFlags::FRAGMENT,
         r#type: DescriptorType::UniformBuffer(light_info_mem),
       },
       DescriptorInfo {
@@ -142,6 +139,14 @@ impl Renderer {
         r#type: DescriptorType::StorageBuffer(spot_light_mem),
       },
     ];
+    descriptor_manager
+      .create_descriptor_set(descriptor, memory_manager)
+      .expect("Failed to create default descriptor set");
+
+    let descriptor = vec![DescriptorInfo {
+      stage: vk::ShaderStageFlags::FRAGMENT,
+      r#type: DescriptorType::Sampler(vec![default_texture]),
+    }];
     descriptor_manager
       .create_descriptor_set(descriptor, memory_manager)
       .expect("Failed to create default descriptor set");
@@ -167,7 +172,8 @@ impl Renderer {
 
     let mut pipeline_manager = PipelineManager::init(logical_device, render_pass, &swapchain);
 
-    let world = GraphicsPipelineBuilder::new().add_descriptor_sets(vec![DEFAULT_DESCRIPTOR_SET]);
+    let world = GraphicsPipelineBuilder::new()
+      .add_descriptor_sets(vec![DEFAULT_DESCRIPTOR_SET, TEXTURE_DESCRIPTOR_SET]);
     pipeline_manager.build_graphics_pipeline(world, descriptor_manager);
     let light = GraphicsPipelineBuilder::new()
       .rendering_stage(RenderingStage::Light)
@@ -223,6 +229,7 @@ impl Renderer {
     if memory_manager.buffer_reallocated(&buffer_ids) || pipeline_manager.graphics_changed() {
       self.buffers_updated.clear();
     }
+    self.buffers_updated.clear();
 
     if self
       .buffers_updated

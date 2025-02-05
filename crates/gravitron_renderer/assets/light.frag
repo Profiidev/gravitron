@@ -28,17 +28,17 @@ layout (location=0) in vec3 cam_pos;
 
 layout (location=0) out vec4 color_out;
 
-layout (set=0, binding=2) uniform LightInfo {
+layout (set=0, binding=1) uniform LightInfo {
   uint num_pls;
   uint num_sls;
   DirectionalLight dl;
 } light_info;
 
-layout (set=0, binding=3) buffer readonly PointLights {
+layout (set=0, binding=2) buffer readonly PointLights {
   PointLight pls[];
 } pls;
 
-layout (set=0, binding=4) buffer readonly SpotLights {
+layout (set=0, binding=3) buffer readonly SpotLights {
   SpotLight sls[];
 } sls;
 
