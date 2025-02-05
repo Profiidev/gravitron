@@ -229,7 +229,6 @@ impl Renderer {
     if memory_manager.buffer_reallocated(&buffer_ids) || pipeline_manager.graphics_changed() {
       self.buffers_updated.clear();
     }
-    self.buffers_updated.clear();
 
     if self
       .buffers_updated
