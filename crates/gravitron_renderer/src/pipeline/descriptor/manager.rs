@@ -18,6 +18,7 @@ pub struct DescriptorManager {
   max_pool_id: u64,
   descriptor_sets: HashMap<DescriptorSetId, DescriptorSet>,
   descriptor_pools: HashMap<DescriptorPoolId, DescriptorPool>,
+  changed: bool,
 }
 
 impl DescriptorManager {
@@ -34,6 +35,7 @@ impl DescriptorManager {
       max_pool_id: 1,
       descriptor_sets: Default::default(),
       descriptor_pools: pools,
+      changed: false,
     })
   }
 
@@ -45,6 +47,7 @@ impl DescriptorManager {
     let mut descriptors = HashMap::new();
     let mut bind_desc = Vec::new();
     let mut size_needed = HashMap::new();
+    let mut flags = Vec::new();
 
     for (i, info) in descriptor.iter().enumerate() {
       bind_desc.push(
@@ -56,9 +59,20 @@ impl DescriptorManager {
       );
 
       *size_needed.entry(info.r#type.vk_type()).or_default() += info.r#type.count();
+
+      match info.r#type {
+        DescriptorType::StorageBuffer(_) | DescriptorType::UniformBuffer(_) => {
+          flags.push(vk::DescriptorBindingFlags::UPDATE_AFTER_BIND)
+        }
+        _ => flags.push(vk::DescriptorBindingFlags::empty()),
+      }
     }
 
-    let layout_create_info = vk::DescriptorSetLayoutCreateInfo::default().bindings(&bind_desc);
+    let mut flags = vk::DescriptorSetLayoutBindingFlagsCreateInfo::default().binding_flags(&flags);
+    let layout_create_info = vk::DescriptorSetLayoutCreateInfo::default()
+      .bindings(&bind_desc)
+      .flags(vk::DescriptorSetLayoutCreateFlags::UPDATE_AFTER_BIND_POOL)
+      .push_next(&mut flags);
     let layout = [unsafe {
       self
         .logical_device
@@ -174,10 +188,12 @@ impl DescriptorManager {
       .map(DescriptorMut)
   }
 
-  pub(crate) fn update_changed(&self, memory_manager: &MemoryManager) {
+  pub(crate) fn update_changed(&mut self, memory_manager: &MemoryManager) {
     for set in self.descriptor_sets.values() {
       for descriptor in set.descriptors.values() {
         if descriptor.changed {
+          self.changed = true;
+
           write_descriptor(
             &self.logical_device,
             &descriptor.r#type,
@@ -188,6 +204,16 @@ impl DescriptorManager {
         }
       }
     }
+  }
+
+  #[inline]
+  pub(crate) fn descriptor_changed(&self) -> bool {
+    self.changed
+  }
+
+  #[inline]
+  pub(crate) fn reset_changed(&mut self) {
+    self.changed = false;
   }
 }
 

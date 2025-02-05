@@ -40,6 +40,7 @@ impl DescriptorPool {
 
     let info = vk::DescriptorPoolCreateInfo::default()
       .max_sets(DEFAULT_COUNT / 2)
+      .flags(vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND)
       .pool_sizes(&pool_sizes);
 
     let pool = unsafe { logical_device.create_descriptor_pool(&info, None) }?;

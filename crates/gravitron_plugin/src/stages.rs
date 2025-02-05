@@ -2,6 +2,7 @@
 pub enum MainSystemStage {
   PreRender,
   RenderInit,
+  RenderPrepare,
   RenderRecording,
   RenderExecute,
   PostRender,

@@ -124,8 +124,12 @@ pub fn update_default_descriptors(
 }
 
 pub fn update_descriptors(
-  descriptor_manager: Res<DescriptorManager>,
+  mut descriptor_manager: ResMut<DescriptorManager>,
   memory_manager: Res<MemoryManager>,
 ) {
   descriptor_manager.update_changed(memory_manager.deref());
+}
+
+pub fn reset_descriptors(mut descriptor_manager: ResMut<DescriptorManager>) {
+  descriptor_manager.reset_changed();
 }

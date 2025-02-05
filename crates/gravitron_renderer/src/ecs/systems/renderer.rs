@@ -21,12 +21,10 @@ pub fn init_renderer(renderer: Res<Renderer>) {
   renderer.wait_for_draw_start();
 }
 
-pub fn renderer_recording(
+pub fn draw_data_update(
   mut renderer: ResMut<Renderer>,
   mut memory_manager: ResMut<MemoryManager>,
   mut model_manager: ResMut<ModelManager>,
-  pipeline_manager: ResMut<PipelineManager>,
-  descriptor_manager: ResMut<DescriptorManager>,
   to_render: Query<(&MeshRenderer, &GlobalTransform)>,
 ) {
   #[cfg(feature = "debug")]
@@ -52,7 +50,15 @@ pub fn renderer_recording(
     models,
     model_manager.deref_mut(),
   );
+}
 
+pub fn renderer_recording(
+  mut renderer: ResMut<Renderer>,
+  mut memory_manager: ResMut<MemoryManager>,
+  model_manager: Res<ModelManager>,
+  pipeline_manager: ResMut<PipelineManager>,
+  descriptor_manager: ResMut<DescriptorManager>,
+) {
   renderer
     .record_command_buffer(
       pipeline_manager.deref(),

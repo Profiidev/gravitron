@@ -226,7 +226,10 @@ impl Renderer {
       model_manager.vertex_buffer_id(),
       model_manager.instance_buffer_id(),
     ];
-    if memory_manager.buffer_reallocated(&buffer_ids) || pipeline_manager.graphics_changed() {
+    if memory_manager.buffer_reallocated(&buffer_ids)
+      || pipeline_manager.graphics_changed()
+      || descriptor_manager.descriptor_changed()
+    {
       self.buffers_updated.clear();
     }
 
