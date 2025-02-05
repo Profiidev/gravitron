@@ -47,30 +47,6 @@ impl SimpleBuffer {
     unsafe { self.buffer.cleanup(device, allocator) }
   }
 
-  pub fn resize_buffer(
-    &mut self,
-    allocator: &mut vulkan::Allocator,
-    device: &ash::Device,
-    required_size: usize,
-  ) -> Result<(), Error> {
-    let size = (required_size as f32 / self.block_size as f32).ceil() as usize * self.block_size;
-    let mut new_buffer = Buffer::new(
-      allocator,
-      device,
-      size,
-      self.buffer.usage(),
-      self.buffer.location(),
-    )?;
-
-    let old_ptr = unsafe { self.buffer.ptr().unwrap() };
-    new_buffer.write(old_ptr, self.buffer.size(), 0)?;
-
-    let old_buffer = std::mem::replace(&mut self.buffer, new_buffer);
-    unsafe { old_buffer.cleanup(device, allocator)? };
-
-    Ok(())
-  }
-
   pub fn add_to_buffer<T>(
     &mut self,
     data: &[T],
@@ -123,9 +99,24 @@ impl SimpleBuffer {
     if let Some(mem) = self.allocator.alloc(size, self.id) {
       Some(mem)
     } else {
-      self
-        .resize_buffer(allocator, device, size + self.buffer.size())
-        .ok()?;
+      let additional_size =
+        (size as f32 / self.block_size as f32).ceil() as usize * self.block_size;
+      let mut new_buffer = Buffer::new(
+        allocator,
+        device,
+        self.buffer.size() + additional_size,
+        self.buffer.usage(),
+        self.buffer.location(),
+      )
+      .ok()?;
+
+      let old_ptr = unsafe { self.buffer.ptr().unwrap() };
+      new_buffer.write(old_ptr, self.buffer.size(), 0).ok()?;
+
+      let old_buffer = std::mem::replace(&mut self.buffer, new_buffer);
+      unsafe { old_buffer.cleanup(device, allocator).ok()? };
+
+      self.allocator.grow(additional_size);
       self.reallocated = true;
 
       let mem = self.allocator.alloc(size, self.id)?;
