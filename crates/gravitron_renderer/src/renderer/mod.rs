@@ -8,6 +8,7 @@ use resources::lighting::{LightInfo, PointLight, SpotLight};
 use swapchain::SwapChain;
 
 use crate::{
+  config::GraphicsConfig,
   memory::{
     types::{BufferMemory, BufferMemoryLocation},
     MemoryManager,
@@ -38,6 +39,8 @@ mod render_pass;
 pub mod resources;
 pub(crate) mod swapchain;
 
+pub const DEFAULT_TEXTURE: TextureId = TextureId(0);
+
 pub const DEFAULT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(0);
 pub const TEXTURE_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(1);
 pub const ATTACHMENT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(2);
@@ -47,6 +50,9 @@ pub const LIGHT_INFO_DESCRIPTOR: DescriptorId = DescriptorId(1);
 pub const POINT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(2);
 pub const SPOT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(3);
 pub const TEXTURE_DESCRIPTOR: DescriptorId = DescriptorId(4);
+
+#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+pub struct TextureId(pub(crate) u32);
 
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
@@ -61,6 +67,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
+  #[allow(clippy::too_many_arguments)]
   pub(crate) fn init(
     instance: &InstanceDevice,
     device: &Device,
@@ -69,6 +76,7 @@ impl Renderer {
     surface: &Surface,
     window_config: &WindowConfig,
     pools: &mut Pools,
+    config: &GraphicsConfig,
   ) -> Result<(Self, PipelineManager), Error> {
     let logical_device = device.get_device();
 
@@ -108,10 +116,6 @@ impl Renderer {
     let camera_mem = memory_manager
       .reserve_buffer_mem(buffer, size_of::<Mat4>() * 2)
       .unwrap();
-    let default_texture = memory_manager.create_texture_image(
-      vk::Filter::NEAREST,
-      include_bytes!("../../assets/default.png"),
-    )?;
     let light_info_mem = memory_manager
       .reserve_buffer_mem(buffer, size_of::<LightInfo>())
       .unwrap();
@@ -143,9 +147,15 @@ impl Renderer {
       .create_descriptor_set(descriptor, memory_manager)
       .expect("Failed to create default descriptor set");
 
+    let mut textures = Vec::new();
+    for (bytes, interpolation) in &config.textures {
+      textures.push(memory_manager.create_texture_image(*interpolation, bytes)?);
+    }
+    dbg!(&textures);
+
     let descriptor = vec![DescriptorInfo {
       stage: vk::ShaderStageFlags::FRAGMENT,
-      r#type: DescriptorType::Sampler(vec![default_texture]),
+      r#type: DescriptorType::Sampler(textures),
     }];
     descriptor_manager
       .create_descriptor_set(descriptor, memory_manager)

@@ -12,7 +12,7 @@ use pipeline::DescriptorManager;
 use crate::debug::Debugger;
 
 use crate::{
-  config::VulkanConfig,
+  config::RendererConfig,
   device::Device,
   instance::{InstanceDevice, InstanceDeviceConfig},
   pipeline::{manager::PipelineManager, pools::Pools},
@@ -90,7 +90,7 @@ impl Resources {
   }
 
   pub(crate) fn create(
-    mut config: VulkanConfig,
+    mut config: RendererConfig,
     app_config: &AppConfig,
     window_config: &WindowConfig,
     window: &WindowHandle,
@@ -103,11 +103,11 @@ impl Resources {
     #[cfg(not(feature = "debug"))]
     let instance_next = Vec::new();
     #[cfg(feature = "debug")]
-    let debugger_info = Debugger::init_info(&mut config.renderer, &mut instance_next);
+    let debugger_info = Debugger::init_info(&mut config.device, &mut instance_next);
 
     let mut instance_config = InstanceDeviceConfig::default()
-      .add_layers(config.renderer.layers.clone())
-      .add_extensions(config.renderer.instance_extensions.clone())
+      .add_layers(config.device.layers.clone())
+      .add_extensions(config.device.instance_extensions.clone())
       .add_instance_nexts(instance_next);
 
     let instance = InstanceDevice::init(
@@ -127,7 +127,7 @@ impl Resources {
       instance.get_instance(),
       instance.get_physical_device(),
       &surface,
-      &config.renderer,
+      &config.device,
     )?;
 
     let mut pools = Pools::init(device.get_device(), device.get_queue_families())?;
@@ -144,6 +144,7 @@ impl Resources {
       &surface,
       window_config,
       &mut pools,
+      &config.graphics,
     )?;
 
     renderer.record_command_buffer(

@@ -20,7 +20,7 @@ use gravitron::{
   math,
   plugin::{
     app::{AppBuilder, Build},
-    ComponentPlugin, Plugin, RendererPlugin,
+    ComponentPlugin, Plugin, RendererConfig, RendererPlugin,
   },
   resources::{
     engine_commands::EngineCommands,
@@ -33,7 +33,7 @@ use gravitron::{
       graphics::GraphicsPipelineBuilder,
       include_glsl, DescriptorManager, PipelineManager,
     },
-    renderer::{resources::material::Material, DEFAULT_DESCRIPTOR_SET},
+    renderer::{resources::material::Material, TextureId, DEFAULT_DESCRIPTOR_SET},
   },
   window::winit::keyboard::KeyCode,
   Id,
@@ -67,6 +67,16 @@ impl Plugin for Game {
 
     builder.add_resource(Id::default());
     builder.add_resource(false);
+
+    let texture = builder
+      .config_mut::<RendererConfig>()
+      .unwrap()
+      .graphics
+      .add_texture(
+        include_bytes!("../testing/image.png").to_vec(),
+        Filter::NEAREST,
+      );
+    builder.add_resource(texture);
   }
 
   fn dependencies(&self) -> Vec<gravitron_plugin::PluginID> {
@@ -81,7 +91,7 @@ fn init(
   mut descriptor_manager: ResMut<DescriptorManager>,
   mut memory_manager: ResMut<MemoryManager>,
 ) {
-  let texture = memory_manager
+  let image = memory_manager
     .create_texture_image(Filter::NEAREST, include_bytes!("../testing/image.png"))
     .unwrap();
 
@@ -89,7 +99,7 @@ fn init(
     .create_descriptor_set(
       vec![DescriptorInfo {
         stage: ShaderStageFlags::FRAGMENT,
-        r#type: DescriptorType::Sampler(vec![texture]),
+        r#type: DescriptorType::Sampler(vec![image]),
       }],
       memory_manager.deref(),
     )
@@ -182,6 +192,7 @@ fn init(
 fn test(
   cmd: &mut Commands,
   info: Res<EngineInfo>,
+  texture: Res<TextureId>,
   q: Query<(&mut Transform, &mut Marker)>,
   id: Res<Id>,
 ) {
@@ -195,7 +206,7 @@ fn test(
   let renderer = MeshRenderer {
     model_id: CUBE_MODEL,
     material: Material {
-      texture_id: 1,
+      texture_id: *texture,
       ..Default::default()
     },
   };

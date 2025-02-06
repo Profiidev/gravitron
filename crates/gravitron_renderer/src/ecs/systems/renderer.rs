@@ -41,7 +41,7 @@ pub fn draw_data_update(
       material.color,
       material.metallic,
       material.roughness,
-      material.texture_id,
+      material.texture_id.0,
     ));
   }
 

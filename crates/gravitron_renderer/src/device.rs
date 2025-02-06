@@ -1,7 +1,7 @@
 use anyhow::Error;
 use ash::{ext, khr, vk};
 
-use crate::config::RendererConfig;
+use crate::config::DeviceConfig;
 
 use super::{error::QueueFamilyMissingError, surface::Surface};
 
@@ -16,7 +16,7 @@ impl Device {
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     surface: &Surface,
-    config: &RendererConfig,
+    config: &DeviceConfig,
   ) -> Result<Self, Error> {
     let queue_families = QueueFamilies::init(instance, physical_device, surface)?;
     let (device, queues) = Queues::init(instance, physical_device, &queue_families, config)?;
@@ -139,7 +139,7 @@ impl Queues {
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     queue_families: &QueueFamilies,
-    config: &RendererConfig,
+    config: &DeviceConfig,
   ) -> Result<(ash::Device, Self), vk::Result> {
     let queue_priorities = [1.0];
     let mut queue_create_infos = vec![vk::DeviceQueueCreateInfo::default()

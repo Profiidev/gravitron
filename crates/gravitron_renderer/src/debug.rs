@@ -5,7 +5,7 @@ use ash::{
 };
 use log::LevelFilter;
 
-use crate::config::RendererConfig;
+use crate::config::DeviceConfig;
 
 const VALIDATION_LAYER: &std::ffi::CStr = c"VK_LAYER_KHRONOS_validation";
 
@@ -25,7 +25,7 @@ impl Debugger {
   }
 
   pub fn init_info(
-    vulkan_config: &mut RendererConfig,
+    vulkan_config: &mut DeviceConfig,
     instance_next: &mut Vec<Box<dyn ExtendsInstanceCreateInfo + Send>>,
   ) -> DebuggerInfo {
     let debug_log_level = get_log_flags();

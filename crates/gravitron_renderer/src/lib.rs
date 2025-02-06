@@ -1,4 +1,4 @@
-use config::VulkanConfig;
+use config::RendererConfig;
 use ecs::{
   resources::{cleanup_resource, Resources},
   systems::{
@@ -37,7 +37,7 @@ pub struct RendererPlugin;
 
 impl Plugin for RendererPlugin {
   fn build(&self, builder: &mut AppBuilder<Build>) {
-    builder.add_config(VulkanConfig::default());
+    builder.add_config(RendererConfig::default());
     builder.add_main_system_at_stage(init_renderer, MainSystemStage::RenderInit);
     builder.add_main_system_at_stage(update_default_descriptors, MainSystemStage::RenderInit);
     builder.add_main_system_at_stage(draw_data_update, MainSystemStage::RenderInit);
@@ -57,7 +57,7 @@ impl Plugin for RendererPlugin {
       .config::<WindowConfig>()
       .expect("Error: Failed to get AppConfig");
     let config = builder
-      .config::<VulkanConfig>()
+      .config::<RendererConfig>()
       .expect("Error: Failed to get Vulkan Config");
 
     let window = builder
