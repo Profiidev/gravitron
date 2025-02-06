@@ -1,18 +1,16 @@
 use anyhow::Error;
 use ash::{khr, vk};
-use gravitron_plugin::config::window::WindowConfig;
+use gravitron_window::config::WindowConfig;
 
 use crate::{
   device::Device,
   instance::InstanceDevice,
-  memory::manager::MemoryManager,
+  memory::{types::ImageId, MemoryManager},
   pipeline::pools::{CommandBufferType, Pools},
   surface::Surface,
 };
 
-use super::framebuffer::Framebuffer;
-
-pub const IMAGES_PER_FRAME_BUFFER: u32 = 4;
+use super::framebuffer::{Framebuffer, IMAGES_PER_FRAME_BUFFER};
 
 pub struct SwapChain {
   loader: khr::swapchain::Device,
@@ -20,11 +18,11 @@ pub struct SwapChain {
   framebuffers: Vec<Framebuffer>,
   extent: vk::Extent2D,
   current_image: usize,
-  geometry_images: Vec<(vk::ImageView, vk::Sampler)>,
+  graphics_queue: vk::Queue,
+  attachments: [ImageId; IMAGES_PER_FRAME_BUFFER as usize],
 }
 
 impl SwapChain {
-  #[allow(clippy::too_many_arguments)]
   pub fn init(
     instance_device: &InstanceDevice,
     device: &Device,
@@ -33,7 +31,6 @@ impl SwapChain {
     window_config: &WindowConfig,
     pools: &mut Pools,
     render_pass: vk::RenderPass,
-    light_render_pass: vk::RenderPass,
   ) -> Result<Self, Error> {
     let physical_device = instance_device.get_physical_device();
     let logical_device = device.get_device();
@@ -116,11 +113,8 @@ impl SwapChain {
       .format(vk::Format::D32_SFLOAT)
       .subresource_range(subresource_range);
 
-    let depth_image = memory_manager.create_image(
-      gpu_allocator::MemoryLocation::GpuOnly,
-      &depth_image_create_info,
-      &depth_image_view_create_info,
-    )?;
+    let depth_image =
+      memory_manager.create_image(&depth_image_create_info, &depth_image_view_create_info)?;
 
     let command_buffer = pools.create_command_buffers(
       logical_device,
@@ -129,7 +123,7 @@ impl SwapChain {
     )?;
 
     let image_info = depth_image_create_info
-      .usage(vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::COLOR_ATTACHMENT)
+      .usage(vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT)
       .format(vk::Format::R32G32B32A32_SFLOAT);
 
     let subresource_range = subresource_range.aspect_mask(vk::ImageAspectFlags::COLOR);
@@ -137,17 +131,11 @@ impl SwapChain {
       .format(vk::Format::R32G32B32A32_SFLOAT)
       .subresource_range(subresource_range);
 
-    let sampler_info = vk::SamplerCreateInfo::default();
-
     let mut images = Vec::new();
     for _ in 0..IMAGES_PER_FRAME_BUFFER {
-      images.push(memory_manager.create_sampler_image(
-        gpu_allocator::MemoryLocation::GpuOnly,
-        &image_info,
-        &image_view_info,
-        &sampler_info,
-      )?);
+      images.push(memory_manager.create_image(&image_info, &image_view_info)?);
     }
+    let images = [images[0], images[1], images[2]];
 
     let mut framebuffers = Vec::new();
     for (swapchain_image, command_buffer) in swapchain_images.into_iter().zip(command_buffer) {
@@ -155,28 +143,14 @@ impl SwapChain {
         swapchain_image,
         logical_device,
         surface_format.format,
-        [images[0], images[1], images[2]],
+        images,
         depth_image,
-        (render_pass, light_render_pass),
+        render_pass,
         memory_manager,
         extent,
         command_buffer,
       )?);
     }
-
-    let geometry_images = images
-      .into_iter()
-      .map(|i| {
-        (
-          memory_manager
-            .get_vk_image_view(i)
-            .expect("Failed to get image view"),
-          memory_manager
-            .get_vk_sampler(i)
-            .expect("Failed to get sampler"),
-        )
-      })
-      .collect();
 
     Ok(Self {
       loader: swapchain_loader,
@@ -184,17 +158,20 @@ impl SwapChain {
       framebuffers,
       extent,
       current_image: 0,
-      geometry_images,
+      graphics_queue: device.get_queues().graphics(),
+      attachments: images,
     })
   }
 
+  #[inline]
   pub fn get_extent(&self) -> vk::Extent2D {
     self.extent
   }
 
-  pub fn destroy(&self, logical_device: &ash::Device) {
+  #[inline]
+  pub fn cleanup(&self, logical_device: &ash::Device) {
     for framebuffer in &self.framebuffers {
-      framebuffer.destroy(logical_device);
+      framebuffer.cleanup(logical_device);
     }
 
     unsafe {
@@ -202,6 +179,7 @@ impl SwapChain {
     }
   }
 
+  #[inline]
   pub fn wait_for_draw_start(&self, device: &ash::Device) {
     unsafe {
       device
@@ -218,6 +196,7 @@ impl SwapChain {
     }
   }
 
+  #[inline]
   pub fn record_command_buffer_start(
     &self,
     device: &ash::Device,
@@ -226,15 +205,7 @@ impl SwapChain {
     self.framebuffers[self.current_image].start_record(device, render_pass, self.extent)
   }
 
-  pub fn record_command_buffer_middle(
-    &self,
-    device: &ash::Device,
-    buffer: vk::CommandBuffer,
-    render_pass: vk::RenderPass,
-  ) {
-    self.framebuffers[self.current_image].middle_record(device, buffer, render_pass, self.extent)
-  }
-
+  #[inline]
   pub fn record_command_buffer_end(
     &self,
     device: &ash::Device,
@@ -246,10 +217,7 @@ impl SwapChain {
     }
   }
 
-  pub fn draw_frame(&mut self, device: &Device) {
-    let logical_device = device.get_device();
-    let graphics_queue = device.get_queues().graphics();
-
+  pub fn draw_frame(&mut self, logical_device: &ash::Device) {
     let (image_index, _) = unsafe {
       self
         .loader
@@ -276,7 +244,7 @@ impl SwapChain {
     unsafe {
       logical_device
         .queue_submit(
-          graphics_queue,
+          self.graphics_queue,
           &submit_info,
           self.framebuffers[self.current_image].begin_drawing(),
         )
@@ -292,22 +260,20 @@ impl SwapChain {
     unsafe {
       self
         .loader
-        .queue_present(graphics_queue, &present_info)
+        .queue_present(self.graphics_queue, &present_info)
         .expect("Unable to queue present");
     }
 
     self.current_image = (self.current_image + 1) % self.framebuffers.len();
   }
 
+  #[inline]
   pub fn current_frame(&self) -> usize {
     self.current_image
   }
 
-  pub fn framebuffer_count(&self) -> usize {
-    self.framebuffers.len()
-  }
-
-  pub fn framebuffer_image_handles(&self) -> &[(vk::ImageView, vk::Sampler)] {
-    &self.geometry_images
+  #[inline]
+  pub fn attachments(&self) -> &[ImageId] {
+    &self.attachments
   }
 }

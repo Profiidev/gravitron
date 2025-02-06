@@ -14,7 +14,7 @@ layout (location = 5) in float metallic;
 layout (location = 6) in float roughness;
 
 void main() {
-  color_out = texture(tex, uv) + color_in;
+  color_out = vec4(10.0);
   normal_out = vec4(normal, metallic);
   pos_out = vec4(world_pos, roughness);
 }

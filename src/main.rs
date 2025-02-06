@@ -1,14 +1,15 @@
+use std::ops::Deref;
+
 use gravitron::{
+  components::{
+    camera::CameraBuilder,
+    lighting::{DirectionalLight, PointLight, SpotLight},
+    renderer::MeshRenderer,
+    transform::Transform,
+  },
   ecs::{
     commands::Commands,
-    components::{
-      camera::CameraBuilder,
-      lighting::{DirectionalLight, PointLight, SpotLight},
-      renderer::MeshRenderer,
-      transform::Transform,
-    },
     hierarchy::command_ext::HierarchyCommandExt,
-    resources::{engine_commands::EngineCommands, engine_info::EngineInfo, input::Input},
     systems::{
       query::{filter::With, Query},
       resources::{Res, ResMut},
@@ -18,15 +19,21 @@ use gravitron::{
   engine::Gravitron,
   math,
   plugin::{
-    config::vulkan::{
-      DescriptorSet, DescriptorType, Filter, GraphicsPipelineConfig, ImageConfig, ShaderStageFlags,
-      VulkanConfig,
-    },
-    Plugin,
+    app::{AppBuilder, Build},
+    ComponentPlugin, Plugin, RendererConfig, RendererPlugin,
   },
-  renderer::{
-    graphics::resources::{material::Material, model::CUBE_MODEL},
-    include_glsl,
+  resources::{
+    engine_commands::EngineCommands,
+    engine_info::EngineInfo,
+    input::Input,
+    memory::{types::Filter, MemoryManager},
+    model::model::CUBE_MODEL,
+    pipeline::{
+      descriptor::{DescriptorInfo, DescriptorType, ShaderStageFlags},
+      graphics::GraphicsPipelineBuilder,
+      include_glsl, DescriptorManager, PipelineManager,
+    },
+    renderer::{resources::material::Material, TextureHandle, DEFAULT_DESCRIPTOR_SET},
   },
   window::winit::keyboard::KeyCode,
   Id,
@@ -50,27 +57,7 @@ pub struct Center;
 struct Game;
 
 impl Plugin for Game {
-  fn build(&self, builder: &mut gravitron_plugin::app::AppBuilder<gravitron_plugin::app::Build>) {
-    let testing = GraphicsPipelineConfig::new("testing".to_string())
-      .set_frag_shader(include_glsl!("./testing/shader.frag").to_vec())
-      .add_descriptor_set(
-        DescriptorSet::default().add_descriptor(DescriptorType::new_image(
-          ShaderStageFlags::FRAGMENT,
-          vec![ImageConfig::new_path(
-            "./testing/image.png",
-            Filter::NEAREST,
-          )],
-        )),
-      );
-    let vulkan = VulkanConfig::default()
-      .add_graphics_pipeline(testing)
-      .add_texture(ImageConfig::new_path(
-        "./testing/image.png",
-        Filter::NEAREST,
-      ));
-
-    builder.config_mut().vulkan = vulkan;
-
+  fn build(&self, builder: &mut AppBuilder<Build>) {
     builder.add_init_system(init);
 
     builder.add_main_system(test);
@@ -80,10 +67,53 @@ impl Plugin for Game {
 
     builder.add_resource(Id::default());
     builder.add_resource(false);
+
+    let texture = builder
+      .config_mut::<RendererConfig>()
+      .unwrap()
+      .graphics
+      .add_texture(
+        include_bytes!("../testing/image.png").to_vec(),
+        Filter::NEAREST,
+      );
+    builder.add_resource(texture);
+  }
+
+  fn dependencies(&self) -> Vec<gravitron_plugin::PluginID> {
+    vec![RendererPlugin.id(), ComponentPlugin.id()]
   }
 }
 
-fn init(cmds: &mut Commands, mut id: ResMut<Id>) {
+fn init(
+  cmds: &mut Commands,
+  mut id: ResMut<Id>,
+  mut pipeline_manager: ResMut<PipelineManager>,
+  mut descriptor_manager: ResMut<DescriptorManager>,
+  mut memory_manager: ResMut<MemoryManager>,
+) {
+  let image = memory_manager
+    .create_texture_image(Filter::NEAREST, include_bytes!("../testing/image.png"))
+    .unwrap();
+
+  let set = descriptor_manager
+    .create_descriptor_set(
+      vec![DescriptorInfo {
+        stage: ShaderStageFlags::FRAGMENT,
+        r#type: DescriptorType::Sampler(vec![image]),
+      }],
+      memory_manager.deref(),
+    )
+    .unwrap()
+    .0;
+
+  let testing = GraphicsPipelineBuilder::new()
+    .add_descriptor_set(DEFAULT_DESCRIPTOR_SET)
+    .add_descriptor_set(set)
+    .fragment_shader(include_glsl!("./testing/shader.frag"));
+  let testing = pipeline_manager
+    .build_graphics_pipeline(testing, descriptor_manager.deref())
+    .unwrap();
+
   let mut transform = Transform::default();
   transform.set_position(math::Vec3::new(5.0, 0.0, 0.0));
   cmds.create_entity((
@@ -105,7 +135,7 @@ fn init(cmds: &mut Commands, mut id: ResMut<Id>) {
     MeshRenderer {
       model_id: CUBE_MODEL,
       material: Material {
-        shader: "testing".into(),
+        shader: testing,
         ..Default::default()
       },
     },
@@ -120,10 +150,7 @@ fn init(cmds: &mut Commands, mut id: ResMut<Id>) {
     -std::f32::consts::FRAC_PI_4,
   );
   camera_transform.set_position(math::Vec3::new(10.0, 10.0, 10.0));
-  cmds.create_entity((
-    CameraBuilder::new().build(&camera_transform),
-    camera_transform,
-  ));
+  cmds.create_entity((CameraBuilder::new().build(), camera_transform));
 
   let mut dl_t = Transform::default();
   dl_t.set_rotation(0.0, std::f32::consts::FRAC_PI_4 * 3.0, 0.0);
@@ -165,6 +192,7 @@ fn init(cmds: &mut Commands, mut id: ResMut<Id>) {
 fn test(
   cmd: &mut Commands,
   info: Res<EngineInfo>,
+  texture: Res<TextureHandle>,
   q: Query<(&mut Transform, &mut Marker)>,
   id: Res<Id>,
 ) {
@@ -178,7 +206,7 @@ fn test(
   let renderer = MeshRenderer {
     model_id: CUBE_MODEL,
     material: Material {
-      texture_id: 1,
+      texture_id: *texture,
       ..Default::default()
     },
   };

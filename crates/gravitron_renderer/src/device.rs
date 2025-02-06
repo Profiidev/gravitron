@@ -1,6 +1,7 @@
 use anyhow::Error;
 use ash::{ext, khr, vk};
-use gravitron_plugin::config::vulkan::RendererConfig;
+
+use crate::config::DeviceConfig;
 
 use super::{error::QueueFamilyMissingError, surface::Surface};
 
@@ -15,7 +16,7 @@ impl Device {
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     surface: &Surface,
-    config: &RendererConfig,
+    config: &DeviceConfig,
   ) -> Result<Self, Error> {
     let queue_families = QueueFamilies::init(instance, physical_device, surface)?;
     let (device, queues) = Queues::init(instance, physical_device, &queue_families, config)?;
@@ -27,19 +28,23 @@ impl Device {
     })
   }
 
+  #[inline]
   pub fn get_device(&self) -> &ash::Device {
     &self.device
   }
 
+  #[inline]
   pub fn get_queue_families(&self) -> &QueueFamilies {
     &self.queue_families
   }
 
+  #[inline]
   pub fn get_queues(&self) -> &Queues {
     &self.queues
   }
 
-  pub fn destroy(&mut self) {
+  #[inline]
+  pub fn cleanup(&self) {
     unsafe {
       self.device.destroy_device(None);
     }
@@ -106,14 +111,17 @@ impl QueueFamilies {
     })
   }
 
+  #[inline]
   pub fn get_graphics_q_index(&self) -> u32 {
     self.graphics_q_index
   }
 
+  #[inline]
   pub fn get_transfer_q_index(&self) -> u32 {
     self.transfer_q_index
   }
 
+  #[inline]
   pub fn get_compute_q_index(&self) -> u32 {
     self.compute_q_index
   }
@@ -131,7 +139,7 @@ impl Queues {
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
     queue_families: &QueueFamilies,
-    config: &RendererConfig,
+    config: &DeviceConfig,
   ) -> Result<(ash::Device, Self), vk::Result> {
     let queue_priorities = [1.0];
     let mut queue_create_infos = vec![vk::DeviceQueueCreateInfo::default()
@@ -158,8 +166,10 @@ impl Queues {
     ];
     device_extension_name_ptrs.extend(config.device_extensions.iter().map(|ext| ext.as_ptr()));
 
-    let mut indexing =
-      vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::default().runtime_descriptor_array(true);
+    let mut indexing = vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::default()
+      .runtime_descriptor_array(true)
+      .descriptor_binding_storage_buffer_update_after_bind(true)
+      .descriptor_binding_uniform_buffer_update_after_bind(true);
 
     let features = config.device_features.fill_mode_non_solid(true);
     let mut features2 = vk::PhysicalDeviceFeatures2::default()
@@ -190,16 +200,18 @@ impl Queues {
     ))
   }
 
+  #[inline]
   pub fn graphics(&self) -> vk::Queue {
     self.graphics
   }
 
+  #[inline]
   #[allow(dead_code)]
   pub fn compute(&self) -> vk::Queue {
     self.compute
   }
 
-  #[allow(dead_code)]
+  #[inline]
   pub fn transfer(&self) -> vk::Queue {
     self.transfer
   }

@@ -1,4 +1,6 @@
 use std::{
+  any::{type_name, Any, TypeId},
+  collections::HashMap,
   marker::PhantomData,
   time::{Duration, Instant},
 };
@@ -23,7 +25,7 @@ pub struct AppBuilder<S: Stage> {
   init_scheduler: SchedulerBuilder<InitSystemStage>,
   main_scheduler: SchedulerBuilder<MainSystemStage>,
   cleanup_scheduler: SchedulerBuilder<CleanupSystemStage>,
-  config: AppConfig,
+  config: HashMap<TypeId, Box<dyn Any>>,
   marker: PhantomData<S>,
 }
 
@@ -32,7 +34,7 @@ pub struct App<S: Status> {
   init_scheduler: Scheduler,
   main_scheduler: Scheduler,
   cleanup_scheduler: Scheduler,
-  config: AppConfig,
+  config: HashMap<TypeId, Box<dyn Any>>,
   marker: PhantomData<S>,
 }
 
@@ -59,9 +61,19 @@ impl App<Running> {
     self.init_scheduler.run(&mut self.world);
   }
 
+  #[inline]
+  pub fn config<C: 'static>(&self) -> Option<&C> {
+    self
+      .config
+      .get(&TypeId::of::<C>())
+      .and_then(|c| c.downcast_ref())
+  }
+
   pub fn run_main(&mut self) {
+    let fps = self.config::<AppConfig>().unwrap().fps;
+
     let mut last_frame = Instant::now();
-    let frame_time = Duration::from_secs(1) / self.config.engine.fps;
+    let frame_time = Duration::from_secs(1) / fps;
 
     loop {
       let elapsed = last_frame.elapsed();
@@ -164,24 +176,22 @@ impl<S: Stage> AppBuilder<S> {
   }
 
   #[inline]
-  pub fn config(&self) -> &AppConfig {
-    &self.config
+  pub fn config<C: 'static>(&self) -> Option<&C> {
+    self
+      .config
+      .get(&TypeId::of::<C>())
+      .and_then(|c| c.downcast_ref())
   }
 
   pub(crate) fn build(mut self) -> App<Running> {
     self.world.add_resource(EngineCommands::default());
+    let parallel = self.config::<AppConfig>().unwrap().parallel_systems;
 
     App {
       world: self.world,
-      init_scheduler: self
-        .init_scheduler
-        .build(self.config.engine.parallel_systems),
-      main_scheduler: self
-        .main_scheduler
-        .build(self.config.engine.parallel_systems),
-      cleanup_scheduler: self
-        .cleanup_scheduler
-        .build(self.config.engine.parallel_systems),
+      init_scheduler: self.init_scheduler.build(parallel),
+      main_scheduler: self.main_scheduler.build(parallel),
+      cleanup_scheduler: self.cleanup_scheduler.build(parallel),
       config: self.config,
       marker: PhantomData,
     }
@@ -195,8 +205,17 @@ impl AppBuilder<Build> {
   }
 
   #[inline]
-  pub fn config_mut(&mut self) -> &mut AppConfig {
-    &mut self.config
+  pub fn config_mut<C: 'static>(&mut self) -> Option<&mut C> {
+    self
+      .config
+      .get_mut(&TypeId::of::<C>())
+      .and_then(|c| c.downcast_mut())
+  }
+
+  #[inline]
+  pub fn add_config<C: 'static>(&mut self, config: C) {
+    debug!("Adding Config {}", type_name::<C>());
+    self.config.insert(TypeId::of::<C>(), Box::new(config));
   }
 
   pub(crate) fn finalize(self) -> AppBuilder<Finalize> {
@@ -231,14 +250,18 @@ impl Default for AppBuilder<Build> {
       std::process::exit(1);
     }));
 
-    Self {
+    let mut builder = Self {
       world: Default::default(),
       init_scheduler: Default::default(),
       main_scheduler: Default::default(),
       cleanup_scheduler: Default::default(),
       config: Default::default(),
       marker: PhantomData,
-    }
+    };
+
+    builder.add_config(AppConfig::default());
+
+    builder
   }
 }
 

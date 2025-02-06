@@ -1,7 +1,6 @@
 use std::sync::mpsc::Sender;
 
 use anyhow::Error;
-use gravitron_plugin::config::window::WindowConfig;
 use gravitron_utils::thread::Signal;
 use log::debug;
 #[cfg(target_os = "linux")]
@@ -16,6 +15,8 @@ use winit::{
 
 #[cfg(target_os = "windows")]
 use winit::platform::windows::EventLoopBuilderExtWindows;
+
+use crate::config::WindowConfig;
 
 pub struct WindowHandler {
   config: WindowConfig,

@@ -1,287 +1,133 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ffi::CStr};
 
 use anyhow::Error;
 use ash::vk;
-use gravitron_plugin::config::vulkan::{DescriptorSet, DescriptorType, ImageConfig, PipelineType};
 
-use crate::{
-  ecs::components::camera::Camera,
-  graphics::{
-    resources::lighting::{LightInfo, PointLight, SpotLight},
-    swapchain::SwapChain,
-  },
-  memory::{manager::MemoryManager, BufferMemory},
-};
+use crate::renderer::swapchain::SwapChain;
 
 use super::{
-  descriptors::{add_descriptor, get_descriptor_set_layouts},
-  Pipeline,
+  graphics::{stage::RenderingStage, GraphicsPipeline, GraphicsPipelineBuilder},
+  DescriptorManager,
 };
 
+pub(crate) const MAIN_FN: &CStr = c"main";
+
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
+pub struct GraphicsPipelineHandle(u64);
+
+#[inline]
+pub(crate) fn create_pipeline_cache(
+  logical_device: &ash::Device,
+  id: GraphicsPipelineHandle,
+) -> Result<vk::PipelineCache, Error> {
+  let initial_data = std::fs::read(format!("cache/{}.bin", id.0)).unwrap_or_default();
+
+  let pipeline_cache_create_info =
+    vk::PipelineCacheCreateInfo::default().initial_data(&initial_data);
+
+  Ok(unsafe { logical_device.create_pipeline_cache(&pipeline_cache_create_info, None) }?)
+}
+
+#[inline]
+pub(crate) unsafe fn cleanup_pipeline_cache(
+  logical_device: &ash::Device,
+  id: GraphicsPipelineHandle,
+  cache: vk::PipelineCache,
+) {
+  let pipeline_cache_data = logical_device.get_pipeline_cache_data(cache).unwrap();
+  std::fs::write(format!("cache/{}.bin", id.0), pipeline_cache_data).unwrap();
+  logical_device.destroy_pipeline_cache(cache, None);
+}
+
 pub struct PipelineManager {
-  pipelines: Vec<(String, Pipeline)>,
-  light_pipeline: Pipeline,
-  descriptor_pool: vk::DescriptorPool,
+  max_graphics_id: u64,
+  graphics_pipelines: HashMap<GraphicsPipelineHandle, GraphicsPipeline>,
+  light_pipeline: Option<GraphicsPipeline>,
   logical_device: ash::Device,
-  default_desc_layouts: Vec<vk::DescriptorSetLayout>,
-  default_buffers: HashMap<usize, HashMap<usize, BufferMemory>>,
+  render_pass: vk::RenderPass,
+  swapchain_extent: vk::Extent2D,
+  graphics_changed: bool,
 }
 
 impl PipelineManager {
-  pub fn init(
+  #[inline]
+  pub(crate) fn init(
     logical_device: &ash::Device,
     render_pass: vk::RenderPass,
-    light_render_pass: vk::RenderPass,
     swapchain: &SwapChain,
-    pipelines: &mut Vec<PipelineType>,
-    textures: Vec<ImageConfig>,
-    memory_manager: &mut MemoryManager,
-  ) -> Result<Self, Error> {
-    pipelines.push(PipelineType::Graphics(Pipeline::default_shader()));
-
-    let mut descriptor_count = 2;
-    let mut pool_sizes = vec![];
-
-    let mut textures_used = vec![ImageConfig::new_bytes(
-      include_bytes!("../../assets/default.png").to_vec(),
-      vk::Filter::LINEAR,
-    )];
-    textures_used.extend(textures);
-
-    let default_descriptor_set = DescriptorSet::default()
-      .add_descriptor(DescriptorType::new_uniform(
-        vk::ShaderStageFlags::VERTEX,
-        128,
-      ))
-      .add_descriptor(DescriptorType::new_image(
-        vk::ShaderStageFlags::FRAGMENT,
-        textures_used,
-      ))
-      .add_descriptor(DescriptorType::new_uniform(
-        vk::ShaderStageFlags::FRAGMENT,
-        64,
-      ))
-      .add_descriptor(DescriptorType::new_storage(
-        vk::ShaderStageFlags::FRAGMENT,
-        120,
-      ))
-      .add_descriptor(DescriptorType::new_storage(
-        vk::ShaderStageFlags::FRAGMENT,
-        180,
-      ));
-    for desc in &default_descriptor_set.descriptors {
-      add_descriptor(&mut pool_sizes, desc);
-    }
-    for _ in 0..3 {
-      add_descriptor(
-        &mut pool_sizes,
-        &DescriptorType::new_image(vk::ShaderStageFlags::FRAGMENT, vec![]),
-      );
-    }
-
-    for pipeline in &*pipelines {
-      match pipeline {
-        PipelineType::Graphics(c) => {
-          descriptor_count += c.descriptor_sets.len();
-          for descriptor_set in &c.descriptor_sets {
-            for descriptor in &descriptor_set.descriptors {
-              add_descriptor(&mut pool_sizes, descriptor);
-            }
-          }
-        }
-        PipelineType::Compute(c) => {
-          descriptor_count += c.descriptor_sets.len();
-          for descriptor_set in &c.descriptor_sets {
-            for descriptor in &descriptor_set.descriptors {
-              add_descriptor(&mut pool_sizes, descriptor);
-            }
-          }
-        }
-      }
-    }
-
-    let descriptor_pool_create_info = vk::DescriptorPoolCreateInfo::default()
-      .max_sets(descriptor_count as u32)
-      .pool_sizes(&pool_sizes);
-    let descriptor_pool =
-      unsafe { logical_device.create_descriptor_pool(&descriptor_pool_create_info, None)? };
-
-    let default_desc_config = vec![default_descriptor_set];
-    let (default_desc_layouts, default_descs, default_buffers) = get_descriptor_set_layouts(
-      &default_desc_config,
-      descriptor_pool,
-      logical_device,
-      memory_manager,
-    )?;
-
-    let light_pipeline = Pipeline::light_pipeline(
-      "light".into(),
-      logical_device,
-      swapchain,
-      light_render_pass,
-      descriptor_pool,
-      &default_descs,
-      &default_desc_layouts,
-    )?;
-
-    let mut vk_pipelines = Vec::new();
-    let mut i = 0;
-    for pipeline in pipelines {
-      match pipeline {
-        PipelineType::Graphics(config) => {
-          vk_pipelines.push((
-            config.name.clone(),
-            Pipeline::init_graphics_pipeline(
-              logical_device,
-              render_pass,
-              config,
-              descriptor_pool,
-              memory_manager,
-              &swapchain.get_extent(),
-              i,
-              &default_descs,
-              &default_desc_layouts,
-            )?,
-          ));
-          i += 1;
-        }
-        PipelineType::Compute(config) => {
-          vk_pipelines.push((
-            config.name.clone(),
-            Pipeline::init_compute_pipeline(
-              logical_device,
-              config,
-              descriptor_pool,
-              memory_manager,
-            )?,
-          ));
-        }
-      }
-    }
-
-    Ok(Self {
-      pipelines: vk_pipelines,
-      light_pipeline,
-      descriptor_pool,
+  ) -> Self {
+    Self {
+      max_graphics_id: 0,
+      graphics_pipelines: HashMap::new(),
+      light_pipeline: None,
       logical_device: logical_device.clone(),
-      default_desc_layouts,
-      default_buffers,
-    })
+      render_pass,
+      swapchain_extent: swapchain.get_extent(),
+      graphics_changed: false,
+    }
   }
 
-  pub fn destroy(&mut self) {
-    unsafe {
-      self
-        .logical_device
-        .destroy_descriptor_pool(self.descriptor_pool, None);
-    }
-    for layout in &self.default_desc_layouts {
-      unsafe {
-        self
-          .logical_device
-          .destroy_descriptor_set_layout(*layout, None);
-      }
-    }
+  pub fn build_graphics_pipeline(
+    &mut self,
+    builder: GraphicsPipelineBuilder<'_>,
+    descriptor_manager: &DescriptorManager,
+  ) -> Option<GraphicsPipelineHandle> {
+    let id = GraphicsPipelineHandle(self.max_graphics_id);
+    self.max_graphics_id += 1;
 
+    let subpass = builder.rendering_stage.subpass();
+    let is_light = builder.rendering_stage == RenderingStage::Light;
+
+    let pipeline = builder
+      .build(
+        &self.logical_device,
+        descriptor_manager,
+        self.render_pass,
+        self.swapchain_extent,
+        id,
+        subpass,
+      )
+      .ok()?;
+
+    if is_light {
+      self.light_pipeline = Some(pipeline);
+    } else {
+      self.graphics_pipelines.insert(id, pipeline);
+    }
+    self.graphics_changed = true;
+
+    Some(id)
+  }
+
+  pub(crate) fn cleanup(&self) {
     std::fs::create_dir_all("cache").unwrap();
-    for (_, pipeline) in &mut self.pipelines {
-      pipeline.destroy(&self.logical_device);
+    for pipeline in self.graphics_pipelines.values() {
+      pipeline.cleanup(&self.logical_device);
     }
-    self.light_pipeline.destroy(&self.logical_device);
+    self
+      .light_pipeline
+      .as_ref()
+      .unwrap()
+      .cleanup(&self.logical_device);
   }
 
-  pub fn get_pipeline(&self, name: &str) -> Option<&Pipeline> {
-    Some(&self.pipelines.iter().find(|(n, _)| n == name)?.1)
+  #[inline]
+  pub(crate) fn light_pipeline(&self) -> &GraphicsPipeline {
+    self.light_pipeline.as_ref().unwrap()
   }
 
-  pub fn get_light_pipeline(&self) -> &Pipeline {
-    &self.light_pipeline
+  #[inline]
+  pub(crate) fn graphics_pipelines(&self) -> Vec<&GraphicsPipeline> {
+    self.graphics_pipelines.values().collect()
   }
 
-  pub fn update_descriptor<T: Sized>(
-    &self,
-    memory_manager: &mut MemoryManager,
-    mem: &BufferMemory,
-    data: &[T],
-  ) {
-    memory_manager.write_to_buffer(mem, data);
+  #[inline]
+  pub(crate) fn graphics_changed(&self) -> bool {
+    self.graphics_changed
   }
 
-  pub fn get_descriptor_mem(
-    &mut self,
-    pipeline_name: &str,
-    descriptor_set: usize,
-    descriptor: usize,
-  ) -> Option<BufferMemory> {
-    let pipeline = self
-      .pipelines
-      .iter_mut()
-      .find(|(n, _)| n == pipeline_name)
-      .map(|(_, p)| p)?;
-    let set = pipeline.descriptor_buffers.get_mut(&descriptor_set)?;
-    let desc = set.get_mut(&descriptor)?;
-
-    desc.take()
-  }
-
-  pub fn pipeline_names(&self) -> Vec<&String> {
-    self.pipelines.iter().map(|(n, _)| n).collect()
-  }
-
-  pub fn update_camera(&mut self, memory_manager: &mut MemoryManager, camera: &Camera) {
-    let data = [camera.view_matrix(), camera.projection_matrix()];
-    memory_manager.write_to_buffer(&self.default_buffers[&0][&0], &data);
-  }
-
-  pub fn update_lights(
-    &mut self,
-    memory_manager: &mut MemoryManager,
-    light_info: LightInfo,
-    pls: &[PointLight],
-    sls: &[SpotLight],
-  ) -> Option<bool> {
-    let mut resized = false;
-    let pls_size = std::mem::size_of_val(pls);
-    {
-      let pls_mem = self
-        .default_buffers
-        .get_mut(&0)
-        .unwrap()
-        .get_mut(&3)
-        .unwrap();
-
-      if pls_mem.size() <= pls_size {
-        resized = memory_manager.resize_buffer_mem(pls_mem, pls_size)? || resized;
-      }
-    }
-
-    let sls_size = std::mem::size_of_val(sls);
-    {
-      let sls_mem = self
-        .default_buffers
-        .get_mut(&0)
-        .unwrap()
-        .get_mut(&4)
-        .unwrap();
-
-      if sls_mem.size() <= sls_size {
-        resized = memory_manager.resize_buffer_mem(sls_mem, sls_size)? || resized;
-      }
-    }
-
-    let light_info_mem = &self.default_buffers[&0][&2];
-    memory_manager.write_to_buffer(light_info_mem, &[light_info]);
-
-    if pls_size > 0 {
-      let pls_mem = &self.default_buffers[&0][&3];
-      memory_manager.write_to_buffer(pls_mem, pls);
-    }
-
-    if sls_size > 0 {
-      let sls_mem = &self.default_buffers[&0][&4];
-      memory_manager.write_to_buffer(sls_mem, sls);
-    }
-
-    Some(resized)
+  #[inline]
+  pub(crate) fn graphics_changed_reset(&mut self) {
+    self.graphics_changed = false;
   }
 }

@@ -40,12 +40,14 @@ pub struct SpotLight {
 pub struct Vec3Align16(glam::Vec3);
 
 impl From<glam::Vec3> for Vec3Align16 {
+  #[inline]
   fn from(value: glam::Vec3) -> Self {
     Vec3Align16(value)
   }
 }
 
 impl From<Vec3Align16> for glam::Vec3 {
+  #[inline]
   fn from(value: Vec3Align16) -> Self {
     value.0
   }

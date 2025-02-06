@@ -3,11 +3,10 @@ use std::{
   thread::{self, JoinHandle},
 };
 
-use gravitron_plugin::config::window::WindowConfig;
 use gravitron_utils::thread::Signal;
 use winit::{event::WindowEvent, window::Window};
 
-use crate::window::WindowHandler;
+use crate::{config::WindowConfig, window::WindowHandler};
 
 pub struct EventLoop {
   _thread: JoinHandle<()>,

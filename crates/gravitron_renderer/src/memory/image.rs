@@ -12,7 +12,6 @@ impl Image {
   pub fn new(
     device: &ash::Device,
     allocator: &mut vulkan::Allocator,
-    location: gpu_allocator::MemoryLocation,
     image_info: &vk::ImageCreateInfo,
     image_view_info: &vk::ImageViewCreateInfo,
   ) -> Result<Self, Error> {
@@ -21,7 +20,7 @@ impl Image {
     let requirements = unsafe { device.get_image_memory_requirements(image) };
     let allocations_create_desc = vulkan::AllocationCreateDesc {
       requirements,
-      location,
+      location: gpu_allocator::MemoryLocation::GpuOnly,
       linear: true,
       allocation_scheme: vulkan::AllocationScheme::GpuAllocatorManaged,
       name: "Image",

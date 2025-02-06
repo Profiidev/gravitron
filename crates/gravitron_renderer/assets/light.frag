@@ -24,28 +24,27 @@ struct SpotLight {
   float angle;
 };
 
-layout (location=0) in vec2 uv_in;
-layout (location=1) in vec3 cam_pos;
+layout (location=0) in vec3 cam_pos;
 
 layout (location=0) out vec4 color_out;
 
-layout (set=0, binding=2) uniform LightInfo {
+layout (set=0, binding=1) uniform LightInfo {
   uint num_pls;
   uint num_sls;
   DirectionalLight dl;
 } light_info;
 
-layout (set=0, binding=3) buffer readonly PointLights {
+layout (set=0, binding=2) buffer readonly PointLights {
   PointLight pls[];
 } pls;
 
-layout (set=0, binding=4) buffer readonly SpotLights {
+layout (set=0, binding=3) buffer readonly SpotLights {
   SpotLight sls[];
 } sls;
 
-layout (set=1, binding=0) uniform sampler2D color_in;
-layout (set=1, binding=1) uniform sampler2D normal_in;
-layout (set=1, binding=2) uniform sampler2D pos_in;
+layout (input_attachment_index=0, set=1, binding=0) uniform subpassInput color_in;
+layout (input_attachment_index=1, set=1, binding=1) uniform subpassInput normal_in;
+layout (input_attachment_index=0, set=1, binding=2) uniform subpassInput pos_in;
 
 const float PI = 3.14159265359;
 
@@ -86,9 +85,9 @@ vec3 compute_light(vec3 light_color, vec3 light_direction, vec3 color, vec3 cam_
 }
 
 void main() {
-  vec4 pos = texture(pos_in, uv_in);
-  vec4 color = texture(color_in, uv_in);
-  vec4 normal_t = texture(normal_in, uv_in);
+  vec4 pos = subpassLoad(pos_in);
+  vec4 color = subpassLoad(color_in);
+  vec4 normal_t = subpassLoad(normal_in);
 
   vec3 normal = normal_t.xyz;
   float metallic = normal_t.a;

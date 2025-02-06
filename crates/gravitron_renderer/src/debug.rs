@@ -3,8 +3,9 @@ use ash::{
   ext,
   vk::{self, ExtendsInstanceCreateInfo},
 };
-use gravitron_plugin::config::vulkan::RendererConfig;
 use log::LevelFilter;
+
+use crate::config::DeviceConfig;
 
 const VALIDATION_LAYER: &std::ffi::CStr = c"VK_LAYER_KHRONOS_validation";
 
@@ -24,7 +25,7 @@ impl Debugger {
   }
 
   pub fn init_info(
-    vulkan_config: &mut RendererConfig,
+    vulkan_config: &mut DeviceConfig,
     instance_next: &mut Vec<Box<dyn ExtendsInstanceCreateInfo + Send>>,
   ) -> DebuggerInfo {
     let debug_log_level = get_log_flags();
@@ -64,8 +65,9 @@ impl Debugger {
     debugger_info
   }
 
-  pub fn destroy(&mut self) {
-    self.debug_utils.destroy();
+  #[inline]
+  pub fn cleanup(&self) {
+    self.debug_utils.cleanup();
   }
 }
 
@@ -75,6 +77,7 @@ pub struct DebugUtils {
 }
 
 impl DebugUtils {
+  #[inline]
   pub fn init(
     entry: &ash::Entry,
     instance: &ash::Instance,
@@ -85,7 +88,8 @@ impl DebugUtils {
     Ok(Self { loader, messenger })
   }
 
-  pub fn destroy(&mut self) {
+  #[inline]
+  pub fn cleanup(&self) {
     unsafe {
       self
         .loader
@@ -100,6 +104,7 @@ pub struct DebuggerInfo {
 }
 
 impl DebuggerInfo {
+  #[inline]
   pub fn instance_next(&mut self) -> Vec<Box<dyn ExtendsInstanceCreateInfo + Send>> {
     vec![Box::new(self.debug_utils)]
   }
