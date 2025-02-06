@@ -1,9 +1,9 @@
 use anyhow::Error;
 use gravitron_plugin::{
   app::{App, AppBuilder, Cleanup, Finalize},
-  config::{vulkan::VulkanConfig, AppConfig},
+  config::AppConfig,
 };
-use gravitron_window::ecs::resources::handle::WindowHandle;
+use gravitron_window::{config::WindowConfig, ecs::resources::handle::WindowHandle};
 use memory::MemoryManager;
 use model::ModelManager;
 use pipeline::DescriptorManager;
@@ -12,6 +12,7 @@ use pipeline::DescriptorManager;
 use crate::debug::Debugger;
 
 use crate::{
+  config::VulkanConfig,
   device::Device,
   instance::{InstanceDevice, InstanceDeviceConfig},
   pipeline::{manager::PipelineManager, pools::Pools},
@@ -91,6 +92,7 @@ impl Resources {
   pub(crate) fn create(
     mut config: VulkanConfig,
     app_config: &AppConfig,
+    window_config: &WindowConfig,
     window: &WindowHandle,
     #[cfg(target_os = "linux")] is_wayland: bool,
   ) -> Result<Self, Error> {
@@ -112,6 +114,7 @@ impl Resources {
       &mut instance_config,
       &entry,
       app_config,
+      window_config,
       #[cfg(target_os = "linux")]
       is_wayland,
     )?;
@@ -139,7 +142,7 @@ impl Resources {
       &mut memory_manager,
       &mut descriptor_manager,
       &surface,
-      &app_config.window,
+      window_config,
       &mut pools,
     )?;
 

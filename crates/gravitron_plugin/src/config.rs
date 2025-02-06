@@ -1,10 +1,10 @@
-pub struct EngineConfig {
+pub struct AppConfig {
   pub version: u32,
   pub fps: u32,
   pub parallel_systems: bool,
 }
 
-impl Default for EngineConfig {
+impl Default for AppConfig {
   fn default() -> Self {
     Self {
       version: 1,

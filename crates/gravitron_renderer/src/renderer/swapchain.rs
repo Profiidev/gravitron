@@ -1,6 +1,6 @@
 use anyhow::Error;
 use ash::{khr, vk};
-use gravitron_plugin::config::window::WindowConfig;
+use gravitron_window::config::WindowConfig;
 
 use crate::{
   device::Device,

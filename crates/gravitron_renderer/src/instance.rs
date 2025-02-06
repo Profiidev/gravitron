@@ -1,6 +1,7 @@
 use anyhow::Error;
 use ash::{khr, vk};
 use gravitron_plugin::config::AppConfig;
+use gravitron_window::config::WindowConfig;
 
 const REQUIRED_EXTENSION_NAMES: [*const i8; 1] = [khr::surface::NAME.as_ptr()];
 
@@ -23,12 +24,14 @@ impl InstanceDevice {
     config: &mut InstanceDeviceConfig,
     entry: &ash::Entry,
     app_config: &AppConfig,
+    window_config: &WindowConfig,
     #[cfg(target_os = "linux")] is_wayland: bool,
   ) -> Result<Self, Error> {
     let instance = InstanceDevice::init_instance(
       entry,
       config,
       app_config,
+      window_config,
       #[cfg(target_os = "linux")]
       is_wayland,
     )?;
@@ -52,16 +55,17 @@ impl InstanceDevice {
     entry: &ash::Entry,
     config: &mut InstanceDeviceConfig,
     app_config: &AppConfig,
+    window_config: &WindowConfig,
     #[cfg(target_os = "linux")] is_wayland: bool,
   ) -> Result<ash::Instance, Error> {
     let engine_name = std::ffi::CString::new("Vulkan Game Engine")?;
-    let app_name = std::ffi::CString::new(app_config.window.title.clone())?;
+    let app_name = std::ffi::CString::new(window_config.title.clone())?;
 
     let app_info = vk::ApplicationInfo::default()
       .application_name(&app_name)
       .engine_name(&engine_name)
       .engine_version(vk::make_api_version(0, 0, 1, 0))
-      .application_version(app_config.engine.version)
+      .application_version(app_config.version)
       .api_version(vk::make_api_version(0, 1, 3, 278));
 
     let layer_name_ptrs: Vec<*const i8> = config

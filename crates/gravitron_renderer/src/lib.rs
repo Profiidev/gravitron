@@ -1,3 +1,4 @@
+use config::VulkanConfig;
 use ecs::{
   resources::{cleanup_resource, Resources},
   systems::{
@@ -10,14 +11,16 @@ use ecs::{
 use gravitron_components::ComponentPlugin;
 use gravitron_plugin::{
   app::{App, AppBuilder, Build, Cleanup, Finalize},
+  config::AppConfig,
   stages::MainSystemStage,
   Plugin,
 };
 #[cfg(target_os = "linux")]
 use gravitron_window::ecs::resources::event_loop::EventLoop;
-use gravitron_window::WindowPlugin;
+use gravitron_window::{config::WindowConfig, WindowPlugin};
 use log::debug;
 
+pub mod config;
 #[cfg(feature = "debug")]
 mod debug;
 mod device;
@@ -34,6 +37,7 @@ pub struct RendererPlugin;
 
 impl Plugin for RendererPlugin {
   fn build(&self, builder: &mut AppBuilder<Build>) {
+    builder.add_config(VulkanConfig::default());
     builder.add_main_system_at_stage(init_renderer, MainSystemStage::RenderInit);
     builder.add_main_system_at_stage(update_default_descriptors, MainSystemStage::RenderInit);
     builder.add_main_system_at_stage(draw_data_update, MainSystemStage::RenderInit);
@@ -46,7 +50,16 @@ impl Plugin for RendererPlugin {
   }
 
   fn finalize(&self, builder: &mut AppBuilder<Finalize>) {
-    let config = builder.config();
+    let app_config = builder
+      .config::<AppConfig>()
+      .expect("Error: Failed to get AppConfig");
+    let window_config = builder
+      .config::<WindowConfig>()
+      .expect("Error: Failed to get AppConfig");
+    let config = builder
+      .config::<VulkanConfig>()
+      .expect("Error: Failed to get Vulkan Config");
+
     let window = builder
       .get_resource()
       .expect("Error: Window Plugin must be initialized before the Renderer Plugin");
@@ -57,8 +70,9 @@ impl Plugin for RendererPlugin {
       .expect("Error: Window Plugin must be initialized before the Renderer Plugin");
 
     Resources::create(
-      config.vulkan.clone(),
-      config,
+      config.clone(),
+      app_config,
+      window_config,
       window,
       #[cfg(target_os = "linux")]
       event_loop.wayland(),

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::Error;
 use ash::vk;
 use glam::Mat4;
-use gravitron_plugin::config::window::WindowConfig;
+use gravitron_window::config::WindowConfig;
 use resources::lighting::{LightInfo, PointLight, SpotLight};
 use swapchain::SwapChain;
 

@@ -3,8 +3,9 @@ use ash::{
   ext,
   vk::{self, ExtendsInstanceCreateInfo},
 };
-use gravitron_plugin::config::vulkan::RendererConfig;
 use log::LevelFilter;
+
+use crate::config::RendererConfig;
 
 const VALIDATION_LAYER: &std::ffi::CStr = c"VK_LAYER_KHRONOS_validation";
 
