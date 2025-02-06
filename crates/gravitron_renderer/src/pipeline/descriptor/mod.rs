@@ -64,7 +64,7 @@ pub struct DescriptorInfo {
   pub r#type: DescriptorType,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum DescriptorType {
   StorageBuffer(BufferMemory),
   UniformBuffer(BufferMemory),
@@ -178,11 +178,8 @@ impl DerefMut for DescriptorMut<'_> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     match &self.0.r#type {
-      DescriptorType::StorageBuffer(mem) => {
-        self.0.previous = Some(DescriptorType::StorageBuffer(unsafe { mem.copy() }))
-      }
-      DescriptorType::UniformBuffer(mem) => {
-        self.0.previous = Some(DescriptorType::UniformBuffer(unsafe { mem.copy() }))
+      DescriptorType::StorageBuffer(_) | DescriptorType::UniformBuffer(_) => {
+        self.0.previous = Some(self.0.r#type.clone());
       }
       _ => (),
     }
