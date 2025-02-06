@@ -14,13 +14,13 @@ use crate::{
     MemoryManager,
   },
   model::{
-    model::{InstanceData, ModelId},
+    model::{InstanceData, ModelHandle},
     ModelManager,
   },
   pipeline::{
-    descriptor::{DescriptorId, DescriptorInfo, DescriptorSetId, DescriptorType},
+    descriptor::{DescriptorHandle, DescriptorInfo, DescriptorSetHandle, DescriptorType},
     graphics::{stage::RenderingStage, GraphicsPipelineBuilder},
-    manager::GraphicsPipelineId,
+    manager::GraphicsPipelineHandle,
     DescriptorManager,
   },
 };
@@ -39,20 +39,20 @@ mod render_pass;
 pub mod resources;
 pub(crate) mod swapchain;
 
-pub const DEFAULT_TEXTURE: TextureId = TextureId(0);
+pub const DEFAULT_TEXTURE: TextureHandle = TextureHandle(0);
 
-pub const DEFAULT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(0);
-pub const TEXTURE_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(1);
-pub const ATTACHMENT_DESCRIPTOR_SET: DescriptorSetId = DescriptorSetId(2);
+pub const DEFAULT_DESCRIPTOR_SET: DescriptorSetHandle = DescriptorSetHandle(0);
+pub const TEXTURE_DESCRIPTOR_SET: DescriptorSetHandle = DescriptorSetHandle(1);
+pub const ATTACHMENT_DESCRIPTOR_SET: DescriptorSetHandle = DescriptorSetHandle(2);
 
-pub const CAMERA_DESCRIPTOR: DescriptorId = DescriptorId(0);
-pub const LIGHT_INFO_DESCRIPTOR: DescriptorId = DescriptorId(1);
-pub const POINT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(2);
-pub const SPOT_LIGHT_DESCRIPTOR: DescriptorId = DescriptorId(3);
-pub const TEXTURE_DESCRIPTOR: DescriptorId = DescriptorId(4);
+pub const CAMERA_DESCRIPTOR: DescriptorHandle = DescriptorHandle(0);
+pub const LIGHT_INFO_DESCRIPTOR: DescriptorHandle = DescriptorHandle(1);
+pub const POINT_LIGHT_DESCRIPTOR: DescriptorHandle = DescriptorHandle(2);
+pub const SPOT_LIGHT_DESCRIPTOR: DescriptorHandle = DescriptorHandle(3);
+pub const TEXTURE_DESCRIPTOR: DescriptorHandle = DescriptorHandle(4);
 
 #[derive(Default, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
-pub struct TextureId(pub(crate) u32);
+pub struct TextureHandle(pub(crate) u32);
 
 pub struct Renderer {
   render_pass: ash::vk::RenderPass,
@@ -60,9 +60,10 @@ pub struct Renderer {
   logical_device: ash::Device,
   draw_commands: BufferId,
   draw_count: BufferId,
-  commands: HashMap<ModelId, HashMap<GraphicsPipelineId, (vk::DrawIndexedIndirectCommand, u64)>>,
+  commands:
+    HashMap<ModelHandle, HashMap<GraphicsPipelineHandle, (vk::DrawIndexedIndirectCommand, u64)>>,
   buffers_updated: Vec<usize>,
-  shader_mem: HashMap<GraphicsPipelineId, (BufferMemory, BufferMemory, u32)>,
+  shader_mem: HashMap<GraphicsPipelineHandle, (BufferMemory, BufferMemory, u32)>,
   descriptor_buffer: BufferId,
 }
 
@@ -315,7 +316,7 @@ impl Renderer {
   pub(crate) fn update_draw_buffer(
     &mut self,
     memory_manager: &mut MemoryManager,
-    instances: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>>,
+    instances: HashMap<ModelHandle, HashMap<GraphicsPipelineHandle, Vec<InstanceData>>>,
     model_manager: &mut ModelManager,
   ) {
     let cmd_new = model_manager

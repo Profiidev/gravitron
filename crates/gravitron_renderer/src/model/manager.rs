@@ -8,16 +8,16 @@ use crate::{
     types::{BufferBlockSize, BufferId},
     MemoryManager,
   },
-  pipeline::manager::GraphicsPipelineId,
+  pipeline::manager::GraphicsPipelineHandle,
 };
 
 use super::{
   default::{cube::cube, plane::plane},
-  model::{InstanceCount, InstanceData, Model, ModelId, VertexData},
+  model::{InstanceCount, InstanceData, Model, ModelHandle, VertexData},
 };
 
 pub struct ModelManager {
-  models: HashMap<ModelId, Model>,
+  models: HashMap<ModelHandle, Model>,
   last_id: u64,
   vertex_buffer: BufferId,
   index_buffer: BufferId,
@@ -70,7 +70,7 @@ impl ModelManager {
     vertex_data: Vec<VertexData>,
     index_data: Vec<u32>,
     instance_count: InstanceCount,
-  ) -> Option<ModelId> {
+  ) -> Option<ModelHandle> {
     let vertices_slice = vertex_data.as_slice();
     let vertices = memory_manager
       .add_to_buffer(self.vertex_buffer, vertices_slice)
@@ -80,7 +80,7 @@ impl ModelManager {
       .add_to_buffer(self.index_buffer, index_slice)
       .ok()?;
 
-    let id = ModelId(self.last_id);
+    let id = ModelHandle(self.last_id);
     self.models.insert(
       id,
       Model::new(vertices, indices, index_data.len() as u32, instance_count),
@@ -110,12 +110,13 @@ impl ModelManager {
     &mut self,
     cmd_buffer: BufferId,
     commands: &mut HashMap<
-      ModelId,
-      HashMap<GraphicsPipelineId, (vk::DrawIndexedIndirectCommand, u64)>,
+      ModelHandle,
+      HashMap<GraphicsPipelineHandle, (vk::DrawIndexedIndirectCommand, u64)>,
     >,
     memory_manager: &mut MemoryManager,
-    instances: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>>,
-  ) -> Option<HashMap<GraphicsPipelineId, Vec<(ModelId, vk::DrawIndexedIndirectCommand)>>> {
+    instances: HashMap<ModelHandle, HashMap<GraphicsPipelineHandle, Vec<InstanceData>>>,
+  ) -> Option<HashMap<GraphicsPipelineHandle, Vec<(ModelHandle, vk::DrawIndexedIndirectCommand)>>>
+  {
     let instance_size = std::mem::size_of::<InstanceData>();
     let mut copy_offset = 0;
     let mut instance_copies_info = Vec::new();
@@ -244,7 +245,7 @@ impl ModelManager {
             first_instance: (mem.offset() / instance_size) as u32,
           };
 
-          let shader_cmd: &mut Vec<(ModelId, vk::DrawIndexedIndirectCommand)> =
+          let shader_cmd: &mut Vec<(ModelHandle, vk::DrawIndexedIndirectCommand)> =
             cmd_new.entry(shader).or_default();
           shader_cmd.push((model_id, cmd));
 

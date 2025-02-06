@@ -13,12 +13,12 @@ use super::{
 pub(crate) const MAIN_FN: &CStr = c"main";
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
-pub struct GraphicsPipelineId(u64);
+pub struct GraphicsPipelineHandle(u64);
 
 #[inline]
 pub(crate) fn create_pipeline_cache(
   logical_device: &ash::Device,
-  id: GraphicsPipelineId,
+  id: GraphicsPipelineHandle,
 ) -> Result<vk::PipelineCache, Error> {
   let initial_data = std::fs::read(format!("cache/{}.bin", id.0)).unwrap_or_default();
 
@@ -31,7 +31,7 @@ pub(crate) fn create_pipeline_cache(
 #[inline]
 pub(crate) unsafe fn cleanup_pipeline_cache(
   logical_device: &ash::Device,
-  id: GraphicsPipelineId,
+  id: GraphicsPipelineHandle,
   cache: vk::PipelineCache,
 ) {
   let pipeline_cache_data = logical_device.get_pipeline_cache_data(cache).unwrap();
@@ -41,7 +41,7 @@ pub(crate) unsafe fn cleanup_pipeline_cache(
 
 pub struct PipelineManager {
   max_graphics_id: u64,
-  graphics_pipelines: HashMap<GraphicsPipelineId, GraphicsPipeline>,
+  graphics_pipelines: HashMap<GraphicsPipelineHandle, GraphicsPipeline>,
   light_pipeline: Option<GraphicsPipeline>,
   logical_device: ash::Device,
   render_pass: vk::RenderPass,
@@ -71,8 +71,8 @@ impl PipelineManager {
     &mut self,
     builder: GraphicsPipelineBuilder<'_>,
     descriptor_manager: &DescriptorManager,
-  ) -> Option<GraphicsPipelineId> {
-    let id = GraphicsPipelineId(self.max_graphics_id);
+  ) -> Option<GraphicsPipelineHandle> {
+    let id = GraphicsPipelineHandle(self.max_graphics_id);
     self.max_graphics_id += 1;
 
     let subpass = builder.rendering_stage.subpass();

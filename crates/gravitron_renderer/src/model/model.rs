@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
-use crate::{memory::types::BufferMemory, pipeline::manager::GraphicsPipelineId};
+use crate::{memory::types::BufferMemory, pipeline::manager::GraphicsPipelineHandle};
 
-pub const CUBE_MODEL: ModelId = ModelId(0);
-pub const PLANE_MODEL: ModelId = ModelId(1);
+pub const CUBE_MODEL: ModelHandle = ModelHandle(0);
+pub const PLANE_MODEL: ModelHandle = ModelHandle(1);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Default)]
-pub struct ModelId(pub(crate) u64);
+pub struct ModelHandle(pub(crate) u64);
 
 pub(crate) struct Model {
   pub(crate) vertices: BufferMemory,
   pub(crate) indices: BufferMemory,
   pub(crate) index_len: u32,
   pub(crate) instance_alloc_size: usize,
-  pub(crate) instances: HashMap<GraphicsPipelineId, (BufferMemory, Vec<InstanceData>)>,
+  pub(crate) instances: HashMap<GraphicsPipelineHandle, (BufferMemory, Vec<InstanceData>)>,
 }
 
 #[derive(Debug)]

@@ -7,9 +7,9 @@ use log::trace;
 
 use crate::ecs::components::renderer::MeshRenderer;
 use crate::memory::MemoryManager;
-use crate::model::model::{InstanceData, ModelId};
+use crate::model::model::{InstanceData, ModelHandle};
 use crate::model::ModelManager;
-use crate::pipeline::manager::GraphicsPipelineId;
+use crate::pipeline::manager::GraphicsPipelineHandle;
 use crate::pipeline::{DescriptorManager, PipelineManager};
 use crate::renderer::Renderer;
 use gravitron_components::components::transform::GlobalTransform;
@@ -30,7 +30,8 @@ pub fn draw_data_update(
   #[cfg(feature = "debug")]
   trace!("Updating Renderer Buffers");
 
-  let mut models: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>> = HashMap::new();
+  let mut models: HashMap<ModelHandle, HashMap<GraphicsPipelineHandle, Vec<InstanceData>>> =
+    HashMap::new();
   for (_, mesh_render, transform) in to_render {
     let shader = models.entry(mesh_render.model_id).or_default();
     let instances = shader.entry(mesh_render.material.shader).or_default();

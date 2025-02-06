@@ -1,11 +1,11 @@
-use crate::{pipeline::manager::GraphicsPipelineId, renderer::TextureId};
+use crate::{pipeline::manager::GraphicsPipelineHandle, renderer::TextureHandle};
 
 pub struct Material {
   pub color: glam::Vec4,
-  pub texture_id: TextureId,
+  pub texture_id: TextureHandle,
   pub metallic: f32,
   pub roughness: f32,
-  pub shader: GraphicsPipelineId,
+  pub shader: GraphicsPipelineHandle,
 }
 
 impl Material {

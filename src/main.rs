@@ -33,7 +33,7 @@ use gravitron::{
       graphics::GraphicsPipelineBuilder,
       include_glsl, DescriptorManager, PipelineManager,
     },
-    renderer::{resources::material::Material, TextureId, DEFAULT_DESCRIPTOR_SET},
+    renderer::{resources::material::Material, TextureHandle, DEFAULT_DESCRIPTOR_SET},
   },
   window::winit::keyboard::KeyCode,
   Id,
@@ -192,7 +192,7 @@ fn init(
 fn test(
   cmd: &mut Commands,
   info: Res<EngineInfo>,
-  texture: Res<TextureId>,
+  texture: Res<TextureHandle>,
   q: Query<(&mut Transform, &mut Marker)>,
   id: Res<Id>,
 ) {

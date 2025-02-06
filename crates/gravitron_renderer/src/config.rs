@@ -1,6 +1,6 @@
 use ash::vk;
 
-use crate::renderer::TextureId;
+use crate::renderer::TextureHandle;
 
 #[derive(Default, Clone)]
 pub struct RendererConfig {
@@ -40,9 +40,9 @@ pub struct GraphicsConfig {
 
 impl GraphicsConfig {
   #[inline]
-  pub fn add_texture(&mut self, texture: Vec<u8>, interpolation: vk::Filter) -> TextureId {
+  pub fn add_texture(&mut self, texture: Vec<u8>, interpolation: vk::Filter) -> TextureHandle {
     self.textures.push((texture, interpolation));
-    let id = TextureId(self.max_texture_id);
+    let id = TextureHandle(self.max_texture_id);
     self.max_texture_id += 1;
     id
   }

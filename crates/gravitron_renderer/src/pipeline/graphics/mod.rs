@@ -7,8 +7,8 @@ use crate::pipeline::manager::MAIN_FN;
 pub mod stage;
 
 use super::{
-  descriptor::{manager::DescriptorManager, DescriptorSetId},
-  manager::{cleanup_pipeline_cache, create_pipeline_cache, GraphicsPipelineId},
+  descriptor::{manager::DescriptorManager, DescriptorSetHandle},
+  manager::{cleanup_pipeline_cache, create_pipeline_cache, GraphicsPipelineHandle},
 };
 
 #[derive(Default)]
@@ -16,7 +16,7 @@ pub struct GraphicsPipelineBuilder<'s> {
   pub vertex_shader: Option<&'s [u32]>,
   pub geometry_shader: Option<&'s [u32]>,
   pub fragment_shader: Option<&'s [u32]>,
-  pub descriptor_sets: Vec<DescriptorSetId>,
+  pub descriptor_sets: Vec<DescriptorSetHandle>,
   pub rendering_stage: RenderingStage,
 }
 
@@ -45,13 +45,13 @@ impl<'s> GraphicsPipelineBuilder<'s> {
   }
 
   #[inline]
-  pub fn add_descriptor_sets(mut self, sets: Vec<DescriptorSetId>) -> Self {
+  pub fn add_descriptor_sets(mut self, sets: Vec<DescriptorSetHandle>) -> Self {
     self.descriptor_sets.extend(sets);
     self
   }
 
   #[inline]
-  pub fn add_descriptor_set(mut self, set: DescriptorSetId) -> Self {
+  pub fn add_descriptor_set(mut self, set: DescriptorSetHandle) -> Self {
     self.descriptor_sets.push(set);
     self
   }
@@ -68,7 +68,7 @@ impl<'s> GraphicsPipelineBuilder<'s> {
     descriptor_manager: &DescriptorManager,
     render_pass: vk::RenderPass,
     swapchain_extent: vk::Extent2D,
-    id: GraphicsPipelineId,
+    id: GraphicsPipelineHandle,
     subpass: u32,
   ) -> Result<GraphicsPipeline, Error> {
     //Shader code
@@ -219,10 +219,10 @@ impl<'s> GraphicsPipelineBuilder<'s> {
 }
 
 pub(crate) struct GraphicsPipeline {
-  id: GraphicsPipelineId,
+  id: GraphicsPipelineHandle,
   pipeline: vk::Pipeline,
   layout: vk::PipelineLayout,
-  descriptor_sets: Vec<DescriptorSetId>,
+  descriptor_sets: Vec<DescriptorSetHandle>,
   cache: vk::PipelineCache,
 }
 
@@ -260,7 +260,7 @@ impl GraphicsPipeline {
   }
 
   #[inline]
-  pub fn id(&self) -> GraphicsPipelineId {
+  pub fn id(&self) -> GraphicsPipelineHandle {
     self.id
   }
 }

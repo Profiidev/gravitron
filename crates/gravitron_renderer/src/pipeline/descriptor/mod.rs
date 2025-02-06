@@ -5,7 +5,7 @@ use std::{
 
 use ash::vk;
 
-use pool::DescriptorPoolId;
+use pool::DescriptorPoolHandle;
 pub use vk::ShaderStageFlags;
 
 use crate::memory::types::{BufferMemory, ImageId};
@@ -14,18 +14,18 @@ pub(crate) mod manager;
 mod pool;
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct DescriptorId(pub(crate) u64);
+pub struct DescriptorHandle(pub(crate) u64);
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct DescriptorSetId(pub(crate) u64);
+pub struct DescriptorSetHandle(pub(crate) u64);
 
 pub(crate) struct DescriptorSet {
   #[allow(unused)]
-  id: DescriptorSetId,
+  id: DescriptorSetHandle,
   #[allow(unused)]
-  pool: DescriptorPoolId,
+  pool: DescriptorPoolHandle,
   set: vk::DescriptorSet,
   layout: vk::DescriptorSetLayout,
-  descriptors: HashMap<DescriptorId, Descriptor>,
+  descriptors: HashMap<DescriptorHandle, Descriptor>,
 }
 
 impl DescriptorSet {
@@ -46,7 +46,7 @@ impl DescriptorSet {
 
 pub struct Descriptor {
   #[allow(unused)]
-  id: DescriptorId,
+  id: DescriptorHandle,
   previous: Option<DescriptorType>,
   binding: u32,
   r#type: DescriptorType,

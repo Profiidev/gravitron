@@ -6,9 +6,9 @@ use ash::vk;
 use crate::memory::MemoryManager;
 
 use super::{
-  pool::{DescriptorPool, DescriptorPoolId},
-  Descriptor, DescriptorId, DescriptorInfo, DescriptorMut, DescriptorRef, DescriptorSet,
-  DescriptorSetId, DescriptorType,
+  pool::{DescriptorPool, DescriptorPoolHandle},
+  Descriptor, DescriptorHandle, DescriptorInfo, DescriptorMut, DescriptorRef, DescriptorSet,
+  DescriptorSetHandle, DescriptorType,
 };
 
 pub struct DescriptorManager {
@@ -16,14 +16,14 @@ pub struct DescriptorManager {
   max_descriptor_set_id: u64,
   max_descriptor_id: u64,
   max_pool_id: u64,
-  descriptor_sets: HashMap<DescriptorSetId, DescriptorSet>,
-  descriptor_pools: HashMap<DescriptorPoolId, DescriptorPool>,
+  descriptor_sets: HashMap<DescriptorSetHandle, DescriptorSet>,
+  descriptor_pools: HashMap<DescriptorPoolHandle, DescriptorPool>,
   changed: bool,
 }
 
 impl DescriptorManager {
   pub(crate) fn new(logical_device: &ash::Device) -> Result<Self, Error> {
-    let id = DescriptorPoolId(0);
+    let id = DescriptorPoolHandle(0);
     let pool = DescriptorPool::new(Default::default(), id, logical_device)?;
     let mut pools = HashMap::new();
     pools.insert(id, pool);
@@ -43,7 +43,7 @@ impl DescriptorManager {
     &mut self,
     descriptor: Vec<DescriptorInfo>,
     memory_manager: &MemoryManager,
-  ) -> Option<(DescriptorSetId, Vec<DescriptorId>)> {
+  ) -> Option<(DescriptorSetHandle, Vec<DescriptorHandle>)> {
     let mut descriptors = HashMap::new();
     let mut bind_desc = Vec::new();
     let mut size_needed = HashMap::new();
@@ -87,7 +87,7 @@ impl DescriptorManager {
     {
       (*id, pool.add_set(&size_needed))
     } else {
-      let id = DescriptorPoolId(self.max_pool_id);
+      let id = DescriptorPoolHandle(self.max_pool_id);
       self.max_pool_id += 1;
 
       let mut pool = DescriptorPool::new(size_needed.clone(), id, &self.logical_device).ok()?;
@@ -118,7 +118,7 @@ impl DescriptorManager {
         memory_manager,
       );
 
-      let id = DescriptorId(self.max_descriptor_id);
+      let id = DescriptorHandle(self.max_descriptor_id);
       descriptor_ids.push(id);
       descriptors.insert(
         id,
@@ -132,7 +132,7 @@ impl DescriptorManager {
       self.max_descriptor_id += 1;
     }
 
-    let id = DescriptorSetId(self.max_descriptor_set_id);
+    let id = DescriptorSetHandle(self.max_descriptor_set_id);
     let descriptor_set = DescriptorSet {
       id,
       pool: pool_id,
@@ -156,14 +156,14 @@ impl DescriptorManager {
     }
   }
 
-  pub(crate) fn vk_layouts(&self, ids: &[DescriptorSetId]) -> Vec<vk::DescriptorSetLayout> {
+  pub(crate) fn vk_layouts(&self, ids: &[DescriptorSetHandle]) -> Vec<vk::DescriptorSetLayout> {
     ids
       .iter()
       .flat_map(|id| self.descriptor_sets.get(id).map(|set| set.layout()))
       .collect()
   }
 
-  pub(crate) fn vk_sets(&self, ids: &[DescriptorSetId]) -> Vec<vk::DescriptorSet> {
+  pub(crate) fn vk_sets(&self, ids: &[DescriptorSetHandle]) -> Vec<vk::DescriptorSet> {
     ids
       .iter()
       .flat_map(|id| self.descriptor_sets.get(id).map(|set| set.set()))
@@ -171,7 +171,7 @@ impl DescriptorManager {
   }
 
   #[inline]
-  pub fn descriptor(&self, id: DescriptorId) -> Option<DescriptorRef<'_>> {
+  pub fn descriptor(&self, id: DescriptorHandle) -> Option<DescriptorRef<'_>> {
     self
       .descriptor_sets
       .values()
@@ -180,7 +180,7 @@ impl DescriptorManager {
   }
 
   #[inline]
-  pub fn descriptor_mut(&mut self, id: DescriptorId) -> Option<DescriptorMut<'_>> {
+  pub fn descriptor_mut(&mut self, id: DescriptorHandle) -> Option<DescriptorMut<'_>> {
     self
       .descriptor_sets
       .values_mut()

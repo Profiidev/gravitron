@@ -12,11 +12,11 @@ const TYPES: [vk::DescriptorType; 4] = [
 ];
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct DescriptorPoolId(pub(crate) u64);
+pub struct DescriptorPoolHandle(pub(crate) u64);
 
 pub struct DescriptorPool {
   #[allow(unused)]
-  id: DescriptorPoolId,
+  id: DescriptorPoolHandle,
   pool: vk::DescriptorPool,
   size_left: HashMap<vk::DescriptorType, u32>,
   set_left: u32,
@@ -25,7 +25,7 @@ pub struct DescriptorPool {
 impl DescriptorPool {
   pub fn new(
     min_space: HashMap<vk::DescriptorType, u32>,
-    id: DescriptorPoolId,
+    id: DescriptorPoolHandle,
     logical_device: &ash::Device,
   ) -> Result<Self, Error> {
     let mut pool_sizes = Vec::new();
