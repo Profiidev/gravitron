@@ -14,7 +14,7 @@ readme = "README.md"
 gravitron_ecs_macros = { path = "./gravitron_ecs_macros" , version = "0.1.5" }
 gravitron_utils = { workspace = true }
 log = { workspace = true }
-rustc-hash = "2.1.0"
+rustc-hash = "2.1.1"
 
 [dev-dependencies]
 criterion = "0.5.1"
