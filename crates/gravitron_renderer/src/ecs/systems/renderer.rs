@@ -28,7 +28,7 @@ pub fn draw_data_update(
   to_render: Query<(&MeshRenderer, &GlobalTransform)>,
 ) {
   #[cfg(feature = "debug")]
-  trace!("Recording Render Instructions");
+  trace!("Updating Renderer Buffers");
 
   let mut models: HashMap<ModelId, HashMap<GraphicsPipelineId, Vec<InstanceData>>> = HashMap::new();
   for (_, mesh_render, transform) in to_render {
@@ -59,6 +59,8 @@ pub fn renderer_recording(
   pipeline_manager: ResMut<PipelineManager>,
   descriptor_manager: ResMut<DescriptorManager>,
 ) {
+  #[cfg(feature = "debug")]
+  trace!("Recording Command Buffers");
   renderer
     .record_command_buffer(
       pipeline_manager.deref(),

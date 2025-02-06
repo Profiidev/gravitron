@@ -29,6 +29,8 @@ pub fn update_default_descriptors(
   pls_query: Query<(&PointLightComp, &GlobalTransform)>,
   sls_query: Query<(&SpotLightComp, &GlobalTransform)>,
 ) {
+  #[cfg(feature = "debug")]
+  log::trace!("Updating default Descriptors");
   if let Some((_, mut camera, transform)) = camera.into_iter().next() {
     camera.update_view_matrix(transform.deref());
 
