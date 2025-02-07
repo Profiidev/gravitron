@@ -19,7 +19,7 @@ proc-macro2 = "1.0.93"
 glam = "0.29.2"
 thiserror = "2.0.11"
 ash = "0.38.0"
-winit = { version = "0.30.8", features = ["wayland"] }
+winit = { version = "0.30.9", features = ["wayland"] }
 gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.4" }
 gravitron_ecs = { path = "./crates/gravitron_ecs", version = "0.4.0" }
 gravitron_hierarchy = { path = "./crates/gravitron_hierarchy", version = "0.1.0" }
