@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-02-24
+
+### 🚀 Features
+
+- Simplified propagation query and added an update only variant
+
+### 🐛 Bug Fixes
+
+- Propagation query not updating entities without children
+
+### 🧪 Testing
+
+- *(hierarchy)* Fixed tests
+
+
 ## [0.1.0] - 2025-01-21
 
 ### 🚀 Features

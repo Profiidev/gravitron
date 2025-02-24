@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2025-02-24
+
+### 🚀 Features
+
+- Added global transform
+- Made buffer memory copy and clone
+- Added config system
+
+### 🐛 Bug Fixes
+
+- Plugin cleanup not being called
+
+### 🚜 Refactor
+
+- Moved general components to own crate
+- Added back texture adding
+- Renamed ids to handles
+
+### ⚙️ Miscellaneous Tasks
+
+- Updated test main
+
+
 ## [0.4.0] - 2025-01-21
 
 ### 🚀 Features
