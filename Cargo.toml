@@ -17,7 +17,7 @@ syn = { version = "2.0.98", features = ["full"] }
 quote = "1.0.39"
 proc-macro2 = "1.0.93"
 glam = "0.29.2"
-thiserror = "2.0.11"
+thiserror = "2.0.12"
 ash = "0.38.0"
 winit = { version = "0.30.9", features = ["wayland"] }
 gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.4" }
