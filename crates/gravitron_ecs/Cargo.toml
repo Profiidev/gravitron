@@ -1,6 +1,6 @@
 [package]
 name = "gravitron_ecs"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 keywords = ["ecs", "game", "gravitron"]
@@ -11,7 +11,7 @@ exclude = ["CHANGELOG.md"]
 readme = "README.md"
 
 [dependencies]
-gravitron_ecs_macros = { path = "./gravitron_ecs_macros" , version = "0.1.5" }
+gravitron_ecs_macros = { path = "./gravitron_ecs_macros" , version = "0.1.6" }
 gravitron_utils = { workspace = true }
 log = { workspace = true }
 rustc-hash = "2.1.1"
