@@ -20,18 +20,18 @@ glam = "0.29.2"
 thiserror = "2.0.12"
 ash = "0.38.0"
 winit = { version = "0.30.9", features = ["wayland"] }
-gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.4" }
-gravitron_ecs = { path = "./crates/gravitron_ecs", version = "0.4.0" }
-gravitron_hierarchy = { path = "./crates/gravitron_hierarchy", version = "0.1.0" }
-gravitron_renderer = { path = "./crates/gravitron_renderer", version = "0.1.0" }
-gravitron_macro_utils = { path = "./crates/gravitron_macro_utils", version = "0.1.2" }
-gravitron_plugin = { path = "./crates/gravitron_plugin", version = "0.1.0" }
-gravitron_window = { path = "./crates/gravitron_window", version = "0.1.0" }
+gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.5" }
+gravitron_ecs = { path = "./crates/gravitron_ecs", version = "0.4.1" }
+gravitron_hierarchy = { path = "./crates/gravitron_hierarchy", version = "0.2.0" }
+gravitron_renderer = { path = "./crates/gravitron_renderer", version = "0.2.0" }
+gravitron_macro_utils = { path = "./crates/gravitron_macro_utils", version = "0.1.3" }
+gravitron_plugin = { path = "./crates/gravitron_plugin", version = "0.2.0" }
+gravitron_window = { path = "./crates/gravitron_window", version = "0.1.1" }
 gravitron_components = { path = "./crates/gravitron_components", version = "0.1.0" }
 
 [package]
 name = "gravitron"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A GameEngine based on an ECS and Vulkan"
