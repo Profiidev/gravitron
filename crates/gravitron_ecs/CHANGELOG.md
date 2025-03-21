@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2025-03-21
+
+### 🚀 Features
+
+- Added global transform
+
+
 ## [0.4.0] - 2025-01-21
 
 ### 🚀 Features
