@@ -10,4 +10,4 @@ exclude = ["CHANGELOG.md"]
 
 [dependencies]
 syn = { workspace = true }
-toml_edit = { version = "0.22.24", default-features = false, features = ["parse"] }
+toml_edit = { version = "0.22.25", default-features = false, features = ["parse"] }
