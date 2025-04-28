@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-04-28
+
+### 🚀 Features
+
+- Added plugin dependencies
+- Added config system
+
+### 🐛 Bug Fixes
+
+- Plugin cleanup not being called
+- Tick not updated
+- Test main errors
+- Descriptor updates invalid
+
+### 🚜 Refactor
+
+- Removed unused parts of vulkan config
+
+### ⚙️ Miscellaneous Tasks
+
+- Added some more logging
+
+
 ## [0.1.0] - 2025-01-21
 
 ### 🚀 Features
