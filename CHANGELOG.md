@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2025-05-19
+
+### ⚙️ Miscellaneous Tasks
+
+- Updated the following local packages: gravitron_ecs, gravitron_ecs, gravitron_hierarchy, gravitron_hierarchy, gravitron_plugin, gravitron_plugin, gravitron_components, gravitron_components, gravitron_window, gravitron_window, gravitron_renderer, gravitron_renderer
+
+
 ## [0.5.0] - 2025-05-01
 
 ### 🚀 Features
