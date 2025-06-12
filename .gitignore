@@ -1,2 +1,9 @@
 /target
 cache
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv

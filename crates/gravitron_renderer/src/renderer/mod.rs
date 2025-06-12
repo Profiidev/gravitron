@@ -152,7 +152,6 @@ impl Renderer {
     for (bytes, interpolation) in &config.textures {
       textures.push(memory_manager.create_texture_image(*interpolation, bytes)?);
     }
-    dbg!(&textures);
 
     let descriptor = vec![DescriptorInfo {
       stage: vk::ShaderStageFlags::FRAGMENT,

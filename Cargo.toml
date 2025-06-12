@@ -13,10 +13,10 @@ members = [
 [workspace.dependencies]
 log = "0.4.27"
 anyhow = "1.0.98"
-syn = { version = "2.0.101", features = ["full"] }
+syn = { version = "2.0.102", features = ["full"] }
 quote = "1.0.40"
 proc-macro2 = "1.0.95"
-glam = "0.29.3"
+glam = "0.30.4"
 thiserror = "2.0.12"
 ash = "0.38.0"
 winit = { version = "0.30.11", features = ["wayland"] }
