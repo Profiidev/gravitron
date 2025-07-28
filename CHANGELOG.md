@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2025-07-28
+
+### 🚀 Features
+
+- Added devenv
+
+
 ## [0.5.0] - 2025-05-01
 
 ### 🚀 Features
