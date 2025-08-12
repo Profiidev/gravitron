@@ -317,7 +317,11 @@ impl Storage<'_> {
     Some(unsafe { component.comp.downcast_unchecked() })
   }
 
-  pub(crate) fn query_data<F>(&mut self, comps: &[ComponentId], filter: F) -> Vec<QueryResult>
+  pub(crate) fn query_data<F>(
+    &'_ mut self,
+    comps: &[ComponentId],
+    filter: F,
+  ) -> Vec<QueryResult<'_>>
   where
     F: Fn(&[ComponentId]) -> bool,
   {
