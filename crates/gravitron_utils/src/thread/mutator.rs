@@ -16,7 +16,7 @@ impl<T> Mutator<T> {
     *self.data.lock().unwrap() = data;
   }
 
-  pub fn get(&self) -> std::sync::MutexGuard<T> {
+  pub fn get(&'_ self) -> std::sync::MutexGuard<'_, T> {
     self.data.lock().unwrap()
   }
 
