@@ -31,6 +31,7 @@ impl Debugger {
     let debug_log_level = get_log_flags();
     let is_info_level = debug_log_level.contains(vk::DebugUtilsMessageSeverityFlagsEXT::INFO);
 
+    #[allow(clippy::manual_dangling_ptr)]
     let mut debugger_info = DebuggerInfo {
       debug_utils: vk::DebugUtilsMessengerCreateInfoEXT::default()
         .message_severity(debug_log_level)
