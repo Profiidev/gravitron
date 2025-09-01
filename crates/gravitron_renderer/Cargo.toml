@@ -14,7 +14,7 @@ readme = "README.md"
 ash-window = "0.13.0"
 gpu-allocator = { version = "0.27.0", default-features = false, features = ["vulkan"] }
 vk-shader-macros = "0.2.9"
-image = { version = "0.25.6", default-features = false, features = ["rayon", "png"] }
+image = { version = "0.25.7", default-features = false, features = ["rayon", "png"] }
 glam = { workspace = true }
 ash = { workspace = true }
 log = { workspace = true }
