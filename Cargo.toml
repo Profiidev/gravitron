@@ -14,10 +14,10 @@ members = [
 log = "0.4.28"
 anyhow = "1.0.100"
 syn = { version = "2.0.106", features = ["full"] }
-quote = "1.0.40"
+quote = "1.0.41"
 proc-macro2 = "1.0.101"
-glam = "0.30.7"
-thiserror = "2.0.16"
+glam = "0.30.8"
+thiserror = "2.0.17"
 ash = "0.38.0"
 winit = { version = "0.30.12", features = ["wayland"] }
 gravitron_utils = { path = "./crates/gravitron_utils", version = "0.1.5" }
