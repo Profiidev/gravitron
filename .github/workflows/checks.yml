@@ -2,13 +2,17 @@ name: Checks and Validation
 on:
   pull_request:
 
-
 jobs:
   build_and_test:
     name: Build and Test
     strategy:
       matrix:
-        os: [{ name: linux, os: ubuntu-latest}, { name: windows, os: windows-latest}, { name: macos, os: macos-latest}]
+        os:
+          [
+            { name: linux, os: ubuntu-latest },
+            { name: windows, os: windows-latest },
+            { name: macos, os: macos-latest },
+          ]
     runs-on: ${{ matrix.os.os }}
     steps:
       - name: Prepare symlink configuration
@@ -29,7 +33,7 @@ jobs:
           shared-key: "build_and_test_${{ matrix.os.name }}"
 
       - uses: taiki-e/install-action@nextest
-      - name: 'Build and test'
+      - name: "Build and test"
         run: cargo nextest run --workspace --all-features --profile ${{ matrix.os.name }}
 
       - name: Upload Test Result File
@@ -72,6 +76,8 @@ jobs:
         with:
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
 
       - name: Cache cargo and rust files
         id: rust_cache
