@@ -37,7 +37,7 @@ jobs:
         run: cargo nextest run --workspace --all-features --profile ${{ matrix.os.name }}
 
       - name: Upload Test Result File
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-results-${{ matrix.os.name }}
           path: ${{ github.workspace }}/target/nextest/${{ matrix.os.name }}/junit-${{ matrix.os.name }}.xml
@@ -53,7 +53,7 @@ jobs:
       - build_and_test
     steps:
       - name: Download Test Results
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           pattern: test-results-*
           merge-multiple: true
