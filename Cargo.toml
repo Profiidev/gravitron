@@ -12,8 +12,8 @@ members = [
 
 [workspace.dependencies]
 log = "0.4.29"
-anyhow = "1.0.101"
-syn = { version = "2.0.116", features = ["full"] }
+anyhow = "1.0.102"
+syn = { version = "2.0.117", features = ["full"] }
 quote = "1.0.44"
 proc-macro2 = "1.0.106"
 glam = "0.32.0"
